@@ -59,8 +59,23 @@ public class CustomLabel extends JLabel {
     @Override
     public Dimension getPreferredSize() {
         FontMetrics fm = getFontMetrics(getFont());
-        int width = fm.stringWidth(getText());
-        return new Dimension(width, (int)fontSize + 3);
+        String text = getText();
+        int width = text != null ? fm.stringWidth(text) : 0;
+        int height = (int)fontSize + 3;
+        
+        Icon icon = getIcon();
+        if (icon != null) {
+            width += icon.getIconWidth() + getIconTextGap();
+            height = Math.max(height, icon.getIconHeight());
+        }
+        
+        Insets insets = getInsets();
+        if (insets != null) {
+            width += insets.left + insets.right;
+            height += insets.top + insets.bottom;
+        }
+        
+        return new Dimension(width, height);
     }
     
     @Override

@@ -70,6 +70,8 @@ public class CustomPanel extends JPanel {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
         int width = getWidth() - (hasShadow ? shadowSize : 1);
         int height = getHeight() - (hasShadow ? shadowSize : 1);
@@ -110,10 +112,4 @@ public class CustomPanel extends JPanel {
 		revalidate();
 	    repaint();
     }
-    
-    @Override
-	public Dimension getPreferredSize() {
-		Dimension size = super.getPreferredSize();
-		return new Dimension(500, size.height); // Fixed width to 500, height is now automatic
-	}
 }
