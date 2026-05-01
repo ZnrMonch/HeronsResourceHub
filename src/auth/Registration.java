@@ -22,7 +22,7 @@ public class Registration extends JPanel {
 		this.authFrame = authFrame;
 		CustomPanel formPanel = new CustomPanel(20, Color.WHITE, Color.BLACK, 1, true);
 		formPanel.addPadding(30);
-		formPanel.setPreferredSize(new Dimension(500, 670));
+		formPanel.setPreferredSize(new Dimension(500, 655));
 		formPanel.setLayout(new BorderLayout(0, 20));
 		
 		JPanel headerPanel = new JPanel(new BorderLayout());
