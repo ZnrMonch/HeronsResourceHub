@@ -27,7 +27,7 @@ public class CustomTabbedPane extends CustomPanel {
         // Header holds the tab buttons side-by-side
         headerPanel = new CustomPanel();
         headerPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        headerPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.BLACK));
+        headerPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.GRAY));
         
         // Content holds the actual pages
         cardLayout = new CardLayout();

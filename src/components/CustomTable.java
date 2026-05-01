@@ -2,40 +2,42 @@ package components;
 
 import javax.swing.*;
 import javax.swing.table.*;
+
+import utils.IconLoader;
+
 import java.awt.*;
 import java.sql.*;
 import java.util.Vector;
 
 public class CustomTable extends JTable {
+	private static final long serialVersionUID = 1L;
+	
+	private Object[][] fullData = new Object[0][0];
+    private Object[] columnNames = new Object[0];
+    private int pageSize = 10;
+    private int currentPage = 1;
+    private JLabel infoLabel;
 
     public CustomTable() {
         super();
         setupDefaultAppearance();
     }
     
-    // Constructor for Object arrays
     public CustomTable(Object[][] data, Object[] columnNames) {
-        super(new DefaultTableModel(data, columnNames) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        });
+        super();
         setupDefaultAppearance();
+        setFullData(data, columnNames);
     }
     
-    // Constructor that takes a ResultSet to automatically populate the table
     public CustomTable(ResultSet rs) throws SQLException {
         super(buildTableModel(rs));
         setupDefaultAppearance();
     }
 
-    // Method to build a DefaultTableModel from a ResultSet
     public static DefaultTableModel buildTableModel(ResultSet rs) throws SQLException {
         ResultSetMetaData metaData = rs.getMetaData();
         int columnCount = metaData.getColumnCount();
 
-        // Column names
         Vector<String> columnNames = new Vector<>();
         for (int column = 1; column <= columnCount; column++) {
             columnNames.add(metaData.getColumnName(column));
@@ -54,27 +56,155 @@ public class CustomTable extends JTable {
         return new DefaultTableModel(data, columnNames) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false; // Typically, database tables are rendered read-only
+                return false;
             }
         };
     }
 
     private void setupDefaultAppearance() {
         setFillsViewportHeight(true);
+        if (getTableHeader() != null) {
+            getTableHeader().setReorderingAllowed(false);
+            getTableHeader().setResizingAllowed(false);
+        }
+        
+        setCellSelectionEnabled(true);
+        setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        
+        // Remove the default table border
+        setBorder(BorderFactory.createEmptyBorder());
     }
 
-    // Customize borderlines / gridlines
-    public void setGridLines(boolean horizontal, boolean vertical) {
-        setShowHorizontalLines(horizontal);
-        setShowVerticalLines(vertical);
-        if (horizontal || vertical) {
-            setShowGrid(true);
-        } else {
-            setShowGrid(false);
+    public void setFullData(Object[][] data, Object[] columnNames) {
+        this.fullData = data != null ? data : new Object[0][0];
+        this.columnNames = columnNames != null ? columnNames : new Object[0];
+        this.currentPage = 1;
+        
+        DefaultTableModel fullModel = new DefaultTableModel(fullData, this.columnNames) {
+            @Override
+            public boolean isCellEditable(int row, int column) { return false; }
+            
+            @Override
+            public Class<?> getColumnClass(int columnIndex) {
+                return String.class;
+            }
+        };
+        setModel(fullModel);
+        setupDefaultAppearance(); 
+        
+        updateTableModel();
+    }
+
+    private void updateTableModel() {
+        int totalItems = fullData.length;
+        int totalPages = (int) Math.ceil((double) totalItems / pageSize);
+        if (totalPages == 0) totalPages = 1;
+        
+        int start = (currentPage - 1) * pageSize;
+        int end = Math.min(start + pageSize, totalItems);
+        
+        Object[][] pageData = new Object[end - start][columnNames.length];
+        
+        for (int i = start; i < end; i++) {
+            pageData[i - start] = fullData[i];
+        }
+        
+        DefaultTableModel newModel = new DefaultTableModel(pageData, columnNames) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+            @Override
+            public Class<?> getColumnClass(int columnIndex) {
+                return String.class;
+            }
+        };
+        setModel(newModel);
+        
+        setFillsViewportHeight(true);
+        if (getTableHeader() != null) {
+            getTableHeader().setReorderingAllowed(false);
+            getTableHeader().setResizingAllowed(false);
+        }
+        setCellSelectionEnabled(true);
+        setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        
+        if (infoLabel != null) {
+            infoLabel.setText("Showing " + (totalItems == 0 ? 0 : start + 1) + " to " + end + " out of " + totalItems + " items");
         }
     }
 
-    // Customize the header (font and color)
+    public JPanel createPaginationPanel() {
+        CustomPanel panel = new CustomPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
+        panel.addPadding(5);
+        
+        infoLabel = new JLabel();
+        updateTableModel();
+        
+        CustomButton btnFirst = new CustomButton(IconLoader.loadAndScaleColorizedIcon("/resources/icons/double-arrow-left.png", 20, 20, Color.WHITE), 5);
+        CustomButton btnPrev = new CustomButton(IconLoader.loadAndScaleColorizedIcon("/resources/icons/arrow-left.png", 20, 20, Color.WHITE), 5);
+        CustomButton btnNext = new CustomButton(IconLoader.loadAndScaleColorizedIcon("/resources/icons/arrow-right.png", 20, 20, Color.WHITE), 5);
+        CustomButton btnLast = new CustomButton(IconLoader.loadAndScaleColorizedIcon("/resources/icons/double-arrow-right.png", 20, 20, Color.WHITE), 5);
+        
+        btnFirst.addActionListener(e -> { 
+            if (currentPage > 1) { 
+                currentPage = 1; 
+                updateTableModel(); 
+                revalidate();
+                repaint();
+            } 
+        });
+        
+        btnPrev.addActionListener(e -> { 
+            if (currentPage > 1) { 
+                currentPage--; 
+                updateTableModel(); 
+                revalidate();
+                repaint();
+            } 
+        });
+        
+        btnNext.addActionListener(e -> { 
+            int totalPages = (int) Math.ceil((double) fullData.length / pageSize);
+            if (currentPage < totalPages) { 
+                currentPage++; 
+                updateTableModel(); 
+                revalidate();
+                repaint();
+            }
+        });
+        
+        btnLast.addActionListener(e -> { 
+            int totalPages = (int) Math.ceil((double) fullData.length / pageSize);
+            if (totalPages > 0 && currentPage != totalPages) { 
+                currentPage = totalPages; 
+                updateTableModel(); 
+                revalidate();
+                repaint();
+            }
+        });
+        
+        panel.add(Box.createHorizontalGlue());
+        panel.add(infoLabel);
+        panel.add(Box.createHorizontalStrut(5));
+        panel.add(btnFirst);
+        panel.add(Box.createHorizontalStrut(5));
+        panel.add(btnPrev);
+        panel.add(Box.createHorizontalStrut(5));
+        panel.add(btnNext);
+        panel.add(Box.createHorizontalStrut(5));
+        panel.add(btnLast);
+        panel.add(Box.createHorizontalGlue());
+        
+        return panel;
+    }
+
+    public void setGridLines(boolean horizontal, boolean vertical) {
+        setShowHorizontalLines(horizontal);
+        setShowVerticalLines(vertical);
+    }
+
     public void setHeaderCustomization(Font font, Color foregroundColor, Color backgroundColor) {
         JTableHeader header = getTableHeader();
         if (header != null) {
@@ -84,7 +214,6 @@ public class CustomTable extends JTable {
         }
     }
 
-    // Customize the body details (font and color for default renderer)
     public void setBodyCustomization(Font font, Color foregroundColor, Color backgroundColor) {
         if (font != null) setFont(font);
         if (foregroundColor != null) setForeground(foregroundColor);

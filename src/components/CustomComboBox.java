@@ -16,6 +16,7 @@ public class CustomComboBox<E> extends JComboBox<E> {
     
     private int radius;
     private boolean isHovered = false;
+    private Dimension customSize = null;
     
     public CustomComboBox(E[] items) {
         this(items, 10);
@@ -37,6 +38,22 @@ public class CustomComboBox<E> extends JComboBox<E> {
         } else {
             setFont(getFont().deriveFont(size));
         }
+    }
+
+    public void setCustomSize(int width, int height) {
+        this.customSize = new Dimension(width, height);
+        setPreferredSize(customSize);
+        setMinimumSize(customSize);
+        setMaximumSize(customSize);
+        revalidate();
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+        if (customSize != null) {
+            return customSize;
+        }
+        return super.getPreferredSize();
     }
 
     private void init(int radius) {
@@ -110,12 +127,13 @@ public class CustomComboBox<E> extends JComboBox<E> {
     private class CustomComboBoxUI extends BasicComboBoxUI {
         @Override
         protected JButton createArrowButton() {
-            JButton button = new JButton("\u25BC");
+            CustomButton button = new CustomButton(IconLoader.loadAndScaleIcon("/resources/icons/arrow-dropdown.png", 12, 12));
+            button.setDefaultColor(new Color(0, 0, 0, 0));
+            button.setHoverColor(new Color(0, 0, 0, 0));
             button.setContentAreaFilled(false);
             button.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 5));
             button.setFocusPainted(false);
             button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            button.setForeground(Color.GRAY);
             return button;
         }
         

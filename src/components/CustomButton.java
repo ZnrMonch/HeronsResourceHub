@@ -10,7 +10,7 @@ import utils.*;
 public class CustomButton extends JButton {
     private static final long serialVersionUID = 1L;
     
-    private int radius;
+    private int radius = 10;
     private Color defaultColor = Brand.PRIMARY_COLOR;
     private Color hoverColor = Brand.PRIMARY_COLOR.darker();
     private Color textColor = Color.WHITE;
@@ -26,6 +26,20 @@ public class CustomButton extends JButton {
         super(text);
         this.radius = radius;
         init();
+    }
+    
+    public CustomButton(Icon icon) {
+        this(icon, 0);
+    }
+    
+    public CustomButton(Icon icon, int radius) {
+        super(icon);
+        this.radius = radius;
+        init();
+    }
+    
+    public void setIconPath(String path) {
+        setIcon(IconLoader.loadIcon(path));
     }
     
     public void setRadius(int radius) {
@@ -79,26 +93,31 @@ public class CustomButton extends JButton {
     }
 
     private void init() {
-    	setForeground(textColor);
+        setForeground(textColor);
         setContentAreaFilled(false);
         setFocusPainted(false);
         setBorderPainted(false);
+        setOpaque(false);
         setCursor(new Cursor(Cursor.HAND_CURSOR));
-        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        setBorder(BorderFactory.createEmptyBorder(radius, radius, radius, radius));
         
         updateFont();
         
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
-                isHovered = true;
-                repaint();
+                if (isEnabled()) {
+                    isHovered = true;
+                    repaint();
+                }
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
-                isHovered = false;
-                repaint();
+                if (isEnabled()) {
+                    isHovered = false;
+                    repaint();
+                }
             }
         });
     }

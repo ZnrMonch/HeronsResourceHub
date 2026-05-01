@@ -112,4 +112,10 @@ public class CustomPanel extends JPanel {
 		revalidate();
 	    repaint();
     }
+    
+    public void addPadding(int paddingX, int paddingY) {
+		setBorder(BorderFactory.createEmptyBorder(paddingY, paddingX, paddingY, paddingX));
+		revalidate();
+	    repaint();
+    }
 }

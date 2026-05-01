@@ -13,6 +13,7 @@ public class CustomPasswordField extends JPasswordField {
     private int radius;
     private boolean isHovered = false;
     private String placeholder = "";
+    private Dimension customSize = null;
     private boolean isPasswordVisible = false;
     private char defaultEchoChar;
 
@@ -179,9 +180,20 @@ public class CustomPasswordField extends JPasswordField {
             setFont(getFont().deriveFont(size));
         }
     }
+
+    public void setCustomSize(int width, int height) {
+        this.customSize = new Dimension(width, height);
+        setPreferredSize(customSize);
+        setMinimumSize(customSize);
+        setMaximumSize(customSize);
+        revalidate();
+    }
     
     @Override
     public Dimension getPreferredSize() {
+        if (customSize != null) {
+            return customSize;
+        }
         FontMetrics fm = getFontMetrics(getFont());
         int height = fm.getHeight() + getInsets().top + getInsets().bottom + 4;
         int width = super.getPreferredSize().width;
