@@ -1,4 +1,4 @@
-package pages;
+package admin;
 
 import java.awt.*;
 import utils.*;
@@ -81,7 +81,7 @@ public class AdminPanel extends JPanel {
 		CustomTabbedPane tabbedPane = new CustomTabbedPane();
 		tabbedPane.setRadius(20);
 		
-		tabbedPane.addTab("USERS", "/resources/icons/home.png", new CustomPanel(Color.WHITE));
+		tabbedPane.addTab("USERS", "/resources/icons/home.png", new AdminTable());
 		tabbedPane.addTab("ITEMS", "/resources/icons/items.png", new CustomPanel(Color.WHITE));
 		tabbedPane.addTab("USER LOGS", "/resources/icons/logs.png", new CustomPanel(Color.WHITE));
 		tabbedPane.addTab("TRANSACTION LOGS", "/resources/icons/logs.png", new CustomPanel(Color.WHITE));
