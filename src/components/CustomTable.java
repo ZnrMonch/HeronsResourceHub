@@ -135,9 +135,8 @@ public class CustomTable extends JTable {
     }
 
     public JPanel createPaginationPanel() {
-        CustomPanel panel = new CustomPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
-        panel.addPadding(5);
+        CustomPanel panel = new CustomPanel(new BorderLayout());
+        panel.setPadding(5);
         
         infoLabel = new JLabel();
         updateTableModel();
@@ -185,18 +184,20 @@ public class CustomTable extends JTable {
             }
         });
         
-        panel.add(Box.createHorizontalGlue());
-        panel.add(infoLabel);
-        panel.add(Box.createHorizontalStrut(5));
-        panel.add(btnFirst);
-        panel.add(Box.createHorizontalStrut(5));
-        panel.add(btnPrev);
-        panel.add(Box.createHorizontalStrut(5));
-        panel.add(btnNext);
-        panel.add(Box.createHorizontalStrut(5));
-        panel.add(btnLast);
-        panel.add(Box.createHorizontalGlue());
         
+        CustomPanel wrapper = new CustomPanel();
+        wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.X_AXIS));
+        wrapper.add(btnFirst);
+        wrapper.add(Box.createHorizontalStrut(5));
+        wrapper.add(btnPrev);
+        wrapper.add(Box.createHorizontalStrut(5));
+        wrapper.add(btnNext);
+        wrapper.add(Box.createHorizontalStrut(5));
+        wrapper.add(btnLast);
+        
+        panel.add(infoLabel, BorderLayout.WEST);
+        panel.add(wrapper, BorderLayout.EAST);
+                
         return panel;
     }
 

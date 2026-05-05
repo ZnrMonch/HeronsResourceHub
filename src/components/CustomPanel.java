@@ -11,21 +11,19 @@ public class CustomPanel extends JPanel {
     private int cornerRadius;
     private Color borderColor;
     private int borderWidth;
-    private boolean hasShadow;
     private int shadowSize = 10;
 
     public CustomPanel() {
-    	this(0, null, null, 0, false);
+    	this(0, null, null, 0);
     }
     
     public CustomPanel(LayoutManager layout) {
-		this(0, null, null, 0, false);
+		this(0, null, null, 0);
 		setLayout(layout);
 	}
     
-    // 2. BACKGROUND IMAGE
     public CustomPanel(String resourcePath) {
-        this(0, null, null, 0, false);
+        this(0, null, null, 0);
         try {
             java.io.InputStream is = getClass().getResourceAsStream(resourcePath);
             if (is != null) this.backgroundImage = ImageIO.read(is);
@@ -35,29 +33,24 @@ public class CustomPanel extends JPanel {
     }
     
     public CustomPanel(Color panelColor) {
-    	this(0, panelColor, null, 0, false);
+    	this(0, panelColor, null, 0);
     }
     
     public CustomPanel(Color panelColor, Color borderColor) {
-    	this(0, panelColor, borderColor, 0, false);
+    	this(0, panelColor, borderColor, 0);
     }
     
     public CustomPanel(Color panelColor, Color borderColor, int borderWidth) {
-    	this(0, panelColor, borderColor, borderWidth, false);
+    	this(0, panelColor, borderColor, borderWidth);
     }
 
-    public CustomPanel(int radius, Color panelColor, Color borderColor, int borderWidth, boolean hasShadow) {
+    public CustomPanel(int radius, Color panelColor, Color borderColor, int borderWidth) {
         this.cornerRadius = radius;
         this.borderColor = borderColor;
         this.borderWidth = borderWidth;
-        this.hasShadow = hasShadow;
         
         setBackground(panelColor != null ? panelColor : new Color(0,0,0,0));
         setOpaque(false);
-        
-        if (hasShadow) {
-            setBorder(BorderFactory.createEmptyBorder(0, 0, shadowSize, shadowSize));
-        }
     }
     
     public void setRadius(int radius) {
@@ -73,22 +66,11 @@ public class CustomPanel extends JPanel {
         g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
         g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
-        int width = getWidth() - (hasShadow ? shadowSize : 1);
-        int height = getHeight() - (hasShadow ? shadowSize : 1);
+        int width = getWidth();
+        int height = getHeight();
 
-        // 1. DRAW SHADOW (If enabled)
-        if (hasShadow) {
-            for (int i = 0; i < shadowSize; i++) {
-                int alpha = Math.max(0, 30 - (i * 5));
-                g2.setColor(new Color(0, 0, 0, alpha)); // Fade effect
-                g2.fillRoundRect(i, i, width, height, cornerRadius, cornerRadius);
-            }
-        }
+        Shape roundShape = new RoundRectangle2D.Float(0, 0, getWidth(), height, cornerRadius, cornerRadius);
 
-        // Define the shape for background/clip
-        Shape roundShape = new RoundRectangle2D.Float(0, 0, width, height, cornerRadius, cornerRadius);
-
-        // 2. DRAW BACKGROUND
         if (backgroundImage != null) {
             g2.setClip(roundShape);
             g2.drawImage(backgroundImage, 0, 0, width, height, this);
@@ -98,7 +80,6 @@ public class CustomPanel extends JPanel {
             g2.fill(roundShape);
         }
 
-        // 3. DRAW BORDER
         if (borderWidth > 0 && borderColor != null) {
             g2.setColor(borderColor);
             g2.setStroke(new BasicStroke(borderWidth));
@@ -107,15 +88,29 @@ public class CustomPanel extends JPanel {
         }
     }
     
-    public void addPadding(int padding) {
+    public void setPadding(int padding) {
 		setBorder(BorderFactory.createEmptyBorder(padding, padding, padding, padding));
 		revalidate();
 	    repaint();
     }
     
-    public void addPadding(int paddingX, int paddingY) {
+    public void setPadding(int paddingX, int paddingY) {
 		setBorder(BorderFactory.createEmptyBorder(paddingY, paddingX, paddingY, paddingX));
 		revalidate();
 	    repaint();
+    }
+
+    public void setBorder(int width, Color color) {
+		this.borderWidth = width;
+		this.borderColor = color;
+		revalidate();
+		repaint();
+    }
+    
+    public void setBorder(int width) {
+		this.borderWidth = width;
+		this.borderColor = Color.BLACK;
+		revalidate();
+		repaint();
     }
 }

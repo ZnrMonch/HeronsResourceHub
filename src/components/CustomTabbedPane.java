@@ -61,14 +61,28 @@ public class CustomTabbedPane extends CustomPanel {
      * @param contentPane The panel to display when selected
      */
     public void addTab(String title, String iconPath, JPanel contentPane) {
-        ImageIcon defaultIcon = IconLoader.loadAndScaleIcon(iconPath, 20, 20);
-        ImageIcon activeIcon = IconLoader.loadAndScaleColorizedIcon(iconPath, 20, 20, activeColor);
+        ImageIcon defaultIcon = iconPath != null ? IconLoader.loadAndScaleIcon(iconPath, 20, 20) : null;
+        ImageIcon activeIcon = iconPath != null ? IconLoader.loadAndScaleColorizedIcon(iconPath, 20, 20, activeColor) : null;
         
         String cardName = "TAB_" + tabs.size();
         contentPane.setOpaque(false); 
         contentPanel.add(contentPane, cardName);
 
         TabItem tab = new TabItem(title, defaultIcon, activeIcon, cardName);
+        tabs.add(tab);
+        headerPanel.add(tab);
+
+        if (tabs.size() == 1) {
+            selectTab(tab);
+        }
+    }
+    
+    public void addTab(String title, JPanel contentPane) {
+        String cardName = "TAB_" + tabs.size();
+        contentPane.setOpaque(false); 
+        contentPanel.add(contentPane, cardName);
+
+        TabItem tab = new TabItem(title, null, null, cardName);
         tabs.add(tab);
         headerPanel.add(tab);
 
