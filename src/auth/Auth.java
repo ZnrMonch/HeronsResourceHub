@@ -3,12 +3,14 @@ package auth;
 import java.awt.*;
 import javax.swing.*;
 import components.*;
+import utils.IconLoader;
 
 public class Auth extends JFrame {
 	private CustomPanel contentPane;
 	
     public Auth() {
-    	setTitle("Authentication");
+    	setTitle("University of Makati | Herons' Resource Hub");
+		setIconImage(IconLoader.loadAndScaleIcon("/resources/images/hrh-icon.jpg", 50, 50).getImage());
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setLocationRelativeTo(null);
 		setExtendedState(MAXIMIZED_BOTH);

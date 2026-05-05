@@ -16,7 +16,7 @@ public class AdminTable extends CustomPanel {
 	
 	private CustomPanel initHeader() {
 		CustomPanel header = new CustomPanel();
-		header.addPadding(20, 15);
+		header.setPadding(20, 15);
 		header.setLayout(new BoxLayout(header, BoxLayout.X_AXIS));
 		header.add(new CustomLabel("User Management", 18f, FontStyle.BOLD));
 		header.add(Box.createHorizontalGlue());
