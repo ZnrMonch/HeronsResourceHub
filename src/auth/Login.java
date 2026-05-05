@@ -14,14 +14,14 @@ public class Login extends JPanel {
 	
 	public Login(Auth authFrame) {
 		this.authFrame = authFrame;
-		CustomPanel formPanel = new CustomPanel(20, Color.WHITE, Color.BLACK, 1, true) {
+		CustomPanel formPanel = new CustomPanel(20, Color.WHITE, Color.BLACK, 1) {
 			@Override
 			public Dimension getPreferredSize() {
 				Dimension size = super.getPreferredSize();
 				return new Dimension(500, size.height);
 			}
 		};
-		formPanel.addPadding(30);
+		formPanel.setPadding(30);
 		formPanel.setLayout(new BorderLayout(0, 20));
 		
 		JPanel headerPanel = new JPanel(new BorderLayout());

@@ -20,8 +20,8 @@ public class Registration extends JPanel {
 	
 	public Registration(Auth authFrame) {		
 		this.authFrame = authFrame;
-		CustomPanel formPanel = new CustomPanel(20, Color.WHITE, Color.BLACK, 1, true);
-		formPanel.addPadding(30);
+		CustomPanel formPanel = new CustomPanel(20, Color.WHITE, Color.BLACK, 1);
+		formPanel.setPadding(30);
 		formPanel.setPreferredSize(new Dimension(500, 655));
 		formPanel.setLayout(new BorderLayout(0, 20));
 		
