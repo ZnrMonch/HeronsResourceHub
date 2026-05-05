@@ -1,0 +1,10 @@
+package items;
+
+public enum Category {
+	TEXTBOOKS,
+	ELECTRONICS,
+	EQUIPMENTS,
+	SUPPLIES,
+	CONSUMABLE_GOODS,
+	OTHERS
+}
