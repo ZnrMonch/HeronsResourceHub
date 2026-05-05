@@ -75,6 +75,27 @@ public class CustomButton extends JButton {
 		repaint();
 	}
     
+    public void setPadding(int padding) {
+        setBorder(BorderFactory.createEmptyBorder(padding, padding, padding, padding));
+        revalidate();
+        repaint();
+    }
+    
+    public void setPadding(int top, int left, int bottom, int right) {
+        setBorder(BorderFactory.createEmptyBorder(top, left, bottom, right));
+        revalidate();
+        repaint();
+    }
+    
+    public void setCustomSize(int width, int height) {
+        Dimension size = new Dimension(width, height);
+        setPreferredSize(size);
+        setMinimumSize(size);
+        setMaximumSize(size);
+        revalidate();
+        repaint();
+    }
+    
     private void updateFont() {
         if (FontLib.POPPINS_REGULAR != null) {
             switch (fontStyle) {
