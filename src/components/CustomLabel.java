@@ -61,7 +61,7 @@ public class CustomLabel extends JLabel {
         FontMetrics fm = getFontMetrics(getFont());
         String text = getText();
         int width = text != null ? fm.stringWidth(text) : 0;
-        int height = (int)fontSize + 3;
+        int height = (int) fontSize + 3;
         
         Icon icon = getIcon();
         if (icon != null) {

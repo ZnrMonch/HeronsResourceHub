@@ -10,7 +10,7 @@ import utils.*;
 public class CustomButton extends JButton {
     private static final long serialVersionUID = 1L;
     
-    private int radius = 10;
+    private int radius = 15;
     private Color defaultColor = Brand.PRIMARY_COLOR;
     private Color hoverColor = Brand.PRIMARY_COLOR.darker();
     private Color textColor = Color.WHITE;
@@ -56,6 +56,12 @@ public class CustomButton extends JButton {
     	this.hoverColor = color;
     	repaint();
     }
+    
+    public void setTransparent() {
+		this.defaultColor = new Color(0, 0, 0, 0);
+		this.hoverColor = new Color(0, 0, 0, 0);
+		repaint();
+	}
     
     public void setTextColor(Color color) {
 		this.textColor = color;

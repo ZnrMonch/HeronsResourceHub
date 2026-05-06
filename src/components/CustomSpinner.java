@@ -37,9 +37,10 @@ public class CustomSpinner extends JSpinner {
         setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8)); 
         setBackground(Color.WHITE);
         
-        // Style the inner text field container
+        // Hide standard background from DefaultEditor panel wrapper
         JComponent editor = getEditor();
         if (editor instanceof DefaultEditor) {
+            editor.setOpaque(false); // << Added to fix gray DefaultEditor wrapper container
             JFormattedTextField textField = ((DefaultEditor) editor).getTextField();
             textField.setOpaque(false);
             textField.setBackground(new Color(0,0,0,0));
