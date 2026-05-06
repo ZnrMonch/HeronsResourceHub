@@ -31,15 +31,15 @@ public class Marketplace extends CustomTabbedPane {
 		setBackground(Color.WHITE);
 		setRadius(20);	
 		
-		addTab("MARKETPLACE", initMarketplace());		
-		addTab("BORROWING", initSharing());
-		addTab("TRADING", initTrading());
-		
+		addTab("MARKETPLACE", "/resources/icons/marketplace.png", initMarketplace());		
+		addTab("SHARING", "/resources/icons/sharing.png", initSharing());
+		addTab("BARTER TRADING", "/resources/icons/barter.png",  initTrading());
 	}
 	
 	private CustomPanel initMarketplace() {
 		CustomPanel wrapper = new CustomPanel();
-		wrapper.setLayout(new BorderLayout(20, 20));
+		wrapper.setLayout(new BorderLayout());
+		wrapper.setPadding(10);
 		
 		marketplaceSearchField = new CustomSearchField("Search in Marketplace...");
 		marketplaceSearchField.setCustomSize(300, 35);
@@ -48,10 +48,9 @@ public class Marketplace extends CustomTabbedPane {
 		marketplaceFilterByStatusBox = new CustomComboBox<>(new String[]{"All Statuses", "Available", "Borrowed"});
 		marketplaceFilterByStatusBox.setCustomSize(200, 35);
 		marketplaceViewToggle = new CustomToggleButton(
-				IconLoader.loadAndScaleColorizedIcon("/resources/icons/view-grid.png", 25, 25, Color.WHITE),
-				IconLoader.loadAndScaleColorizedIcon("/resources/icons/view-list.png", 25, 25, Color.WHITE));
-		marketplaceViewToggle.setPadding(5);
-		marketplaceViewToggle.setRadius(10);
+				IconLoader.loadAndScaleColorizedIcon("/resources/icons/view-grid.png", 35, 35, Brand.PRIMARY_COLOR),
+				IconLoader.loadAndScaleColorizedIcon("/resources/icons/view-list.png", 35, 35, Brand.PRIMARY_COLOR));
+		marketplaceViewToggle.setTransparent();
 		marketplaceSellItemButton = new CustomButton("Sell Item");
 		marketplaceSellItemButton.setCustomSize(120, 35);
 		marketplaceSellItemButton.setRadius(10);
@@ -70,10 +69,13 @@ public class Marketplace extends CustomTabbedPane {
 		header.add(marketplaceSellItemButton);
 		
 		marketplaceSellItemButton.addActionListener(e -> {
-			new ItemForm((JFrame) SwingUtilities.getWindowAncestor(this), "Sell Item");
+			new ItemForm((JFrame) SwingUtilities.getWindowAncestor(this), "Sell an Item");
 		});
 		
-		CustomPanel content = new ItemPanel();
+		ItemPanel content = new ItemPanel();
+		marketplaceViewToggle.addToggleListener(isList -> {
+			content.setView(isList ? View.LIST : View.GRID);
+		});
 		wrapper.add(content, BorderLayout.CENTER);
 		
 		wrapper.add(header, BorderLayout.NORTH);
@@ -82,7 +84,8 @@ public class Marketplace extends CustomTabbedPane {
 	
 	private CustomPanel initSharing() {
 		CustomPanel wrapper = new CustomPanel();
-		wrapper.setLayout(new BorderLayout(20, 20));
+		wrapper.setLayout(new BorderLayout());
+		wrapper.setPadding(10);
 		
 		sharingSearchField = new CustomSearchField("Search in Borrowing...");
 		sharingSearchField.setCustomSize(300, 35);
@@ -91,11 +94,10 @@ public class Marketplace extends CustomTabbedPane {
 		sharingFilterByStatusBox = new CustomComboBox<>(new String[]{"All Statuses", "Available", "Borrowed"});
 		sharingFilterByStatusBox.setCustomSize(200, 35);
 		sharingViewToggle = new CustomToggleButton(
-				IconLoader.loadAndScaleColorizedIcon("/resources/icons/view-grid.png", 25, 25, Color.WHITE),
-				IconLoader.loadAndScaleColorizedIcon("/resources/icons/view-list.png", 25, 25, Color.WHITE));
-		sharingViewToggle.setPadding(5);
-		sharingViewToggle.setRadius(10);
-		sharingLendItemButton = new CustomButton("Lend Item");
+				IconLoader.loadAndScaleColorizedIcon("/resources/icons/view-grid.png", 35, 35, Brand.PRIMARY_COLOR),
+				IconLoader.loadAndScaleColorizedIcon("/resources/icons/view-list.png", 35, 35, Brand.PRIMARY_COLOR));
+		sharingViewToggle.setTransparent();
+		sharingLendItemButton = new CustomButton("Lend an Item");
 		sharingLendItemButton.setCustomSize(120, 35);
 		sharingLendItemButton.setRadius(10);
 		
@@ -112,6 +114,16 @@ public class Marketplace extends CustomTabbedPane {
 		header.add(Box.createHorizontalStrut(5));
 		header.add(sharingLendItemButton);
 		
+		sharingLendItemButton.addActionListener(e -> {
+			new ItemForm((JFrame) SwingUtilities.getWindowAncestor(this), "Lend an Item");
+		});
+		
+		ItemPanel content = new ItemPanel();
+		sharingViewToggle.addToggleListener(isList -> {
+			content.setView(isList ? View.LIST : View.GRID);
+		});
+		wrapper.add(content, BorderLayout.CENTER);
+		
 		wrapper.add(header, BorderLayout.NORTH);
 		
 		return wrapper;
@@ -119,7 +131,8 @@ public class Marketplace extends CustomTabbedPane {
 	
 	private CustomPanel initTrading() {
 		CustomPanel wrapper = new CustomPanel();
-		wrapper.setLayout(new BorderLayout(20, 20));
+		wrapper.setLayout(new BorderLayout());
+		wrapper.setPadding(10);
 		
 		barterSearchField = new CustomSearchField("Search in Trading...");
 		barterSearchField.setCustomSize(300, 35);
@@ -128,11 +141,10 @@ public class Marketplace extends CustomTabbedPane {
 		barterFilterByStatusBox = new CustomComboBox<>(new String[]{"All Statuses", "Available", "Borrowed"});
 		barterFilterByStatusBox.setCustomSize(200, 35);
 		barterViewToggle = new CustomToggleButton(
-				IconLoader.loadAndScaleColorizedIcon("/resources/icons/view-grid.png", 25, 25, Color.WHITE),
-				IconLoader.loadAndScaleColorizedIcon("/resources/icons/view-list.png", 25, 25, Color.WHITE));
-		barterViewToggle.setPadding(5);
-		barterViewToggle.setRadius(10);
-		barterLendItemButton = new CustomButton("Offer Item");
+				IconLoader.loadAndScaleColorizedIcon("/resources/icons/view-grid.png", 35, 35, Brand.PRIMARY_COLOR),
+				IconLoader.loadAndScaleColorizedIcon("/resources/icons/view-list.png", 35, 35, Brand.PRIMARY_COLOR));
+		barterViewToggle.setTransparent();
+		barterLendItemButton = new CustomButton("Offer an Item");
 		barterLendItemButton.setCustomSize(120, 35);
 		barterLendItemButton.setRadius(10);
 		
@@ -148,6 +160,16 @@ public class Marketplace extends CustomTabbedPane {
 		header.add(barterViewToggle);
 		header.add(Box.createHorizontalStrut(5));
 		header.add(barterLendItemButton);
+		
+		barterLendItemButton.addActionListener(e -> {
+			new ItemForm((JFrame) SwingUtilities.getWindowAncestor(this), "Offer an Item");
+		});
+		
+		ItemPanel content = new ItemPanel();
+		barterViewToggle.addToggleListener(isList -> {
+			content.setView(isList ? View.LIST : View.GRID);
+		});
+		wrapper.add(content, BorderLayout.CENTER);
 		
 		wrapper.add(header, BorderLayout.NORTH);
 		

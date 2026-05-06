@@ -3,7 +3,7 @@ package utils;
 import java.awt.*;
 
 public class Brand {
-	public static final Color PRIMARY_COLOR = Color.decode("#1800AD");	
+	public static final Color PRIMARY_COLOR = Color.decode("#201757");	
 	public static final Color BACKGROUND_COLOR = Color.decode("#201757");
 	public static final float HEADER1_TEXT_SIZE = 38f;
 	public static final float HEADER2_TEXT_SIZE = 30f;

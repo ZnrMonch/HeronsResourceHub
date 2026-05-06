@@ -11,13 +11,13 @@ public class ItemForm extends JDialog {
 	// GENERAL FIELDS
 	private CustomTextField itemNameField;
 	private CustomTextArea descriptionField;
-	private CustomComboBox categoryField;
-	private CustomComboBox conditionField;
+	private CustomComboBox<String> categoryField;
+	private CustomComboBox<String> conditionField;
 	private CustomTextField pickupLocationField;
 	
 	// SELLING FIELDS
 	private CustomSpinner priceField;
-	private CustomComboBox paymentMethodField;
+	private CustomComboBox<String> paymentMethodField;
 	
 	// LENDING FIELDS
 	private CustomSpinner maximumBorrowDaysField;
@@ -28,35 +28,38 @@ public class ItemForm extends JDialog {
 	
 	public ItemForm(JFrame parent, String title) {
 		super(parent, title, true);
-        setSize(500, 600);
         setResizable(false);
-        setLocationRelativeTo(parent);
         
         setLayout(new BorderLayout());
         getContentPane().setBackground(Color.WHITE);
-		
+		((JComponent) getContentPane()).setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
 		init();
+		
+		pack();
+		setSize(500, getPreferredSize().height);
+		setLocationRelativeTo(parent);
 		setVisible(true);
 	}
 	
 	private void init() {
 		add(initHeader(), BorderLayout.NORTH);
-		add(initForm(), BorderLayout.SOUTH);
+		add(initForm(), BorderLayout.CENTER);
+		add(initAction(), BorderLayout.SOUTH);
 	}
 	
 	private CustomPanel initHeader() {
 		CustomPanel wrapper = new CustomPanel(new GridBagLayout());
 		
-		wrapper.setPadding(30);
-		wrapper.add(new CustomLabel("MARKETPLACE | SELLING", Brand.HEADER2_TEXT_SIZE, FontStyle.BOLD));
+		wrapper.add(new CustomLabel(getTitle() != null ? getTitle().toUpperCase() : "ITEM FORM", Brand.HEADER2_TEXT_SIZE, FontStyle.BOLD));
 	
 		return wrapper;
 	}
 	
 	private CustomPanel initForm() {
 		CustomPanel wrapper = new CustomPanel();
+		wrapper.setPadding(0, 20);
 		wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
-		wrapper.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 		
 		itemNameField = new CustomTextField();
 		itemNameField.setCustomSize(Integer.MAX_VALUE, 35);
@@ -83,6 +86,37 @@ public class ItemForm extends JDialog {
 		wrapper.add(Box.createVerticalStrut(10));
 		wrapper.add(new CustomLabel("Pickup Location:"));
 		wrapper.add(pickupLocationField);
+		wrapper.add(Box.createVerticalStrut(10));
+		
+		String lowerTitle = getTitle() != null ? getTitle().toLowerCase() : "";
+		
+		if (lowerTitle.contains("sell")) {
+			priceField = new CustomSpinner();
+			priceField.setCustomSize(Integer.MAX_VALUE, 35);
+			paymentMethodField = new CustomComboBox<>(new String[]{"Cash", "GCash", "Bank Transfer", "Other"});
+			paymentMethodField.setCustomSize(Integer.MAX_VALUE, 35);
+			
+			wrapper.add(new CustomLabel("Price:"));
+			wrapper.add(priceField);
+			wrapper.add(Box.createVerticalStrut(10));
+			wrapper.add(new CustomLabel("Payment Method:"));
+			wrapper.add(paymentMethodField);
+			wrapper.add(Box.createVerticalStrut(10));
+		} else if (lowerTitle.contains("lend")) {
+			maximumBorrowDaysField = new CustomSpinner();
+			maximumBorrowDaysField.setCustomSize(Integer.MAX_VALUE, 35);
+			
+			wrapper.add(new CustomLabel("Maximum Borrow Days:"));
+			wrapper.add(maximumBorrowDaysField);
+			wrapper.add(Box.createVerticalStrut(10));
+		} else if (lowerTitle.contains("offer") || lowerTitle.contains("trade")) {
+			desiredItemField = new CustomTextField();
+			desiredItemField.setCustomSize(Integer.MAX_VALUE, 35);
+			
+			wrapper.add(new CustomLabel("Desired Item in Return:"));
+			wrapper.add(desiredItemField);
+			wrapper.add(Box.createVerticalStrut(10));
+		}
 
 		for (Component c : wrapper.getComponents()) {
 			if (c instanceof JComponent) {
@@ -90,6 +124,23 @@ public class ItemForm extends JDialog {
 			}
 		}
 
+		return wrapper;
+	}
+	
+	private CustomPanel initAction() {
+		CustomPanel wrapper = new CustomPanel(new FlowLayout(FlowLayout.CENTER));
+		
+		CustomButton cancelButton = new CustomButton("Cancel");
+		cancelButton.setRadius(10);
+		cancelButton.setPadding(5, 10, 5, 10);
+		cancelButton.addActionListener(e -> dispose());
+		
+		CustomButton submitButton = new CustomButton("Submit");
+		submitButton.setRadius(10);
+		submitButton.setPadding(5, 10, 5, 10);
+		
+		wrapper.add(cancelButton);
+		wrapper.add(submitButton);
 		return wrapper;
 	}
 
