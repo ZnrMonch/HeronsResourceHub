@@ -17,6 +17,9 @@ public class CustomTable extends JTable {
     private int pageSize = 10;
     private int currentPage = 1;
     private JLabel infoLabel;
+    private java.util.Set<Integer> editableColumns = new java.util.HashSet<>();
+    private java.util.Map<Integer, Integer> columnWidths = new java.util.HashMap<>();
+    private java.util.Map<Integer, Integer> columnAlignments = new java.util.HashMap<>();
 
     public CustomTable() {
         super();
@@ -82,7 +85,7 @@ public class CustomTable extends JTable {
         
         DefaultTableModel fullModel = new DefaultTableModel(fullData, this.columnNames) {
             @Override
-            public boolean isCellEditable(int row, int column) { return false; }
+            public boolean isCellEditable(int row, int column) { return editableColumns.contains(column); }
             
             @Override
             public Class<?> getColumnClass(int columnIndex) {
@@ -112,7 +115,7 @@ public class CustomTable extends JTable {
         DefaultTableModel newModel = new DefaultTableModel(pageData, columnNames) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false;
+                return editableColumns.contains(column);
             }
             @Override
             public Class<?> getColumnClass(int columnIndex) {
@@ -132,6 +135,8 @@ public class CustomTable extends JTable {
         if (infoLabel != null) {
             infoLabel.setText("Showing " + (totalItems == 0 ? 0 : start + 1) + " to " + end + " out of " + totalItems + " items");
         }
+        applyColumnWidths();
+        applyColumnAlignments();
     }
 
     public JPanel createPaginationPanel() {
@@ -219,5 +224,44 @@ public class CustomTable extends JTable {
         if (font != null) setFont(font);
         if (foregroundColor != null) setForeground(foregroundColor);
         if (backgroundColor != null) setBackground(backgroundColor);
+    }
+    
+    public void setColumnEditable(int column, boolean editable) {
+        if (editable) {
+            editableColumns.add(column);
+        } else {
+            editableColumns.remove(column);
+        }
+    }
+    
+    public void setColumnWidth(int column, int width) {
+        columnWidths.put(column, width);
+        applyColumnWidths();
+    }
+
+    private void applyColumnWidths() {
+        for (java.util.Map.Entry<Integer, Integer> entry : columnWidths.entrySet()) {
+            if (entry.getKey() < getColumnCount()) {
+                TableColumn col = getColumnModel().getColumn(entry.getKey());
+                col.setPreferredWidth(entry.getValue());
+                col.setMinWidth(entry.getValue());
+                col.setMaxWidth(entry.getValue());
+            }
+        }
+    }
+
+    public void setColumnAlignment(int column, int alignment) {
+        columnAlignments.put(column, alignment);
+        applyColumnAlignments();
+    }
+
+    private void applyColumnAlignments() {
+        for (java.util.Map.Entry<Integer, Integer> entry : columnAlignments.entrySet()) {
+            if (entry.getKey() < getColumnCount()) {
+                DefaultTableCellRenderer renderer = new DefaultTableCellRenderer();
+                renderer.setHorizontalAlignment(entry.getValue());
+                getColumnModel().getColumn(entry.getKey()).setCellRenderer(renderer);
+            }
+        }
     }
 }

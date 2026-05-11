@@ -80,12 +80,12 @@ public class AdminPanel extends CustomPanel {
 		CustomTabbedPane tabbedPane = new CustomTabbedPane();
 		tabbedPane.setRadius(20);
 		
-		tabbedPane.addTab("USERS", "/resources/icons/home.png", new AdminTable());
-		tabbedPane.addTab("ITEMS", "/resources/icons/items.png", new CustomPanel(Color.WHITE));
-		tabbedPane.addTab("USER LOGS", "/resources/icons/logs.png", new CustomPanel(Color.WHITE));
-		tabbedPane.addTab("ITEM LOGS", "/resources/icons/logs.png", new CustomPanel(Color.WHITE));
-		tabbedPane.addTab("TRANSACTION LOGS", "/resources/icons/logs.png", new CustomPanel(Color.WHITE));
-		tabbedPane.addTab("REPUTATION LOGS", "/resources/icons/logs.png", new CustomPanel(Color.WHITE));
+		tabbedPane.addTab("USERS", "/resources/icons/home.png", new AdminTable(AdminTable.TableType.USERS));
+		tabbedPane.addTab("ITEMS", "/resources/icons/items.png", new AdminTable(AdminTable.TableType.ITEMS));
+		tabbedPane.addTab("USER LOGS", "/resources/icons/logs.png", new AdminTable(AdminTable.TableType.LOGS));
+		tabbedPane.addTab("ITEM LOGS", "/resources/icons/logs.png", new AdminTable(AdminTable.TableType.LOGS));
+		tabbedPane.addTab("TRANSACTION LOGS", "/resources/icons/logs.png", new AdminTable(AdminTable.TableType.LOGS));
+		tabbedPane.addTab("REPUTATION LOGS", "/resources/icons/logs.png", new AdminTable(AdminTable.TableType.LOGS));
 
 		tableManagementWrapper.add(tabbedPane, BorderLayout.CENTER);
 		
