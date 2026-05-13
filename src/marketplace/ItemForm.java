@@ -1,4 +1,4 @@
-package items;
+package marketplace;
 
 import java.awt.*;
 import javax.swing.*;

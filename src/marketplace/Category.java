@@ -1,4 +1,4 @@
-package items;
+package marketplace;
 
 public enum Category {
 	TEXTBOOKS,
