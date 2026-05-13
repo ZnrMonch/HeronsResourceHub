@@ -74,13 +74,74 @@ public class Page extends JFrame {
 		CustomPanel eastWrapper = new CustomPanel();
 		eastWrapper.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 10));
 		eastWrapper.setOpaque(false);
-		eastWrapper.setLayout(new GridBagLayout());
-		JLabel notifBtn = new JLabel(IconLoader.loadAndScaleIcon("/resources/icons/notifications.png", 30, 30));
+		eastWrapper.setLayout(new BoxLayout(eastWrapper, BoxLayout.X_AXIS));
+		JLabel notifBtn = new JLabel(IconLoader.loadAndScaleIcon("/resources/icons/notifications.png", 40, 40));
+		JLabel profileBtn = new JLabel(IconLoader.loadAndScaleIcon("/resources/icons/profile.png", 40, 40));
+		notifBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		profileBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 		
+		JPopupMenu profileMenu = new JPopupMenu();
+		profileMenu.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+		
+		JMenuItem profileItem = createMenuItem("Profile");
+		profileItem.addActionListener(e -> handleProfile());
+		
+		JMenuItem aboutUsItem = createMenuItem("About Us");
+		aboutUsItem.addActionListener(e -> handleAboutUs());
+		
+		JMenuItem logoutItem = createMenuItem("Log Out");
+		logoutItem.addActionListener(e -> handleLogout());
+		
+		profileMenu.add(profileItem);
+		profileMenu.add(aboutUsItem);
+		profileMenu.addSeparator();
+		profileMenu.add(logoutItem);
+		
+		profileBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+			@Override
+			public void mouseClicked(java.awt.event.MouseEvent e) {
+				profileMenu.show(profileBtn, 
+					profileBtn.getWidth() - profileMenu.getPreferredSize().width, 
+					profileBtn.getHeight());
+			}
+		});
+
 		eastWrapper.add(notifBtn);
+		eastWrapper.add(Box.createHorizontalStrut(15));
+		eastWrapper.add(profileBtn);
 		
 		header.add(westWrapper, BorderLayout.WEST);
 		header.add(eastWrapper, BorderLayout.EAST);
 		return header;
+	}
+
+	private JMenuItem createMenuItem(String text) {
+		JMenuItem item = new JMenuItem(text);
+		item.setPreferredSize(new Dimension(120, 30));
+		item.setCursor(new Cursor(Cursor.HAND_CURSOR));
+		item.setBackground(Color.WHITE);
+		if (FontLib.POPPINS_REGULAR != null) {
+			item.setFont(FontLib.POPPINS_REGULAR.deriveFont(13f));
+		}
+		return item;
+	}
+
+	private void handleProfile() {
+		// Implement profile navigation here
+	}
+
+	private void handleAboutUs() {
+		// Implement about us navigation here
+	}
+
+	private void handleLogout() {
+		int confirm = JOptionPane.showConfirmDialog(this, 
+			"Are you sure you want to log out?", 
+			"Confirm Logout", JOptionPane.YES_NO_OPTION);
+				
+		if (confirm == JOptionPane.YES_OPTION) {
+			dispose(); // Close the current page
+			// Open login form here
+		}
 	}
 }
