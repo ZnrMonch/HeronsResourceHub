@@ -10,22 +10,28 @@ public class CustomLabel extends JLabel {
     private FontStyle fontStyle;
 
     public CustomLabel(String text) {
-    	this(text, Brand.STANDARD_TEXT_SIZE, FontStyle.REGULAR);
+    	this(text, Brand.STANDARD_TEXT_SIZE, FontStyle.REGULAR, Color.BLACK);
         setForeground(Color.BLACK);
         updateFont();
     }
     
     public CustomLabel(String text, float fontSize) {
-        this(text, fontSize, FontStyle.REGULAR);
+    	this(text, fontSize, FontStyle.REGULAR, Color.BLACK);
+
         setForeground(Color.BLACK);
         updateFont();
     }
     
     public CustomLabel(String text, float fontSize, FontStyle fontStyle) {
+        this(text, fontSize, fontStyle, Color.BLACK);
+        updateFont();
+    }
+    
+    public CustomLabel(String text, float fontSize, FontStyle fontStyle, Color foreground) {
         super(text);
         this.fontSize = fontSize;
         this.fontStyle = fontStyle;
-        setForeground(Color.BLACK);
+        setForeground(foreground);
         updateFont();
     }
     
