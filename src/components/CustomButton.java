@@ -87,6 +87,12 @@ public class CustomButton extends JButton {
         repaint();
     }
     
+    public void setPadding(int Xpadding, int Ypadding) {
+        setBorder(BorderFactory.createEmptyBorder(Ypadding, Xpadding, Ypadding, Xpadding));
+        revalidate();
+        repaint();
+    }
+    
     public void setPadding(int top, int left, int bottom, int right) {
         setBorder(BorderFactory.createEmptyBorder(top, left, bottom, right));
         revalidate();
