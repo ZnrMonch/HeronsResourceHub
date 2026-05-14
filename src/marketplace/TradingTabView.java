@@ -3,6 +3,7 @@ package marketplace;
 import java.awt.*;
 import javax.swing.*;
 import components.*;
+import enums.MarketplaceTabMode;
 
 public class TradingTabView extends CustomPanel {
     private static final long serialVersionUID = 1L;
