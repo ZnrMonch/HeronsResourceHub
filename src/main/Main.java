@@ -11,6 +11,9 @@ public class Main {
 		FontLib.loadFonts();
 		
 	      new Auth();
+		  //new Page(new Marketplace());
 		  //new Page(new Profile()); 
+	      //new Page(new AdminPanel());
+
 	}
 }
