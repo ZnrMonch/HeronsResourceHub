@@ -37,4 +37,8 @@ public class DatabaseManager {
 		return PASSWORD;
 	}
 }
+<<<<<<< HEAD
 >>>>>>> 0af9b3c (drafted changes for main system)
+=======
+	
+>>>>>>> 556f0dc (sa log in and registration may changes ulit yan later)
