@@ -4,12 +4,12 @@ import java.awt.*;
 import javax.swing.*;
 import components.*;
 import utils.*;
+import items.*;
 
 public class AdminTable extends CustomPanel {
 	private static final long serialVersionUID = 1L;
 
-	public enum TableType { USERS, ITEMS, LOGS }
-
+	
 	private TableType type;
 	private JCheckBox archiveMode = new JCheckBox("Archive Mode");
 	private CustomTable table;

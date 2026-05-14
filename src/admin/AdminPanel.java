@@ -2,9 +2,9 @@ package admin;
 
 import java.awt.*;
 import utils.*;
+import items.*;
 
 import javax.swing.*;
-
 import components.*;
 
 public class AdminPanel extends CustomPanel {
@@ -80,12 +80,12 @@ public class AdminPanel extends CustomPanel {
 		CustomTabbedPane tabbedPane = new CustomTabbedPane();
 		tabbedPane.setRadius(20);
 		
-		tabbedPane.addTab("USERS", "/resources/icons/home.png", new AdminTable(AdminTable.TableType.USERS));
-		tabbedPane.addTab("ITEMS", "/resources/icons/items.png", new AdminTable(AdminTable.TableType.ITEMS));
-		tabbedPane.addTab("USER LOGS", "/resources/icons/logs.png", new AdminTable(AdminTable.TableType.LOGS));
-		tabbedPane.addTab("ITEM LOGS", "/resources/icons/logs.png", new AdminTable(AdminTable.TableType.LOGS));
-		tabbedPane.addTab("TRANSACTION LOGS", "/resources/icons/logs.png", new AdminTable(AdminTable.TableType.LOGS));
-		tabbedPane.addTab("REPUTATION LOGS", "/resources/icons/logs.png", new AdminTable(AdminTable.TableType.LOGS));
+		tabbedPane.addTab("USERS", "/resources/icons/home.png", new AdminTable(TableType.USERS));
+		tabbedPane.addTab("ITEMS", "/resources/icons/items.png", new AdminTable(TableType.ITEMS));
+		tabbedPane.addTab("USER LOGS", "/resources/icons/logs.png", new AdminTable(TableType.LOGS));
+		tabbedPane.addTab("ITEM LOGS", "/resources/icons/logs.png", new AdminTable(TableType.LOGS));
+		tabbedPane.addTab("TRANSACTION LOGS", "/resources/icons/logs.png", new AdminTable(TableType.LOGS));
+		tabbedPane.addTab("REPUTATION LOGS", "/resources/icons/logs.png", new AdminTable(TableType.LOGS));
 
 		tableManagementWrapper.add(tabbedPane, BorderLayout.CENTER);
 		
