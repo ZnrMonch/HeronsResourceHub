@@ -5,22 +5,38 @@ import utils.*;
 import items.*;
 
 import javax.swing.*;
+
+import admin.services.AdminItemsServices;
+import admin.services.AdminLogsServices;
+import admin.services.AdminUsersServices;
 import components.*;
 
 public class AdminPanel extends CustomPanel {
 	private static final long serialVersionUID = 1L;
+
+	
+	private AdminUsersServices userService = new AdminUsersServices();
+    private AdminItemsServices itemService = new AdminItemsServices();
+    private AdminLogsServices  logService  = new AdminLogsServices();
 
 	public AdminPanel() {
 		setLayout(new BorderLayout(10, 10));
 		
 		CustomPanel contentWrapper = new CustomPanel(new BorderLayout(20, 20));
 		
+        int totalUsers        = userService.getTotalUsers();
+        int totalItems        = itemService.getTotalItems();
+        int totalTransactions = logService.getTotalTransactions();
+        int totalLogs         = logService.getTotalLogs();
+
+		
 		CustomPanel statusWrapper = new CustomPanel(new GridLayout(1, 0, 20, 0));
-		statusWrapper.setPreferredSize(new Dimension(0, 170));
-		statusWrapper.add(generateStatusCard("/resources/icons/user-group.png", "Users", "Total Users", 100, Color.decode("#33277d")));
-		statusWrapper.add(generateStatusCard("/resources/icons/items.png", "Items", "Total Items", 100, Color.decode("#f9cb0f")));
-		statusWrapper.add(generateStatusCard("/resources/icons/request.png", "Logs", "Total Transactions", 100, Color.decode("#37ad00")));
-		statusWrapper.add(generateStatusCard("/resources/icons/logs.png", "Logs", "Total Logs", 100, Color.decode("#37ad00")));
+        statusWrapper.setPreferredSize(new Dimension(0, 170));
+        statusWrapper.add(generateStatusCard("/resources/icons/user-group.png", "Users",        "Total Users",        totalUsers,        Color.decode("#33277d")));
+        statusWrapper.add(generateStatusCard("/resources/icons/items.png",      "Items",        "Total Items",        totalItems,        Color.decode("#f9cb0f")));
+        statusWrapper.add(generateStatusCard("/resources/icons/request.png",    "Transactions", "Total Transactions", totalTransactions, Color.decode("#37ad00")));
+        statusWrapper.add(generateStatusCard("/resources/icons/logs.png",       "Logs",         "Total Logs",         totalLogs,         Color.decode("#37ad00")));
+
 		
 		contentWrapper.add(statusWrapper, BorderLayout.NORTH);
 		contentWrapper.add(initTableManagement(), BorderLayout.CENTER);
@@ -80,12 +96,12 @@ public class AdminPanel extends CustomPanel {
 		CustomTabbedPane tabbedPane = new CustomTabbedPane();
 		tabbedPane.setRadius(20);
 		
-		tabbedPane.addTab("USERS", "/resources/icons/home.png", new AdminTable(TableType.USERS));
-		tabbedPane.addTab("ITEMS", "/resources/icons/items.png", new AdminTable(TableType.ITEMS));
-		tabbedPane.addTab("USER LOGS", "/resources/icons/logs.png", new AdminTable(TableType.LOGS));
-		tabbedPane.addTab("ITEM LOGS", "/resources/icons/logs.png", new AdminTable(TableType.LOGS));
-		tabbedPane.addTab("TRANSACTION LOGS", "/resources/icons/logs.png", new AdminTable(TableType.LOGS));
-		tabbedPane.addTab("REPUTATION LOGS", "/resources/icons/logs.png", new AdminTable(TableType.LOGS));
+        tabbedPane.addTab("USERS",             "/resources/icons/home.png",  new AdminTable(TableType.USERS));
+        tabbedPane.addTab("ITEMS",             "/resources/icons/items.png", new AdminTable(TableType.ITEMS));
+        tabbedPane.addTab("USER LOGS",         "/resources/icons/logs.png",  new AdminTable(TableType.LOGS, LogType.USER_LOGS));
+        tabbedPane.addTab("ITEM LOGS",         "/resources/icons/logs.png",  new AdminTable(TableType.LOGS, LogType.ITEM_LOGS));
+        tabbedPane.addTab("TRANSACTION LOGS",  "/resources/icons/logs.png",  new AdminTable(TableType.LOGS, LogType.TRANSACTION_LOGS));
+        tabbedPane.addTab("REPUTATION LOGS",   "/resources/icons/logs.png",  new AdminTable(TableType.LOGS, LogType.REPUTATION_LOGS));
 
 		tableManagementWrapper.add(tabbedPane, BorderLayout.CENTER);
 		
