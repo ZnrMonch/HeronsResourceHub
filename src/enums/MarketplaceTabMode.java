@@ -1,4 +1,6 @@
-package marketplace;
+package enums;
+
+import marketplace.ItemPanel;
 
 /**
  * Determines what kind of flow/actions the {@link ItemPanel} should present.
