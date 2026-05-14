@@ -8,32 +8,31 @@ import utils.*;
 public class ItemForm extends JDialog {
 	private static final long serialVersionUID = 1L;
 	
-	// GENERAL FIELDS
 	private CustomTextField itemNameField;
 	private CustomTextArea descriptionField;
 	private CustomComboBox<String> categoryField;
 	private CustomComboBox<String> conditionField;
 	private CustomTextField pickupLocationField;
 	
-	// SELLING FIELDS
-	private CustomSpinner priceField;
-	private CustomComboBox<String> paymentMethodField;
+	private CustomPanel pickupDateField;
+	private JCheckBox[] pickupDayBoxes;
 	
-	// LENDING FIELDS
+	private CustomSpinner pickupTimeField;
+	
+	private CustomSpinner priceField;
+	
 	private CustomSpinner maximumBorrowDaysField;
 	
-	// TRADING FIELDS
 	private CustomTextField desiredItemField;
-	
 	
 	public ItemForm(JFrame parent, String title) {
 		super(parent, title, true);
-        setResizable(false);
-        
-        setLayout(new BorderLayout());
-        getContentPane().setBackground(Color.WHITE);
+		setResizable(false);
+		
+		setLayout(new BorderLayout());
+		getContentPane().setBackground(Color.WHITE);
 		((JComponent) getContentPane()).setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        
+		
 		init();
 		
 		pack();
@@ -72,20 +71,55 @@ public class ItemForm extends JDialog {
 		pickupLocationField = new CustomTextField();
 		pickupLocationField.setCustomSize(Integer.MAX_VALUE, 35);
 		
+		pickupDateField = new CustomPanel(new GridLayout(2, 4, 0, 0));
+		pickupDateField.setOpaque(false);
+		String[] days = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "All"};
+		pickupDayBoxes = new JCheckBox[days.length];
+		
+		for (int i = 0; i < days.length; i++) {
+			pickupDayBoxes[i] = new JCheckBox(days[i]);
+			pickupDayBoxes[i].setOpaque(false);
+			pickupDayBoxes[i].setFocusPainted(false);
+			pickupDayBoxes[i].setCursor(new Cursor(Cursor.HAND_CURSOR));
+			
+			if (FontLib.POPPINS_REGULAR != null) {
+				pickupDayBoxes[i].setFont(FontLib.POPPINS_REGULAR.deriveFont(12f));
+			}
+			
+			pickupDateField.add(pickupDayBoxes[i]);
+		}
+		
+		pickupDayBoxes[7].addActionListener(e -> {
+			boolean isSelected = pickupDayBoxes[7].isSelected();
+			for (int i = 0; i < 7; i++) {
+				pickupDayBoxes[i].setSelected(isSelected);
+			}
+		});
+		
+		String[] hours = new String[] {
+			"12:00 AM", "01:00 AM", "02:00 AM", "03:00 AM", "04:00 AM", "05:00 AM", 
+			"06:00 AM", "07:00 AM", "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM", 
+			"12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM", 
+			"06:00 PM", "07:00 PM", "08:00 PM", "09:00 PM", "10:00 PM", "11:00 PM"
+		};
+		pickupTimeField = new CustomSpinner(new SpinnerListModel(hours));
+		pickupTimeField.setCustomSize(Integer.MAX_VALUE, 35);
+		
 		wrapper.add(new CustomLabel("Item Name:"));
 		wrapper.add(itemNameField);
 		wrapper.add(Box.createVerticalStrut(10));
 		wrapper.add(new CustomLabel("Description:"));
 		wrapper.add(descriptionField);
 		wrapper.add(Box.createVerticalStrut(10));
-		wrapper.add(new CustomLabel("Category:"));
-		wrapper.add(categoryField);
+		
+		wrapper.add(createRow("Category:", categoryField, "Condition:", conditionField));
 		wrapper.add(Box.createVerticalStrut(10));
-		wrapper.add(new CustomLabel("Condition:"));
-		wrapper.add(conditionField);
-		wrapper.add(Box.createVerticalStrut(10));
+		
 		wrapper.add(new CustomLabel("Pickup Location:"));
 		wrapper.add(pickupLocationField);
+		wrapper.add(Box.createVerticalStrut(10));
+		
+		wrapper.add(createRow("Pickup Date:", pickupDateField, "Pickup Time:", pickupTimeField));
 		wrapper.add(Box.createVerticalStrut(10));
 		
 		String lowerTitle = getTitle() != null ? getTitle().toLowerCase() : "";
@@ -93,14 +127,9 @@ public class ItemForm extends JDialog {
 		if (lowerTitle.contains("sell")) {
 			priceField = new CustomSpinner();
 			priceField.setCustomSize(Integer.MAX_VALUE, 35);
-			paymentMethodField = new CustomComboBox<>(new String[]{"Cash", "GCash", "Bank Transfer", "Other"});
-			paymentMethodField.setCustomSize(Integer.MAX_VALUE, 35);
 			
 			wrapper.add(new CustomLabel("Price:"));
 			wrapper.add(priceField);
-			wrapper.add(Box.createVerticalStrut(10));
-			wrapper.add(new CustomLabel("Payment Method:"));
-			wrapper.add(paymentMethodField);
 			wrapper.add(Box.createVerticalStrut(10));
 		} else if (lowerTitle.contains("lend")) {
 			maximumBorrowDaysField = new CustomSpinner();
@@ -125,6 +154,33 @@ public class ItemForm extends JDialog {
 		}
 
 		return wrapper;
+	}
+	
+	private CustomPanel createRow(String label1, JComponent field1, String label2, JComponent field2) {
+		CustomPanel row = new CustomPanel(new GridLayout(1, 2, 10, 0));
+		row.setAlignmentX(Component.LEFT_ALIGNMENT);
+		row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80)); 
+		
+		CustomPanel col1 = new CustomPanel();
+		col1.setLayout(new BoxLayout(col1, BoxLayout.Y_AXIS));
+		CustomLabel l1 = new CustomLabel(label1);
+		l1.setAlignmentX(Component.LEFT_ALIGNMENT);
+		field1.setAlignmentX(Component.LEFT_ALIGNMENT);
+		col1.add(l1);
+		col1.add(field1);
+		
+		CustomPanel col2 = new CustomPanel();
+		col2.setLayout(new BoxLayout(col2, BoxLayout.Y_AXIS));
+		CustomLabel l2 = new CustomLabel(label2);
+		l2.setAlignmentX(Component.LEFT_ALIGNMENT);
+		field2.setAlignmentX(Component.LEFT_ALIGNMENT);
+		col2.add(l2);
+		col2.add(field2);
+		
+		row.add(col1);
+		row.add(col2);
+		
+		return row;
 	}
 	
 	private CustomPanel initAction() {

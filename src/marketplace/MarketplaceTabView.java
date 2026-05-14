@@ -2,6 +2,8 @@ package marketplace;
 
 import javax.swing.*;
 
+import enums.MarketplaceTabMode;
+
 public class MarketplaceTabView extends BaseBrowsePanel {
     private static final long serialVersionUID = 1L;
 
