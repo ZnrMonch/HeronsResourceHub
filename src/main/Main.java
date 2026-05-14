@@ -12,6 +12,7 @@ public class Main {
 		
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 		new Page(new AdminPanel());
 =======
 //		new Auth();
@@ -22,5 +23,9 @@ public class Main {
 	      new Auth();
 		  //new Page(new Profile()); 
 >>>>>>> 556f0dc (sa log in and registration may changes ulit yan later)
+=======
+	     //  new Auth();
+		 new Page(new AdminPanel()); 
+>>>>>>> 13a4392 (add admin services and database integration for user and item management)
 	}
 }

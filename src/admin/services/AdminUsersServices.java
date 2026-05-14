@@ -1,6 +1,10 @@
 package admin.services;
 
+<<<<<<< HEAD
 import admin.database.UserDatabase;
+=======
+import admin.database.UsersDatabase;
+>>>>>>> 13a4392 (add admin services and database integration for user and item management)
 import admin.database.LogsDatabase;
 import admin.models.AdminUsers;
 
@@ -8,7 +12,11 @@ import java.util.List;
 
 public class AdminUsersServices {
 
+<<<<<<< HEAD
     private UserDatabase userDB = new UserDatabase();
+=======
+    private UsersDatabase userDB = new UsersDatabase();
+>>>>>>> 13a4392 (add admin services and database integration for user and item management)
     private LogsDatabase logDB  = new LogsDatabase();
 
      public int getTotalUsers() {
