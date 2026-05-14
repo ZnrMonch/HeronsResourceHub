@@ -40,7 +40,7 @@ public class LogsDatabase {
         }
 
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery()
         ) {
@@ -62,7 +62,7 @@ public class LogsDatabase {
         for (String table : tables) {
             String sql = "SELECT COUNT(*) FROM " + table;
             try (
-                Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+                Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
                 PreparedStatement stmt = conn.prepareStatement(sql);
                 ResultSet rs = stmt.executeQuery()
             ) {
@@ -79,7 +79,7 @@ public class LogsDatabase {
     public int countTransactions() {
         String sql = "SELECT COUNT(*) FROM transaction_log";
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery()
         ) {

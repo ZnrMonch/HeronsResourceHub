@@ -13,7 +13,7 @@ public class UsersDatabase {
     public int countActiveUsers() {
         String sql = "SELECT COUNT(*) FROM users";
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery()
         ) {
@@ -30,7 +30,7 @@ public class UsersDatabase {
         String sql = "SELECT user_id, system_role, student_id, first_name, last_name, " +
                      "college, year_level, course_program, karma_score FROM users";
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery()
         ) {
@@ -47,7 +47,7 @@ public class UsersDatabase {
         String sql = "SELECT user_id, system_role, student_id, first_name, last_name, " +
                      "college, year_level, course_program, karma_score FROM users_archive";
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery()
         ) {
@@ -80,7 +80,7 @@ public class UsersDatabase {
                      "WHERE " + column + " LIKE ?";
 
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql)
         ) {
             stmt.setString(1, "%" + keyword + "%");
@@ -111,7 +111,7 @@ public class UsersDatabase {
                      "WHERE " + column + " LIKE ?";
 
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql)
         ) {
             stmt.setString(1, "%" + keyword + "%");
@@ -128,7 +128,7 @@ public class UsersDatabase {
         String sql = "SELECT user_id, system_role, student_id, first_name, last_name, " +
                      "college, year_level, course_program, karma_score FROM users WHERE user_id = ?";
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql)
         ) {
             stmt.setInt(1, userId);
@@ -144,7 +144,7 @@ public class UsersDatabase {
         String sql = "UPDATE users SET first_name = ?, last_name = ?, college = ?, " +
                      "year_level = ?, karma_score = ? WHERE user_id = ?";
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql)
         ) {
             stmt.setString(1, user.getFirstName());
@@ -169,7 +169,7 @@ public class UsersDatabase {
                         "FROM users WHERE user_id = ?";
         String delete = "DELETE FROM users WHERE user_id = ?";
 
-        try (Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS)) {
+        try (Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword())) {
             conn.setAutoCommit(false); // start transaction
 
             try (
@@ -203,7 +203,7 @@ public class UsersDatabase {
                         "FROM users_archive WHERE user_id = ?";
         String delete = "DELETE FROM users_archive WHERE user_id = ?";
 
-        try (Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS)) {
+        try (Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword())) {
             conn.setAutoCommit(false);
 
             try (

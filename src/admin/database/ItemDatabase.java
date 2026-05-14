@@ -13,7 +13,7 @@ public class ItemDatabase {
     public int countActiveItems() {
         String sql = "SELECT COUNT(*) FROM items";
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery()
         ) {
@@ -29,7 +29,7 @@ public class ItemDatabase {
         String sql = "SELECT item_id, owner_id, item_name, item_quantity, description, " +
                      "category, item_condition, price, availability_status, action FROM items";
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery()
         ) {
@@ -47,7 +47,7 @@ public class ItemDatabase {
         String sql = "SELECT item_id, owner_id, item_name, item_quantity, description, " +
                      "category, item_condition, price, availability_status, action FROM items_archive";
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery()
         ) {
@@ -78,7 +78,7 @@ public class ItemDatabase {
                      "WHERE " + column + " LIKE ?";
 
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql)
         ) {
             stmt.setString(1, "%" + keyword + "%");
@@ -108,7 +108,7 @@ public class ItemDatabase {
                      "WHERE " + column + " LIKE ?";
 
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql)
         ) {
             stmt.setString(1, "%" + keyword + "%");
@@ -126,7 +126,7 @@ public class ItemDatabase {
                      "category, item_condition, price, availability_status, action FROM items " +
                      "WHERE item_id = ?";
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql)
         ) {
             stmt.setInt(1, itemId);
@@ -143,7 +143,7 @@ public class ItemDatabase {
         String sql = "UPDATE items SET item_name = ?, category = ?, item_quantity = ?, " +
                      "price = ?, availability_status = ? WHERE item_id = ?";
         try (
-            Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS);
+            Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
             PreparedStatement stmt = conn.prepareStatement(sql)
         ) {
             stmt.setString(1, item.getItemName());
@@ -167,7 +167,7 @@ public class ItemDatabase {
                         "item_condition, price, availability_status, action FROM items WHERE item_id = ?";
         String delete = "DELETE FROM items WHERE item_id = ?";
 
-        try (Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS)) {
+        try (Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword())) {
             conn.setAutoCommit(false);
 
             try (
@@ -199,7 +199,7 @@ public class ItemDatabase {
                         "item_condition, price, availability_status, action FROM items_archive WHERE item_id = ?";
         String delete = "DELETE FROM items_archive WHERE item_id = ?";
 
-        try (Connection conn = DriverManager.getConnection(DatabaseManager.URL, DatabaseManager.USER, DatabaseManager.PASS)) {
+        try (Connection conn =  DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword())) {
             conn.setAutoCommit(false);
 
             try (
