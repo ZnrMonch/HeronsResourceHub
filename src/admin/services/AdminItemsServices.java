@@ -35,52 +35,77 @@ public class AdminItemsServices {
     }
 
     public boolean updateItem(AdminItems item) {
-        return itemDB.updateItem(item);
+        boolean success = itemDB.updateItem(item);
+        if (success) {
+            logDB.insertLog("ITEM", item.getOwnerId(), 0,
+                "Item \"" + item.getItemName() + "\" (ID " + item.getItemId() + ") was updated by admin.");
+        }
+        return success;
     }
 
-  
+    
     public boolean archiveItem(int itemId) {
         AdminItems item = itemDB.getItemById(itemId);
-
         if (item == null) {
-            System.out.println("Archive failed: item not found.");
+            System.out.println("archiveItem() failed: item " + itemId + " not found.");
             return false;
         }
 
-        logDB.insertLog("ITEM", item.getOwnerId(), itemId,
-            "Item \"" + item.getItemName() + "\" (ID " + itemId + ") was archived by admin.");
+        boolean success = itemDB.archiveItem(itemId);
 
-        return itemDB.archiveItem(itemId);
+        if (success) {
+            logDB.insertLog("ITEM", item.getOwnerId(), 0,
+                "Item \"" + item.getItemName() + "\" (ID " + itemId + ") was archived by admin.");
+        }
+
+        return success;
     }
 
-  
+    
     public boolean unarchiveItem(int itemId) {
         AdminItems item = itemDB.getItemById(itemId);
-
         if (item == null) {
-            System.out.println("Unarchive failed: item not found (not in active or archive table).");
+            System.out.println("unarchiveItem() failed: item " + itemId + " not found.");
             return false;
         }
 
         boolean success = itemDB.unarchiveItem(itemId);
 
         if (success) {
-            logDB.insertLog("ITEM", item.getOwnerId(), itemId,
-                "Item \"" + item.getItemName() + "\" (ID " + itemId + ") was restored by admin.");
+            logDB.insertLog("ITEM", item.getOwnerId(), 0,
+                "Item \"" + item.getItemName() + "\" (ID " + itemId + ") was restored from archive by admin.");
         }
 
         return success;
     }
 
-   
+  
+    public boolean permanentDeleteItem(int itemId) {
+        AdminItems item = itemDB.getItemById(itemId);
+        String itemLabel = (item != null)
+            ? "\"" + item.getItemName() + "\" (ID " + itemId + ")"
+            : "ID " + itemId;
+
+        boolean success = itemDB.permanentDeleteItem(itemId);
+
+        if (success) {
+            int ownerId = (item != null) ? item.getOwnerId() : 0;
+            logDB.insertLog("ITEM", ownerId, 0,
+                "Item " + itemLabel + " was permanently deleted from archive by admin.");
+        }
+
+        return success;
+    }
+
+
     private Object[][] buildTableData(List<AdminItems> items) {
-        Object[][] data = new Object[items.size()][7]; 
+        Object[][] data = new Object[items.size()][7];
         for (int i = 0; i < items.size(); i++) {
             AdminItems item = items.get(i);
             data[i][0] = item.getItemId();
             data[i][1] = item.getItemName();
-            data[i][2] = item.getItemCondition(); 
-            data[i][3] = item.getCategory();     
+            data[i][2] = item.getItemCondition();
+            data[i][3] = item.getCategory();
             data[i][4] = item.getItemQuantity();
             data[i][5] = item.getPrice();
             data[i][6] = item.getAvailabilityStatus();

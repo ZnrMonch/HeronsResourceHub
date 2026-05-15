@@ -10,22 +10,10 @@ public class Main {
 	public static void main(String[] args) {
 		FontLib.loadFonts();
 		
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
+
 		new Page(new AdminPanel());
-=======
-//		new Auth();
-//		new Page(new AdminPanel());
-		new Page(new Marketplace());
->>>>>>> 0af9b3c (drafted changes for main system)
-=======
-	      new Auth();
-		  //new Page(new Profile()); 
->>>>>>> 556f0dc (sa log in and registration may changes ulit yan later)
-=======
-	     //  new Auth();
-		 new Page(new AdminPanel()); 
->>>>>>> 13a4392 (add admin services and database integration for user and item management)
+
+
+
 	}
 }

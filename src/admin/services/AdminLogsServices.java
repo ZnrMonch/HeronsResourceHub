@@ -53,10 +53,10 @@ public class AdminLogsServices {
 		for (int i = 0; i < logs.size(); i++) {
 			AdminLogs log = logs.get(i);
 			data[i][0] = log.getId();
-			data[i][1] = log.getLogType();
-			data[i][2] = log.getDescription();
-			data[i][3] = log.getCreatedAt();
-			data[i][4] = log.getUserId();
+			data[i][1] = log.getUserId();
+			data[i][2] = log.getLogType();
+			data[i][3] = log.getDescription();
+			data[i][4] = log.getCreatedAt();
 		}
 		return data;
 	}

@@ -1,26 +1,15 @@
 package admin.services;
 
-<<<<<<< HEAD
-import admin.database.UserDatabase;
-=======
 import admin.database.UsersDatabase;
->>>>>>> 13a4392 (add admin services and database integration for user and item management)
 import admin.database.LogsDatabase;
 import admin.models.AdminUsers;
 import java.util.List;
 
 public class AdminUsersServices {
 
-<<<<<<< HEAD
-    private UserDatabase userDB = new UserDatabase();
-=======
-    private UsersDatabase userDB = new UsersDatabase();
-<<<<<<< HEAD
->>>>>>> 13a4392 (add admin services and database integration for user and item management)
-    private LogsDatabase logDB  = new LogsDatabase();
-=======
-    private LogsDatabase  logDB  = new LogsDatabase();
->>>>>>> 92903bf (refactor admin panel and dialog to improve layout and functionality;)
+    private final UsersDatabase userDB = new UsersDatabase();
+    private final LogsDatabase  logDB  = new LogsDatabase();
+
 
     public int getTotalUsers() {
         return userDB.countActiveUsers();
@@ -46,10 +35,18 @@ public class AdminUsersServices {
         return userDB.getUserById(userId);
     }
 
+  
+
     public boolean updateUser(AdminUsers user) {
-        return userDB.updateUser(user);
+        boolean success = userDB.updateUser(user);
+        if (success) {
+            logDB.insertLog("USER", user.getUserId(), 0,
+                "User " + user.getFullName() + " (ID " + user.getUserId() + ") was updated by admin.");
+        }
+        return success;
     }
 
+   
     public boolean archiveUser(int userId) {
         AdminUsers user = userDB.getUserById(userId);
 
@@ -64,29 +61,47 @@ public class AdminUsersServices {
             return false;
         }
 
-        logDB.insertLog("USER", userId, 0,
-            "User " + user.getFullName() + " (ID " + userId + ") was archived by admin.");
-
         return userDB.archiveUser(userId);
     }
 
+   
     public boolean unarchiveUser(int userId) {
         AdminUsers user = userDB.getUserById(userId);
 
         if (user == null) {
-            System.out.println("unarchiveUser() failed: user " + userId + " not found in active or archive.");
+            System.out.println("unarchiveUser() failed: user " + userId + " not found.");
             return false;
         }
 
         boolean success = userDB.unarchiveUser(userId);
 
         if (success) {
+            // User is back in the users table now — FK constraint is satisfied
             logDB.insertLog("USER", userId, 0,
                 "User " + user.getFullName() + " (ID " + userId + ") was restored from archive by admin.");
         }
 
         return success;
     }
+
+    public boolean permanentDeleteUser(int userId) {
+        // Fetch before deleting so we can include their name in the log
+        AdminUsers user = userDB.getUserById(userId);
+        String userLabel = (user != null)
+            ? user.getFullName() + " (ID " + userId + ")"
+            : "ID " + userId;
+
+        boolean success = userDB.permanentDeleteUser(userId);
+
+        if (success) {
+            logDB.insertLog("USER", 0, 0,
+                "User " + userLabel + " was permanently deleted from archive by admin.");
+        }
+
+        return success;
+    }
+
+
 
     private Object[][] buildTableData(List<AdminUsers> users) {
         Object[][] data = new Object[users.size()][8];

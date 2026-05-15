@@ -2,11 +2,8 @@ package admin;
 
 import java.awt.*;
 import utils.*;
-<<<<<<< HEAD
-import items.*;
-=======
 import enums.*;
->>>>>>> 13a4392 (add admin services and database integration for user and item management)
+
 
 import javax.swing.*;
 
@@ -14,6 +11,24 @@ import admin.services.AdminItemsServices;
 import admin.services.AdminLogsServices;
 import admin.services.AdminUsersServices;
 import components.*;
+
+
+/* 
+	ERRORS THAT NEEDS SOME FIXING:
+	
+	- Item Archive
+	- Item Retrieve
+
+
+	TO DO:
+	
+	- Add "Add User" option for super_admin.
+	- Edit access for admin and super_admin.
+	- The UI for filters
+
+
+ */
+
 
 public class AdminPanel extends CustomPanel {
 	private static final long serialVersionUID = 1L;
