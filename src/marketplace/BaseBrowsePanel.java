@@ -5,11 +5,15 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.swing.*;
 import components.*;
+<<<<<<< HEAD
 import database.DatabaseManager;
 import enums.Availability;
 import enums.Category;
 import enums.MarketplaceTabMode;
 import enums.View;
+=======
+import enums.*;
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 import utils.*;
 
 public abstract class BaseBrowsePanel extends CustomPanel {
@@ -38,6 +42,7 @@ public abstract class BaseBrowsePanel extends CustomPanel {
 		filterByCategoryBox = new CustomComboBox<>(categoryList.toArray(new String[0]));
 		filterByCategoryBox.setCustomSize(200, 35);
 		
+<<<<<<< HEAD
 		List<String> statusList = new ArrayList<>();
 		statusList.add("All Statuses");
 		for (Availability a : Availability.values()) {
@@ -45,6 +50,15 @@ public abstract class BaseBrowsePanel extends CustomPanel {
 		}
 		
 		filterByStatusBox = new CustomComboBox<>(statusList.toArray(new String[0]));
+=======
+		List<String> conditionList = new ArrayList<>();
+		conditionList.add("All Conditions");
+		for (Condition a : Condition.values()) {
+			conditionList.add(a.toString());
+		}
+		
+		filterByStatusBox = new CustomComboBox<>(conditionList.toArray(new String[0]));
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		filterByStatusBox.setCustomSize(200, 35);
 		
 		viewToggle = new CustomToggleButton(

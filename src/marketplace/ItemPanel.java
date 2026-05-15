@@ -2,10 +2,15 @@ package marketplace;
 
 import java.awt.*;
 import java.sql.*;
+<<<<<<< HEAD
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+=======
+import java.util.ArrayList;
+import java.util.List;
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 import javax.swing.*;
 import javax.swing.event.ChangeListener;
 import components.*;
@@ -15,6 +20,19 @@ import enums.View;
 import utils.*;
 import database.*;
 
+<<<<<<< HEAD
+=======
+// Custom Interface to replace Consumer<Boolean>
+interface ViewStateListener {
+	void onViewStateChanged(boolean isItemView);
+}
+
+// Custom Interface to replace Consumer<ItemRecord>
+interface ItemActionListener {
+	void onItemAction(ItemRecord record);
+}
+
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 public class ItemPanel extends CustomPanel {
 	private static final long serialVersionUID = 1L;
 	private View view = View.GRID;
@@ -32,7 +50,10 @@ public class ItemPanel extends CustomPanel {
 	private static final int LIST_PAGE_SIZE = 8;
 
 	private ItemRecord selectedItem;
+<<<<<<< HEAD
 	private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("MMM d, yyyy");
+=======
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 	
 	private CustomSpinner quantitySpinner = new CustomSpinner(new SpinnerNumberModel(1, 1, 10, 1));
 	private ChangeListener quantityChangeListener = e -> updateCheckoutButtonLabel();
@@ -41,7 +62,11 @@ public class ItemPanel extends CustomPanel {
 	private CustomButton checkoutButton;
 	private CustomButton primaryActionButton;
 	private CustomButton secondaryActionButton;
+<<<<<<< HEAD
 	private Consumer<Boolean> itemViewStateListener;
+=======
+	private ViewStateListener itemViewStateListener; // Using custom interface
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 	private boolean checkoutView = false;
 	
 	private final String DB_URL = DatabaseManager.getURL();
@@ -74,7 +99,11 @@ public class ItemPanel extends CustomPanel {
 		}
 		initNav();
 		if (itemViewStateListener != null) {
+<<<<<<< HEAD
 			itemViewStateListener.accept(false);
+=======
+			itemViewStateListener.onViewStateChanged(false); // Call interface method
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		}
 		revalidate();
 		repaint();
@@ -87,31 +116,55 @@ public class ItemPanel extends CustomPanel {
 
 		try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASSWORD);
 				Statement stmt = conn.createStatement();
+<<<<<<< HEAD
 				ResultSet rs = stmt.executeQuery("SELECT * FROM ITEMS")) {
+=======
+				ResultSet rs = stmt.executeQuery("SELECT * FROM items")) {
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 
 			while (rs.next()) {
 				ItemRecord item = new ItemRecord();
 				item.itemId = rs.getInt("item_id");
 				item.ownerId = rs.getInt("owner_id");
+<<<<<<< HEAD
 				item.itemName = rs.getString("item_name");
 				item.itemQuantity = rs.getInt("item_quantity");
 				item.description = rs.getString("description");
 				item.category = rs.getString("category");
 				item.itemCondition = rs.getString("item_condition");
 				item.price = rs.getInt("price");
+=======
+				item.initiatorFirstName = rs.getString("initiator_firstname");
+				item.initiatorLastName = rs.getString("initiator_lastname");
+				item.itemName = rs.getString("item_name");
+				item.itemQuantity = rs.getInt("item_quantity");
+				item.description = rs.getString("description");
+				item.itemsImage = rs.getString("items_image");
+				item.category = rs.getString("category");
+				item.condition = rs.getString("condition");
+				item.price = rs.getInt("price"); // Assuming int for simplicity, or getDouble
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 				item.availabilityStatus = rs.getString("availability_status");
 				item.maximumBorrowDays = rs.getInt("maximum_borrow_days");
 				item.desiredItem = rs.getString("desired_item");
 				item.dateListed = rs.getTimestamp("date_listed");
 				item.pickupArea = rs.getString("pickup_area");
 				item.pickupTime = rs.getString("pickup_time");
+<<<<<<< HEAD
 				item.pickupDate = rs.getDate("pickup_date");
+=======
+				item.pickupDays = rs.getString("pickup_days"); // Fetches the SET string
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 				item.action = rs.getString("action");
 
 				String normalizedAction = item.action == null ? "" : item.action.trim().toLowerCase();
 				if ("sharing".equals(normalizedAction)) {
 					sharingItems.add(item);
+<<<<<<< HEAD
 				} else if ("barter trading".equals(normalizedAction)) {
+=======
+				} else if ("barter-trading".equals(normalizedAction) || "barter trading".equals(normalizedAction)) {
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 					tradingItems.add(item);
 				} else {
 					marketplaceItems.add(item);
@@ -130,10 +183,13 @@ public class ItemPanel extends CustomPanel {
 		}
 	}
 
+<<<<<<< HEAD
 	private String formatDisplayDate(Date date) {
 		return date == null ? "" : displayDateFormat.format(date);
 	}
 
+=======
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 	private int getSelectedQuantity() {
 		Object value = quantitySpinner.getValue();
 		return value instanceof Number ? ((Number) value).intValue() : 1;
@@ -145,14 +201,23 @@ public class ItemPanel extends CustomPanel {
 		return "Select a Payment Method".equalsIgnoreCase(s) ? "" : s;
 	}
 
+<<<<<<< HEAD
 	private int getSelectedItemTotal() {
+=======
+	private double getSelectedItemTotal() {
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		return (selectedItem != null ? selectedItem.price : 0) * getSelectedQuantity();
 	}
 
 	private void updateCheckoutButtonLabel() {
 		if (checkoutButton != null) {
+<<<<<<< HEAD
 			int total = getSelectedItemTotal();
 			checkoutButton.setText("Checkout " + (total > 0 ? ("P" + total) : "Free"));
+=======
+			double total = getSelectedItemTotal();
+			checkoutButton.setText("Checkout " + (total > 0 ? ("P" + String.format("%.0f", total)) : "Free"));
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		}
 	}
 
@@ -180,7 +245,11 @@ public class ItemPanel extends CustomPanel {
 		removeAll();
 		viewItem();
 		if (itemViewStateListener != null) {
+<<<<<<< HEAD
 			itemViewStateListener.accept(true);
+=======
+			itemViewStateListener.onViewStateChanged(true); // Call interface method
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		}
 		revalidate();
 		repaint();
@@ -203,8 +272,22 @@ public class ItemPanel extends CustomPanel {
 			}
 			int endExclusive = Math.min(start + GRID_PAGE_SIZE, items.size());
 			int added = 0;
+<<<<<<< HEAD
 			for (int i = start; i < endExclusive; i++) {
 				ItemCard card = new ItemCard(View.GRID, getPrimaryActionText(), items.get(i), showPrice, this::showItemView);
+=======
+			
+			// Use an anonymous class for our custom interface listener
+			ItemActionListener listener = new ItemActionListener() {
+				@Override
+				public void onItemAction(ItemRecord record) {
+					showItemView(record);
+				}
+			};
+
+			for (int i = start; i < endExclusive; i++) {
+				ItemCard card = new ItemCard(View.GRID, getPrimaryActionText(), items.get(i), showPrice, listener);
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 				wrapper.add(card);
 				added++;
 			}
@@ -231,8 +314,21 @@ public class ItemPanel extends CustomPanel {
 				start = 0;
 			}
 			int endExclusive = Math.min(start + LIST_PAGE_SIZE, items.size());
+<<<<<<< HEAD
 			for (int i = start; i < endExclusive; i++) {
 				ItemCard card = new ItemCard(View.LIST, getPrimaryActionText(), items.get(i), showPrice, this::showItemView);
+=======
+			
+			ItemActionListener listener = new ItemActionListener() {
+				@Override
+				public void onItemAction(ItemRecord record) {
+					showItemView(record);
+				}
+			};
+
+			for (int i = start; i < endExclusive; i++) {
+				ItemCard card = new ItemCard(View.LIST, getPrimaryActionText(), items.get(i), showPrice, listener);
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 				card.setPreferredSize(new Dimension(0, 100));
 				card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
 				wrapper.add(card);
@@ -251,6 +347,23 @@ public class ItemPanel extends CustomPanel {
 	
 	private void initNav() {
 		CustomPanel navWrapper = new CustomPanel(new BorderLayout());
+<<<<<<< HEAD
+=======
+		
+		// Calculate item range for the label
+		List<ItemRecord> items = getItemsForCurrentTab();
+		int totalItems = items.size();
+		int pageSize = View.GRID.equals(view) ? GRID_PAGE_SIZE : LIST_PAGE_SIZE;
+		int startItem = totalItems == 0 ? 0 : (currentPage * pageSize) + 1;
+		int endItem = Math.min((currentPage + 1) * pageSize, totalItems);
+		
+		CustomLabel showingLabel = new CustomLabel(
+			String.format("Showing %d - %d of %d items", startItem, endItem, totalItems), 
+			Brand.STANDARD_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY
+		);
+		navWrapper.add(showingLabel, BorderLayout.WEST);
+
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		CustomButton btnFirst = new CustomButton(IconLoader.loadAndScaleColorizedIcon("/resources/icons/double-arrow-left.png", 20, 20, Color.WHITE), 5);
 		CustomButton btnPrev = new CustomButton(IconLoader.loadAndScaleColorizedIcon("/resources/icons/arrow-left.png", 20, 20, Color.WHITE), 5);
 		CustomButton btnNext = new CustomButton(IconLoader.loadAndScaleColorizedIcon("/resources/icons/arrow-right.png", 20, 20, Color.WHITE), 5);
@@ -274,7 +387,10 @@ public class ItemPanel extends CustomPanel {
 		navWrapper.add(wrapper, BorderLayout.EAST);
 		add(navWrapper, BorderLayout.SOUTH);
 	}
+<<<<<<< HEAD
 
+=======
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 	private int getLastPageIndex() {
 		List<ItemRecord> items = getItemsForCurrentTab();
 		return items.isEmpty() ? 0 : Math.max(0, (items.size() - 1) / (View.GRID.equals(view) ? GRID_PAGE_SIZE : LIST_PAGE_SIZE));
@@ -315,7 +431,17 @@ public class ItemPanel extends CustomPanel {
 		wrapper.add(header, BorderLayout.NORTH);
 		
 		CustomPanel westWrapper = new CustomPanel();
+<<<<<<< HEAD
 		JLabel imgLabel = new JLabel(IconLoader.loadAndScaleIcon("/resources/images/umak_img.jpg", 400, 500)); 
+=======
+		
+		// Map dynamic image path if it exists
+		String imagePath = (selectedItem != null && selectedItem.itemsImage != null && !selectedItem.itemsImage.isEmpty()) 
+							? selectedItem.itemsImage 
+							: "/resources/images/umak_img.jpg";
+							
+		JLabel imgLabel = new JLabel(IconLoader.loadAndScaleIcon(imagePath, 400, 500)); 
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		imgLabel.setPreferredSize(new Dimension(400, 500));
 		imgLabel.setMaximumSize(new Dimension(400, 500));
 		imgLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -329,7 +455,11 @@ public class ItemPanel extends CustomPanel {
 	private void refreshItemView() {
 		removeAll();
 		viewItem();
+<<<<<<< HEAD
 		if (itemViewStateListener != null) itemViewStateListener.accept(true);
+=======
+		if (itemViewStateListener != null) itemViewStateListener.onViewStateChanged(true);
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		revalidate();
 		repaint();
 	}
@@ -341,12 +471,20 @@ public class ItemPanel extends CustomPanel {
 		
 		String itemName = selectedItem != null && selectedItem.itemName != null ? selectedItem.itemName : "Item";
 		String itemCategory = selectedItem != null && selectedItem.category != null ? selectedItem.category : "";
+<<<<<<< HEAD
 		int itemPrice = selectedItem != null ? selectedItem.price : 0;
+=======
+		double itemPrice = selectedItem != null ? selectedItem.price : 0;
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		String itemDesc = selectedItem != null && selectedItem.description != null ? selectedItem.description : "";
 		int stock = selectedItem != null ? selectedItem.itemQuantity : 0;
 		String pickupArea = selectedItem != null && selectedItem.pickupArea != null ? selectedItem.pickupArea : "";
 		String pickupTime = selectedItem != null && selectedItem.pickupTime != null ? selectedItem.pickupTime : "";
+<<<<<<< HEAD
 		Date pickupDate = selectedItem != null ? selectedItem.pickupDate : null;
+=======
+		String pickupDays = selectedItem != null && selectedItem.pickupDays != null ? selectedItem.pickupDays : "";
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		
 		CustomPanel itemInfoWrapper = new CustomPanel(new BorderLayout(10, 0));
 		itemInfoWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -356,6 +494,7 @@ public class ItemPanel extends CustomPanel {
 		itemInfoWrapper.add(nameLabel, BorderLayout.CENTER);
 		itemInfoWrapper.add(categoryLabel, BorderLayout.EAST);
 		
+<<<<<<< HEAD
 		CustomLabel priceLabel = new CustomLabel(itemPrice > 0 ? ("P" + itemPrice) : "Free", Brand.HEADER1_TEXT_SIZE, FontStyle.BOLD);
 		priceLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		priceLabel.setForeground(Brand.PRIMARY_COLOR);
@@ -363,12 +502,34 @@ public class ItemPanel extends CustomPanel {
 		CustomLabel initiatorLabel = new CustomLabel("LINDSAY MARY BALABIS", Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR);
 		initiatorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		
+=======
+		String priceText = itemPrice > 0 ? "P" + String.format("%.0f", itemPrice) : "Free";
+		CustomLabel priceLabel = new CustomLabel(priceText, Brand.HEADER1_TEXT_SIZE, FontStyle.BOLD);
+		priceLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+		priceLabel.setForeground(Brand.PRIMARY_COLOR);
+
+		// Format Initiator Name
+		String fullName = "by Someone";
+		if (selectedItem != null && selectedItem.initiatorFirstName != null && selectedItem.initiatorLastName != null) {
+			fullName = "by " + selectedItem.initiatorFirstName.toUpperCase() + " " + selectedItem.initiatorLastName.toUpperCase();
+		}
+		CustomLabel initiatorLabel = new CustomLabel(fullName, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR);
+		initiatorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+		
+		// Clean up pickup days formatting (convert "Monday,Tuesday" to "Monday, Tuesday")
+		String displayDays = pickupDays.replace(",", ", ");
+		
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		CustomPanel locationWrapper = new CustomPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
 		locationWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
 		locationWrapper.add(new JLabel(IconLoader.loadAndScaleColorizedIcon("/resources/icons/location.png", 15, 15, Color.GRAY)));
 		locationWrapper.add(new CustomLabel(pickupArea, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY));
 		locationWrapper.add(new CustomLabel("\u2022", Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD, Color.GRAY));
+<<<<<<< HEAD
 		locationWrapper.add(new CustomLabel(formatDisplayDate(pickupDate), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY));
+=======
+		locationWrapper.add(new CustomLabel(displayDays, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY));
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		locationWrapper.add(new CustomLabel("\u2022", Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD, Color.GRAY));
 		locationWrapper.add(new CustomLabel(pickupTime, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY));
 		
@@ -484,8 +645,13 @@ public class ItemPanel extends CustomPanel {
 		CustomPanel topContent = new CustomPanel();
 		topContent.setLayout(new BoxLayout(topContent, BoxLayout.Y_AXIS));
 		
+<<<<<<< HEAD
 		int unitPrice = selectedItem != null ? selectedItem.price : 0;
 		int total = getSelectedItemTotal();
+=======
+		double unitPrice = selectedItem != null ? selectedItem.price : 0;
+		double total = getSelectedItemTotal();
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		
 		CustomPanel itemInfoWrapper = new CustomPanel(new BorderLayout(10, 0));
 		itemInfoWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -516,14 +682,24 @@ public class ItemPanel extends CustomPanel {
 			String payment = getSelectedPaymentMethod();
 			details.add(new CustomLabel("Payment Method: " + (payment.isBlank() ? "(not selected)" : payment), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
 			details.add(Box.createVerticalStrut(10));
+<<<<<<< HEAD
 
 			details.add(new CustomLabel("Pickup Location: " + (selectedItem != null && selectedItem.pickupArea != null ? selectedItem.pickupArea : ""), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
 			details.add(Box.createVerticalStrut(5));
 			details.add(new CustomLabel("Pickup Date: " + formatDisplayDate(selectedItem != null ? selectedItem.pickupDate : null), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+=======
+			
+			String pickupDays = selectedItem != null && selectedItem.pickupDays != null ? selectedItem.pickupDays.replace(",", ", ") : "";
+
+			details.add(new CustomLabel("Pickup Location: " + (selectedItem != null && selectedItem.pickupArea != null ? selectedItem.pickupArea : ""), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+			details.add(Box.createVerticalStrut(5));
+			details.add(new CustomLabel("Pickup Days: " + pickupDays, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 			details.add(Box.createVerticalStrut(5));
 			details.add(new CustomLabel("Pickup Time: " + (selectedItem != null && selectedItem.pickupTime != null ? selectedItem.pickupTime : ""), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
 			details.add(Box.createVerticalStrut(15));
 
+<<<<<<< HEAD
 			details.add(new CustomLabel("Unit Price: " + (unitPrice > 0 ? ("P" + unitPrice) : "Free"), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
 			details.add(Box.createVerticalStrut(5));
 			details.add(new CustomLabel("Total: " + (total > 0 ? ("P" + total) : "Free"), Brand.HEADER3_TEXT_SIZE, FontStyle.BOLD));
@@ -531,6 +707,15 @@ public class ItemPanel extends CustomPanel {
 			details.add(Box.createVerticalStrut(20));
 			
 			CustomButton payButton = new CustomButton(total > 0 ? "Pay P" + total : "Confirm Order", 10);
+=======
+			details.add(new CustomLabel("Unit Price: " + (unitPrice > 0 ? ("P" + String.format("%.0f", unitPrice)) : "Free"), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+			details.add(Box.createVerticalStrut(5));
+			details.add(new CustomLabel("Total: " + (total > 0 ? ("P" + String.format("%.0f", total)) : "Free"), Brand.HEADER3_TEXT_SIZE, FontStyle.BOLD));
+			
+			details.add(Box.createVerticalStrut(20));
+			
+			CustomButton payButton = new CustomButton(total > 0 ? "Pay P" + String.format("%.0f", total) : "Confirm Order", 10);
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 			payButton.setDefaultColor(Brand.GREEN);
 			payButton.setHoverColor(Brand.GREEN.darker());
 			payButton.setPadding(15, 20, 15, 20);
@@ -560,7 +745,11 @@ public class ItemPanel extends CustomPanel {
 		}
 	}
 
+<<<<<<< HEAD
 	public void setItemViewStateListener(Consumer<Boolean> listener) {
+=======
+	public void setItemViewStateListener(ViewStateListener listener) {
+>>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		this.itemViewStateListener = listener;
 	}
 }
