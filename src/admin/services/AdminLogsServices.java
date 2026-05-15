@@ -6,38 +6,40 @@ import java.util.List;
 
 public class AdminLogsServices {
 
-	private LogsDatabase logDB = new LogsDatabase();
+	private final LogsDatabase logDB = new LogsDatabase();
 
+	// Unfiltered table data — delegates to filtered with empty keyword
 	public Object[][] getUserLogsForTable() {
-		return buildTableData(logDB.getLogsByType("USER"));
+		return filtered("USER", "", "", null, null);
 	}
 
 	public Object[][] getItemLogsForTable() {
-		return buildTableData(logDB.getLogsByType("ITEM"));
+		return filtered("ITEM", "", "", null, null);
 	}
 
 	public Object[][] getTransactionLogsForTable() {
-		return buildTableData(logDB.getLogsByType("TRANSACTION"));
+		return filtered("TRANSACTION", "", "", null, null);
 	}
 
 	public Object[][] getReputationLogsForTable() {
-		return buildTableData(logDB.getLogsByType("REPUTATION"));
+		return filtered("REPUTATION", "", "", null, null);
 	}
 
+	// Filtered table data by keyword, column filter, and date range
 	public Object[][] getUserLogsFiltered(String filter, String keyword, String dateFrom, String dateTo) {
-		return buildTableData(logDB.getLogsByTypeFiltered("USER", filter, keyword, dateFrom, dateTo));
+		return filtered("USER", filter, keyword, dateFrom, dateTo);
 	}
 
 	public Object[][] getItemLogsFiltered(String filter, String keyword, String dateFrom, String dateTo) {
-		return buildTableData(logDB.getLogsByTypeFiltered("ITEM", filter, keyword, dateFrom, dateTo));
+		return filtered("ITEM", filter, keyword, dateFrom, dateTo);
 	}
 
 	public Object[][] getTransactionLogsFiltered(String filter, String keyword, String dateFrom, String dateTo) {
-		return buildTableData(logDB.getLogsByTypeFiltered("TRANSACTION", filter, keyword, dateFrom, dateTo));
+		return filtered("TRANSACTION", filter, keyword, dateFrom, dateTo);
 	}
 
 	public Object[][] getReputationLogsFiltered(String filter, String keyword, String dateFrom, String dateTo) {
-		return buildTableData(logDB.getLogsByTypeFiltered("REPUTATION", filter, keyword, dateFrom, dateTo));
+		return filtered("REPUTATION", filter, keyword, dateFrom, dateTo);
 	}
 
 	public int getTotalLogs() {
@@ -48,6 +50,12 @@ public class AdminLogsServices {
 		return logDB.countTransactions();
 	}
 
+	// Shared delegation to LogsDatabase with all filter parameters
+	private Object[][] filtered(String logType, String filter, String keyword, String dateFrom, String dateTo) {
+		return buildTableData(logDB.getLogsByTypeFiltered(logType, filter, keyword, dateFrom, dateTo));
+	}
+
+	// Maps a list of AdminLogs into the 5-column table format
 	private Object[][] buildTableData(List<AdminLogs> logs) {
 		Object[][] data = new Object[logs.size()][5];
 		for (int i = 0; i < logs.size(); i++) {

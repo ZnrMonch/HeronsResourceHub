@@ -17,4 +17,7 @@ public class Brand {
 	public static final float HEADER4_TEXT_SIZE = 20f;
 	public static final float SUBHEADER_TEXT_SIZE = 16f;
 	public static final float STANDARD_TEXT_SIZE = 14f;
+	
+	public static final Color COLOR_GRID = new Color(235, 235, 237);
+	public static final Color COLOR_BORDER = new Color(220, 220, 225);
 }
