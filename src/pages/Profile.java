@@ -21,26 +21,14 @@ public class Profile extends CustomPanel {
 	private String firstName = "Renzjan";
 	private String contactNumber = "095118391870";
 	private String email = "renzjan.moncinilla@umak.edu.ph";
-<<<<<<< HEAD
-	private String memberSince = "January 01, 2000";
-	private String password = "*";
-=======
 	private String memberSince = "January 01, 2001";
 	private String password = "*";
 	// Actual stored password (empty by default). We display a masked version in password.
 	private String storedPassword = "";
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 	
 	private String college = "CCIS";
 	private String course = "BS in Information Technology";
 	private String yearLevel = "1st Year";
-<<<<<<< HEAD
-	
-	private String gcash = "09********0";
-	private String maya = "09********0";
-	private String mastercard = "09********0";
-	private String visa = "09********0";
-=======
 
 	// s (unmasked) for payment numbers. Stored separately so we can show a censored
 	// version in view mode while keeping the real value available for editing/saving.
@@ -54,7 +42,6 @@ public class Profile extends CustomPanel {
 	private String mayaName = "Renzjan Moncinilla";
 	private String mastercardName = "Renzjan Moncinilla";
 	private String visaName = "Renzjan Moncinilla";
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 	
 	private CustomTextField studentIdField = new CustomTextField("");
 	private CustomTextField lastNameField = new CustomTextField("");
@@ -64,27 +51,21 @@ public class Profile extends CustomPanel {
 	private CustomTextField collegeField = new CustomTextField("");
 	private CustomTextField courseField = new CustomTextField("");
 	private CustomTextField yearLevelField = new CustomTextField("");
-<<<<<<< HEAD
-=======
 
 	// Combo boxes for college and year level (used in edit mode)
 	private CustomComboBox<String> collegeCombo = null;
 	private CustomComboBox<String> yearCombo = null;
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 	
 	private CustomTextField gcashField = new CustomTextField("");
 	private CustomTextField mayaField = new CustomTextField("");
 	private CustomTextField mastercardField = new CustomTextField("");
 	private CustomTextField visaField = new CustomTextField("");
-<<<<<<< HEAD
-=======
 
 	// Editable name fields for payment methods (editable when profile is in edit mode)
 	private CustomTextField gcashNameField = new CustomTextField("");
 	private CustomTextField mayaNameField = new CustomTextField("");
 	private CustomTextField mastercardNameField = new CustomTextField("");
 	private CustomTextField visaNameField = new CustomTextField("");
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 	
 	public Profile() {
 		setLayout(new BorderLayout(20, 20));
@@ -123,8 +104,6 @@ public class Profile extends CustomPanel {
 		wrapper.add(karmaWrapper, BorderLayout.CENTER);
 		return wrapper;
 	}
-<<<<<<< HEAD
-=======
 
 	private CustomPanel comboInfoWrapper(String info, String value, JComboBox<String> combo, boolean isEditable) {
 		CustomPanel wrapper = new CustomPanel();
@@ -165,18 +144,13 @@ public class Profile extends CustomPanel {
 		
 		return wrapper;
 	}
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 	
 	private CustomTabbedPane initCenter() {
 		CustomTabbedPane tabbedPane = new CustomTabbedPane();
 		tabbedPane.setRadius(20);
 		
 		tabbedPane.addTab("Profile", "/resources/icons/profile.png", initProfileTab());
-<<<<<<< HEAD
-		tabbedPane.addTab("Transaction History", new CustomPanel());
-=======
 		tabbedPane.addTab("Transaction History","/resources/icons/logs.png", new CustomPanel());
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		
 		return tabbedPane;
 	}
@@ -195,15 +169,11 @@ public class Profile extends CustomPanel {
 		
 		editProfileButton.addToggleListener(toggled -> {
 			if (!toggled && isEditing) {
-<<<<<<< HEAD
-				// Define your custom buttons here. No "Cancel" button is included.
-=======
 				if (!hasUnsavedChanges()) {
 					isEditing = false;
 					buildProfileFields();
 					return;
 				}
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 				Object[] options = {"Save Changes", "Discard"};
 				
 				int choice = JOptionPane.showOptionDialog(
@@ -213,22 +183,6 @@ public class Profile extends CustomPanel {
 					JOptionPane.YES_NO_OPTION,
 					JOptionPane.QUESTION_MESSAGE,
 					null,
-<<<<<<< HEAD
-					options, // Applies the custom text array
-					options[0] // Default button focus
-				);
-				
-				if (choice == JOptionPane.YES_OPTION) { // Maps to index 0 ("Save Changes")
-					saveFields();
-					isEditing = false;
-					buildProfileFields();
-				} else if (choice == JOptionPane.NO_OPTION) { // Maps to index 1 ("Discard")
-					isEditing = false;
-					buildProfileFields();
-				} else {
-					// If the user clicks the 'X' to close the window (JOptionPane.CLOSED_OPTION)
-					// It safely keeps them in the edit screen.
-=======
 					options, 
 					options[0] 
 				);
@@ -241,7 +195,6 @@ public class Profile extends CustomPanel {
 					isEditing = false;
 					buildProfileFields();
 				} else {
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 					SwingUtilities.invokeLater(() -> editProfileButton.setToggled(true));
 				}
 			} else if (toggled && !isEditing) {
@@ -260,15 +213,6 @@ public class Profile extends CustomPanel {
 	}
 	
 	private void saveFields() {
-<<<<<<< HEAD
-		studentId = studentIdField.getText();
-		lastName = lastNameField.getText();
-		firstName = firstNameField.getText();
-		contactNumber = contactNumberField.getText();
-		college = collegeField.getText();
-		course = courseField.getText();
-		yearLevel = yearLevelField.getText();
-=======
 		lastName = lastNameField.getText();
 		firstName = firstNameField.getText();
 		contactNumber = contactNumberField.getText();
@@ -277,13 +221,10 @@ public class Profile extends CustomPanel {
 		course = courseField.getText();
 		if (yearCombo != null) yearLevel = (String) yearCombo.getSelectedItem();
 		else yearLevel = yearLevelField.getText();
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		gcash = gcashField.getText();
 		maya = mayaField.getText();
 		mastercard = mastercardField.getText();
 		visa = visaField.getText();
-<<<<<<< HEAD
-=======
 
 		gcash = censorNumber(gcashField.getText());
 		maya = censorNumber(mayaField.getText());
@@ -365,7 +306,6 @@ public class Profile extends CustomPanel {
 		for (int i = 0; i < len - keepStart - keepEnd; i++) sb.append('*');
 		sb.append(num.substring(len - keepEnd));
 		return sb.toString();
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 	}
 	
 	private void buildProfileFields() {
@@ -381,11 +321,7 @@ public class Profile extends CustomPanel {
 		infoWrapper1.setAlignmentY(Component.TOP_ALIGNMENT);
 		infoWrapper2.setAlignmentY(Component.TOP_ALIGNMENT);
 		
-<<<<<<< HEAD
-		infoWrapper1.add(infoWrapper("Student ID", studentId, studentIdField, true));
-=======
 		infoWrapper1.add(infoWrapper("Student ID", studentId, studentIdField, false));
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		infoWrapper1.add(Box.createVerticalStrut(15));
 		infoWrapper1.add(infoWrapper("Last Name", lastName, lastNameField, true));
 		infoWrapper1.add(Box.createVerticalStrut(15));
@@ -401,13 +337,6 @@ public class Profile extends CustomPanel {
 		infoWrapper1.add(infoWrapper("Password", password, null, false));
 		infoWrapper1.add(Box.createVerticalStrut(15));
 		
-<<<<<<< HEAD
-		infoWrapper2.add(infoWrapper("College/Institute", college, collegeField, true));
-		infoWrapper2.add(Box.createVerticalStrut(15));
-		infoWrapper2.add(infoWrapper("Course/Program", course, courseField, true));
-		infoWrapper2.add(Box.createVerticalStrut(15));
-		infoWrapper2.add(infoWrapper("Year Level", yearLevel, yearLevelField, true));
-=======
 		String[] colleges = new String[]{"CBFS","CCIS","CCAPS","CCSE","CET","CGPP","CHK","CITE","CITE-HSU","CTHM","IAD","IOA","IOP","ION","IIHS","IOPsy","ISW","IDEM"};
 		collegeCombo = new CustomComboBox<>(colleges);
 		infoWrapper2.add(comboInfoWrapper("College/Institute", college, collegeCombo, true));
@@ -418,7 +347,6 @@ public class Profile extends CustomPanel {
 		String[] years = new String[]{"1st Year","2nd Year","3rd Year","4th Year","5th Year","Alumni"};
 		yearCombo = new CustomComboBox<>(years);
 		infoWrapper2.add(comboInfoWrapper("Year Level", yearLevel, yearCombo, true));
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		infoWrapper2.add(Box.createVerticalStrut(30));
 		infoWrapper2.add(new CustomLabel("Payment Information", Brand.HEADER4_TEXT_SIZE, FontStyle.BOLD));
 		infoWrapper2.add(Box.createVerticalStrut(5));
@@ -434,29 +362,17 @@ public class Profile extends CustomPanel {
 		onlinePaymentTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 		paymentInfoPanel1.add(onlinePaymentTitle);
 		paymentInfoPanel1.add(Box.createVerticalStrut(10));
-<<<<<<< HEAD
-		paymentInfoPanel1.add(paymentInfoWrapper("/resources/icons/gcash.png", "GCash", gcash, gcashField, true));
-		paymentInfoPanel1.add(Box.createVerticalStrut(10));
-		paymentInfoPanel1.add(paymentInfoWrapper("/resources/icons/maya.png", "Maya", maya, mayaField, true));
-=======
 		paymentInfoPanel1.add(paymentInfoWrapper("/resources/icons/gcash.png", "GCash", gcash, gcashField, true, gcashName, gcashNameField));
 		paymentInfoPanel1.add(Box.createVerticalStrut(10));
 		paymentInfoPanel1.add(paymentInfoWrapper("/resources/icons/maya.png", "Maya", maya, mayaField, true, mayaName, mayaNameField));
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		
 		CustomLabel paymentNetworkTitle = new CustomLabel("Payment Network");
 		paymentNetworkTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 		paymentInfoPanel2.add(paymentNetworkTitle);
 		paymentInfoPanel2.add(Box.createVerticalStrut(10));
-<<<<<<< HEAD
-		paymentInfoPanel2.add(paymentInfoWrapper("/resources/icons/mastercard.png", "Mastercard", mastercard, mastercardField, true));
-		paymentInfoPanel2.add(Box.createVerticalStrut(10));
-		paymentInfoPanel2.add(paymentInfoWrapper("/resources/icons/visa.png", "Visa", visa, visaField, true));
-=======
 		paymentInfoPanel2.add(paymentInfoWrapper("/resources/icons/mastercard.png", "Mastercard", mastercard, mastercardField, true, mastercardName, mastercardNameField));
 		paymentInfoPanel2.add(Box.createVerticalStrut(10));
 		paymentInfoPanel2.add(paymentInfoWrapper("/resources/icons/visa.png", "Visa", visa, visaField, true, visaName, visaNameField));
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		
 		paymentInfoPanel.add(paymentInfoPanel1);
 		paymentInfoPanel.add(paymentInfoPanel2);
@@ -488,10 +404,6 @@ public class Profile extends CustomPanel {
 		wrapper.add(infoLabel);
 		wrapper.add(Box.createVerticalStrut(5));
 		
-<<<<<<< HEAD
-		if (isEditing && isEditable && field != null) {
-			field.setText(value); 
-=======
 		if ("Password".equals(info)) {
 			CustomTextField pwdDisplay = new CustomTextField(maskPasswordDisplay(storedPassword));
 			pwdDisplay.setCustomSize(300, 35);
@@ -531,33 +443,22 @@ public class Profile extends CustomPanel {
 		
 		if (isEditing && isEditable && field != null) {
 			field.setText(value);
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 			field.setCustomSize(300, 35);
 			field.setAlignmentX(Component.LEFT_ALIGNMENT);
 			wrapper.add(field);
 		} else {
-<<<<<<< HEAD
-			CustomLabel valueLabel = new CustomLabel(value, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR);
-			valueLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-			wrapper.add(valueLabel);
-=======
 			CustomTextField displayField = new CustomTextField(value);
 			displayField.setCustomSize(300, 35);
 			displayField.setEditable(false);
 			displayField.setEnabled(false);
 			displayField.setAlignmentX(Component.LEFT_ALIGNMENT);
 			wrapper.add(displayField);
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		}
 		
 		return wrapper;
 	}
 	
-<<<<<<< HEAD
-	private CustomPanel paymentInfoWrapper(String path, String info, String value, CustomTextField field, boolean isEditable) {
-=======
 	private CustomPanel paymentInfoWrapper(String path, String info, String value, CustomTextField field, boolean isEditable, String name, CustomTextField nameField) {
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		CustomPanel wrapper = new CustomPanel();
 		wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
 		wrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -569,18 +470,6 @@ public class Profile extends CustomPanel {
 		
 		wrapper.add(infoLabel);
 		wrapper.add(Box.createVerticalStrut(5));
-<<<<<<< HEAD
-		
-		if (isEditing && isEditable && field != null) {
-			field.setText(value); 
-			field.setCustomSize(200, 35);
-			field.setAlignmentX(Component.LEFT_ALIGNMENT);
-			wrapper.add(field);
-		} else {
-			CustomLabel valueLabel = new CustomLabel(value, Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD);
-			valueLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-			wrapper.add(valueLabel);
-=======
 		if (isEditing && isEditable && field != null) {
 			field.setText(value);
 			field.setCustomSize(200, 35);
@@ -605,7 +494,6 @@ public class Profile extends CustomPanel {
 			nameLabel.setForeground(Color.GRAY);
 			nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 			wrapper.add(nameLabel);
->>>>>>> 67c30995b8a1a82a0648cac47d1ba74cea853876
 		}
 		
 		return wrapper;

@@ -76,7 +76,6 @@ public class AdminUsersServices {
         boolean success = userDB.unarchiveUser(userId);
 
         if (success) {
-            // User is back in the users table now — FK constraint is satisfied
             logDB.insertLog("USER", userId, 0,
                 "User " + user.getFullName() + " (ID " + userId + ") was restored from archive by admin.");
         }

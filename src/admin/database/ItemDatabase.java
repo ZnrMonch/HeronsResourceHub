@@ -156,7 +156,12 @@ public class ItemDatabase {
             "DELETE FROM transaction_log WHERE item_id = ?";
 
         String archiveItem =
-            "INSERT IGNORE INTO items_archive SELECT * FROM items WHERE item_id = ?";
+        	    "INSERT IGNORE INTO items_archive "
+        	    + "(item_id, owner_id, item_name, item_quantity, description, "
+        	    + " category, item_condition, price, availability_status) "
+        	    + "SELECT item_id, owner_id, item_name, item_quantity, description, "
+        	    + "       category, item_condition, price, availability_status "
+        	    + "FROM items WHERE item_id = ?";
 
         String deleteItem =
             "DELETE FROM items WHERE item_id = ?";
@@ -164,7 +169,7 @@ public class ItemDatabase {
         try (Connection conn = getConn()) {
             conn.setAutoCommit(false);
             try {
-                // Step 1 — remove items_log rows that reference this item
+               
                 try (PreparedStatement ps = conn.prepareStatement(deleteItemsLog)) {
                     ps.setInt(1, itemId);
                     ps.executeUpdate();
@@ -172,7 +177,7 @@ public class ItemDatabase {
                     System.out.println("archiveItem() items_log cleanup skipped: " + e.getMessage());
                 }
 
-                // Step 2 — remove transaction_log rows that reference this item
+               
                 try (PreparedStatement ps = conn.prepareStatement(deleteTransLog)) {
                     ps.setInt(1, itemId);
                     ps.executeUpdate();
@@ -180,7 +185,7 @@ public class ItemDatabase {
                     System.out.println("archiveItem() transaction_log cleanup skipped: " + e.getMessage());
                 }
 
-                // Step 3 — copy into archive (INSERT IGNORE skips if already archived)
+          
                 try (PreparedStatement ps = conn.prepareStatement(archiveItem)) {
                     ps.setInt(1, itemId);
                     int rows = ps.executeUpdate();
@@ -188,7 +193,7 @@ public class ItemDatabase {
                         throw new SQLException("Item " + itemId + " not found in items table.");
                 }
 
-                // Step 4 — delete from active table
+               
                 try (PreparedStatement ps = conn.prepareStatement(deleteItem)) {
                     ps.setInt(1, itemId);
                     ps.executeUpdate();
@@ -210,16 +215,18 @@ public class ItemDatabase {
 
 
     public boolean unarchiveItem(int itemId) {
-        String insert = "INSERT INTO items "
-                + "(item_id, owner_id, item_name, item_quantity, description, "
-                + " category, item_condition, price, availability_status, "
-                + " maximum_borrow_days, desired_item, pickup_area, pickup_time, action) "
-                + "SELECT item_id, owner_id, item_name, item_quantity, description, "
-                + "       category, item_condition, price, availability_status, "
-                + "       maximum_borrow_days, desired_item, pickup_area, pickup_time, "
-                + "       'Sharing' "
-                + "FROM items_archive WHERE item_id = ?";
-        String delete = "DELETE FROM items_archive WHERE item_id = ?";
+    	String insert =
+    		    "INSERT INTO items "
+    		    + "(item_id, owner_id, item_name, item_quantity, description, "
+    		    + " category, item_condition, price, availability_status, "
+    		    + " maximum_borrow_days, desired_item, pickup_area, pickup_time, action) "
+    		    + "SELECT item_id, owner_id, item_name, item_quantity, description, "
+    		    + "       category, item_condition, price, availability_status, "
+    		    + "       maximum_borrow_days, desired_item, pickup_area, pickup_time, "
+    		    + "       'Sharing' "
+    		    + "FROM items_archive WHERE item_id = ? "
+    		    + "ORDER BY item_archive_id DESC LIMIT 1"; 
+    	String delete = "DELETE FROM items_archive WHERE item_id = ?";
 
         try (Connection conn = getConn()) {
             conn.setAutoCommit(false);
@@ -244,9 +251,6 @@ public class ItemDatabase {
         return false;
     }
 
-    /**
-     * Permanently deletes an item from items_archive (hard delete, cannot be undone).
-     */
     public boolean permanentDeleteItem(int itemId) {
         String sql = "DELETE FROM items_archive WHERE item_id = ?";
         try (Connection conn = getConn();
@@ -265,7 +269,7 @@ public class ItemDatabase {
         return false;
     }
 
-    // ── Internal helpers ──────────────────────────────────────────────────────
+   
 
     private Connection getConn() throws SQLException {
         return DriverManager.getConnection(
@@ -302,7 +306,7 @@ public class ItemDatabase {
         item.setItemCondition(rs.getString("item_condition"));
         item.setPrice(rs.getInt("price"));
         item.setAvailabilityStatus(rs.getString("availability_status"));
-        item.setAction("—");
+        item.setAction("—");   // items_archive has no action column
         item.setArchived(true);
         return item;
     }

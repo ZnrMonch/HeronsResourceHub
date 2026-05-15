@@ -104,7 +104,7 @@ public class LogsDatabase {
         return list;
     }
 
-    // ── Counts ────────────────────────────────────────────────────────────────
+
 
     public int countAllLogs() {
         int total = 0;
@@ -134,29 +134,6 @@ public class LogsDatabase {
         return 0;
     }
 
-    // ── Write ─────────────────────────────────────────────────────────────────
-
-    /**
-     * Inserts an admin action log entry.
-     *
-     * <p>Pass {@code userId = 0} or {@code itemId = 0} to store NULL for that
-     * FK column. This avoids FK constraint violations when the referenced user
-     * or item no longer exists in its source table (e.g. after archiving).
-     *
-     * <p>Both {@code user_id} and {@code item_id} in the log tables <strong>must
-     * be nullable</strong> for this to work. If they are currently NOT NULL, run:
-     * <pre>
-     *   ALTER TABLE users_log MODIFY user_id INT NULL;
-     *   ALTER TABLE items_log MODIFY user_id INT NULL;
-     *   ALTER TABLE items_log MODIFY item_id INT NULL;
-     * </pre>
-     *
-     * @param logType     "USER" or "ITEM"
-     * @param userId      FK to users.user_id  — pass 0 to store NULL
-     * @param itemId      FK to items.item_id  — pass 0 to store NULL (ITEM logs only)
-     * @param description human-readable description of the action
-     * @return true if the row was inserted successfully
-     */
     public boolean insertLog(String logType, int userId, int itemId, String description) {
         String table;
         String columns;
@@ -188,7 +165,7 @@ public class LogsDatabase {
 
             int i = 1;
 
-            // user_id — NULL when 0 so FK constraint is not violated
+            
             if (userId > 0) stmt.setInt(i++, userId);
             else            stmt.setNull(i++, Types.INTEGER);
 
@@ -209,7 +186,7 @@ public class LogsDatabase {
         }
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
+   
 
     private String resolveLogColumn(String filter, String logType, boolean hasItemId) {
         if (filter == null || filter.isEmpty()) return "reason";

@@ -14,11 +14,6 @@ import components.*;
 
 
 /* 
-	ERRORS THAT NEEDS SOME FIXING:
-	
-	- Item Archive
-	- Item Retrieve
-
 
 	TO DO:
 	
