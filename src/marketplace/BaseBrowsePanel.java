@@ -5,11 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.swing.*;
 import components.*;
-import database.DatabaseManager;
-import enums.Availability;
-import enums.Category;
-import enums.MarketplaceTabMode;
-import enums.View;
+import enums.*;
 import utils.*;
 
 public abstract class BaseBrowsePanel extends CustomPanel {
@@ -38,13 +34,13 @@ public abstract class BaseBrowsePanel extends CustomPanel {
 		filterByCategoryBox = new CustomComboBox<>(categoryList.toArray(new String[0]));
 		filterByCategoryBox.setCustomSize(200, 35);
 		
-		List<String> statusList = new ArrayList<>();
-		statusList.add("All Statuses");
-		for (Availability a : Availability.values()) {
-			statusList.add(a.toString());
+		List<String> conditionList = new ArrayList<>();
+		conditionList.add("All Conditions");
+		for (Condition a : Condition.values()) {
+			conditionList.add(a.toString());
 		}
 		
-		filterByStatusBox = new CustomComboBox<>(statusList.toArray(new String[0]));
+		filterByStatusBox = new CustomComboBox<>(conditionList.toArray(new String[0]));
 		filterByStatusBox.setCustomSize(200, 35);
 		
 		viewToggle = new CustomToggleButton(
