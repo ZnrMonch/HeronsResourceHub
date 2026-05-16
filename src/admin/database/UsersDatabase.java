@@ -2,12 +2,11 @@ package admin.database;
 
 import admin.models.AdminUsers;
 import database.DatabaseManager;
-
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class UsersDatabase {
+public class UsersDatabase extends BaseDatabase {
 
     private static Boolean softDeleteColumnExists  = null;
     private static Boolean archiveTableExistsCache = null;
@@ -515,12 +514,7 @@ public class UsersDatabase {
         return archiveTableExistsCache;
     }
 
-    private void exec(Connection conn, String sql, int param) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, param);
-            ps.executeUpdate();
-        }
-    }
+
 
     private String resolveUserColumn(String filter) {
         if (filter == null) return "first_name";
@@ -537,13 +531,6 @@ public class UsersDatabase {
         }
     }
 
-    private Connection getConn() throws SQLException {
-        return DriverManager.getConnection(
-            DatabaseManager.getURL(),
-            DatabaseManager.getUser(),
-            DatabaseManager.getPassword()
-        );
-    }
 
     private AdminUsers mapRow(ResultSet rs, boolean isArchived) throws SQLException {
         AdminUsers user = new AdminUsers();

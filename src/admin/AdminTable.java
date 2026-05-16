@@ -2,20 +2,14 @@ package admin;
 
 import java.awt.*;
 import java.awt.event.*;
-import java.time.YearMonth;
-import java.util.Calendar;
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableColumn;
-
+import admin.tabledialogs.*;
 import components.*;
-import database.UMak;
 import utils.*;
-import admin.models.*;
 import admin.services.*;
 import enums.*;
-import java.awt.FileDialog;
 
 public class AdminTable extends CustomPanel {
     private static final long serialVersionUID = 1L;
@@ -23,43 +17,36 @@ public class AdminTable extends CustomPanel {
     private final TableType type;
     private final LogType logType;
 
-    private String activeDateFrom = null;
-    private String activeDateTo = null;
     private int hoveredRow = -1;
 
     private CustomTable table;
     private CustomButton btnAddAction;
-    private CustomButton btnPrimaryAction;
-    private CustomButton btnSecondaryAction;
+    private CustomButton btnUpdateOrRetrieve;   // renamed from btnPrimaryAction
+    private CustomButton btnArchiveOrDelete;    // renamed from btnSecondaryAction
     private CustomSearchField searchField;
     private CustomComboBox<String> filterBox;
     private JCheckBox archiveMode = new JCheckBox("Archive Mode");
 
-    // Date filter components (logs only)
-    private CustomComboBox<String> yearBox;
-    private CustomComboBox<String> monthBox;
-    private CustomComboBox<String> dayBox;
-    private CustomButton btnDateRange;
-    private CustomButton btnClearDates;
     private javax.swing.Timer logsRefreshTimer;
+    private DateFilterPanel dateFilterPanel;
 
     // Services
     private final AdminUsersServices userService = new AdminUsersServices();
     private final AdminItemsServices itemService = new AdminItemsServices();
-    private final AdminLogsServices logService = new AdminLogsServices();
+    private final AdminLogsServices  logService  = new AdminLogsServices();
 
-  
+
     // CONSTRUCTORS
     public AdminTable(TableType type) {
         this(type, LogType.NONE);
     }
 
     public AdminTable(TableType type, LogType logType) {
-        this.type = type;
+        this.type    = type;
         this.logType = logType;
         setLayout(new BorderLayout());
         add(initHeader(), BorderLayout.NORTH);
-        add(initTable(), BorderLayout.CENTER);
+        add(initTable(),  BorderLayout.CENTER);
 
         // Auto-refresh every 30 seconds for logs
         if (type == TableType.LOGS) {
@@ -72,7 +59,7 @@ public class AdminTable extends CustomPanel {
         }
     }
 
-  
+
     // HEADER
     private CustomPanel initHeader() {
         CustomPanel header = new CustomPanel();
@@ -80,10 +67,13 @@ public class AdminTable extends CustomPanel {
         header.setLayout(new BoxLayout(header, BoxLayout.X_AXIS));
 
         // Title label
-        String title = "Management";
-        if (type == TableType.USERS) title = "User Management";
-        else if (type == TableType.ITEMS) title = "Item Management";
-        else if (type == TableType.LOGS)  title = "Logs Management";
+        String title;
+        switch (type) {
+            case USERS: title = "User Management"; break;
+            case ITEMS: title = "Item Management"; break;
+            case LOGS:  title = "Logs Management"; break;
+            default:    title = "Management";      break;
+        }
 
         header.add(new CustomLabel(title, 18f, FontStyle.BOLD));
         header.add(Box.createHorizontalGlue());
@@ -129,7 +119,7 @@ public class AdminTable extends CustomPanel {
             header.add(Box.createHorizontalStrut(10));
         }
 
-        // Refresh button and date filter (logs only)
+        // Refresh button and date filter panel (logs only)
         if (type == TableType.LOGS) {
             header.add(Box.createHorizontalGlue());
             header.add(Box.createHorizontalStrut(10));
@@ -142,7 +132,13 @@ public class AdminTable extends CustomPanel {
             });
             header.add(btnRefresh);
             header.add(Box.createHorizontalStrut(10));
-            header.add(buildDateFilterPanel());
+
+            dateFilterPanel = new DateFilterPanel(new Runnable() {
+                public void run() {
+                    loadTableData();
+                }
+            });
+            header.add(dateFilterPanel);
         }
 
         return header;
@@ -151,11 +147,12 @@ public class AdminTable extends CustomPanel {
     // Returns the correct filter options depending on the table type
     private String[] getFilterOptions() {
         if (type == TableType.USERS) {
-            return new String[] { "ID", "Student ID", "First Name", "Last Name", "College", "Year Level", "System Role" };
+            return new String[] { "ID", "Student ID", "First Name", "Last Name",
+                                  "College", "Year Level", "System Role" };
         } else if (type == TableType.ITEMS) {
-            return new String[] { "ID", "Item Name", "Condition", "Category", "Stock", "Price", "Status" };
+            return new String[] { "ID", "Item Name", "Condition", "Category",
+                                  "Stock", "Price", "Status" };
         } else {
-            // Logs
             if (logType == LogType.ITEM_LOGS || logType == LogType.TRANSACTION_LOGS) {
                 return new String[] { "ID", "User ID", "Item ID", "Action" };
             } else {
@@ -175,289 +172,6 @@ public class AdminTable extends CustomPanel {
         return btn;
     }
 
-    
-    // DATE FILTER PANEL (logs only)
-    private JPanel buildDateFilterPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        panel.setOpaque(false);
-
-        // Build year list from 2020 to current year
-        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
-        String[] years = new String[currentYear - 2019 + 2];
-        years[0] = "All Years";
-        int index = 1;
-        for (int y = currentYear; y >= 2020; y--) {
-            years[index] = String.valueOf(y);
-            index++;
-        }
-
-        yearBox  = new CustomComboBox<>(years);
-        monthBox = new CustomComboBox<>(new String[] {
-            "All Months", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-        });
-        dayBox = new CustomComboBox<>(buildDayOptions(31));
-
-        yearBox.setCustomSize(120, 35);
-        monthBox.setCustomSize(125, 35);
-        dayBox.setCustomSize(105, 35);
-        monthBox.setEnabled(false);
-        dayBox.setEnabled(false);
-
-        // When year changes, enable/disable month
-        yearBox.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                String selected = (String) yearBox.getSelectedItem();
-                boolean yearChosen = selected != null && !selected.equals("All Years");
-                monthBox.setEnabled(yearChosen);
-                if (!yearChosen) {
-                    monthBox.setSelectedIndex(0);
-                    dayBox.setEnabled(false);
-                    dayBox.setSelectedIndex(0);
-                }
-                loadTableData();
-            }
-        });
-
-        // When month changes, update day options
-        monthBox.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                String selectedMonth = (String) monthBox.getSelectedItem();
-                String selectedYear  = (String) yearBox.getSelectedItem();
-                boolean monthChosen  = selectedMonth != null && !selectedMonth.equals("All Months");
-                if (monthChosen && selectedYear != null && !selectedYear.equals("All Years")) {
-                    updateDayCombo(getDaysInMonth(selectedYear, selectedMonth));
-                    dayBox.setEnabled(true);
-                } else {
-                    dayBox.setEnabled(false);
-                    dayBox.setSelectedIndex(0);
-                }
-                loadTableData();
-            }
-        });
-
-        dayBox.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                loadTableData();
-            }
-        });
-
-        // Date range picker button — has fixed size so the label fits when dates are shown
-        btnDateRange = new CustomButton("Date Range", 8);
-        btnDateRange.setFontSize(12f);
-        btnDateRange.setPadding(6, 10, 6, 10);
-        btnDateRange.setDefaultColor(Color.decode("#28a745"));
-        btnDateRange.setTextColor(Color.WHITE);
-        btnDateRange.setPreferredSize(new Dimension(150, 35));
-        btnDateRange.setMinimumSize(new Dimension(150, 35));
-        btnDateRange.setMaximumSize(new Dimension(150, 35));
-        btnDateRange.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                openDateRangeDialog();
-            }
-        });
-
-        // Clear all date filters button
-        btnClearDates = makeHeaderButton("Clear", Color.decode("#ffc107"), Color.decode("#ffc107").darker());
-        btnClearDates.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                clearAllDateFilters();
-            }
-        });
-
-        panel.add(new CustomLabel("Year:"));
-        panel.add(yearBox);
-        panel.add(new CustomLabel("Month:"));
-        panel.add(monthBox);
-        panel.add(new CustomLabel("Day:"));
-        panel.add(dayBox);
-        panel.add(Box.createHorizontalStrut(4));
-        panel.add(btnDateRange);
-        panel.add(btnClearDates);
-
-        return panel;
-    }
-
-    // Builds the day dropdown options up to maxDay
-    private String[] buildDayOptions(int maxDay) {
-        String[] days = new String[maxDay + 1];
-        days[0] = "All Days";
-        for (int d = 1; d <= maxDay; d++) {
-            days[d] = String.valueOf(d);
-        }
-        return days;
-    }
-
-    // Refreshes the day dropdown when the month changes
-    private void updateDayCombo(int maxDay) {
-        String previousSelection = (String) dayBox.getSelectedItem();
-        dayBox.removeAllItems();
-        dayBox.addItem("All Days");
-        for (int d = 1; d <= maxDay; d++) {
-            dayBox.addItem(String.valueOf(d));
-        }
-        // Try to keep the previously selected day if it still fits
-        if (previousSelection != null && !previousSelection.equals("All Days")) {
-            try {
-                int prev = Integer.parseInt(previousSelection);
-                if (prev <= maxDay) {
-                    dayBox.setSelectedItem(previousSelection);
-                } else {
-                    dayBox.setSelectedIndex(0);
-                }
-            } catch (NumberFormatException ignored) {
-                dayBox.setSelectedIndex(0);
-            }
-        }
-    }
-
-    // Returns how many days are in the given month and year
-    private int getDaysInMonth(String yearStr, String monthStr) {
-        try {
-            int year  = Integer.parseInt(yearStr);
-            int month = monthNameToNumber(monthStr);
-            return YearMonth.of(year, month).lengthOfMonth();
-        } catch (Exception e) {
-            return 31;
-        }
-    }
-
-    // Converts a month name like "Jan" to its number like 1
-    private int monthNameToNumber(String name) {
-        String[] names = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-        for (int i = 0; i < names.length; i++) {
-            if (names[i].equals(name)) {
-                return i + 1;
-            }
-        }
-        return 1;
-    }
-
-    // Opens the date range dialog where the user picks From and To dates
-    private void openDateRangeDialog() {
-        Window owner = SwingUtilities.getWindowAncestor(this);
-        JDialog dialog = new JDialog(owner, "Select Date Range", Dialog.ModalityType.APPLICATION_MODAL);
-        dialog.setSize(450, 260);
-        dialog.setLocationRelativeTo(owner);
-        dialog.setLayout(new BorderLayout());
-
-        CustomPanel content = new CustomPanel();
-        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-        content.setBorder(new EmptyBorder(20, 25, 10, 25));
-
-        SpinnerDateModel fromModel = new SpinnerDateModel();
-        SpinnerDateModel toModel   = new SpinnerDateModel();
-        CustomSpinner fromSpinner  = new CustomSpinner(fromModel);
-        CustomSpinner toSpinner    = new CustomSpinner(toModel);
-        fromSpinner.setEditor(new JSpinner.DateEditor(fromSpinner, "yyyy-MM-dd"));
-        toSpinner.setEditor(new JSpinner.DateEditor(toSpinner, "yyyy-MM-dd"));
-
-        if (FontLib.POPPINS_REGULAR != null) {
-            fromSpinner.setFont(FontLib.POPPINS_REGULAR.deriveFont(13f));
-            toSpinner.setFont(FontLib.POPPINS_REGULAR.deriveFont(13f));
-        }
-        fromSpinner.setPreferredSize(new Dimension(200, 32));
-        toSpinner.setPreferredSize(new Dimension(200, 32));
-
-        // Pre-fill spinners if a range was already set
-        try {
-            if (activeDateFrom != null) fromModel.setValue(java.sql.Date.valueOf(activeDateFrom));
-        } catch (Exception ignored) {}
-        try {
-            if (activeDateTo != null) toModel.setValue(java.sql.Date.valueOf(activeDateTo));
-        } catch (Exception ignored) {}
-
-        content.add(createSpinnerRow("From:", fromSpinner));
-        content.add(Box.createVerticalStrut(12));
-        content.add(createSpinnerRow("To:  ", toSpinner));
-
-        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 15));
-        btnRow.setOpaque(false);
-
-        // Clear button resets the active date range
-        CustomButton clearBtn = new CustomButton("Clear Range", 8);
-        clearBtn.setPadding(5, 12, 5, 12);
-        clearBtn.setDefaultColor(Color.decode("#ffc107"));
-        clearBtn.setTextColor(Color.WHITE);
-        clearBtn.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                activeDateFrom = null;
-                activeDateTo   = null;
-                updateDateRangeButtonLabel();
-                loadTableData();
-                dialog.dispose();
-            }
-        });
-
-        // Apply button saves the selected range and reloads data
-        CustomButton applyBtn = new CustomButton("Apply", 8);
-        applyBtn.setPadding(5, 12, 5, 12);
-        applyBtn.setDefaultColor(Color.decode("#28a745"));
-        applyBtn.setTextColor(Color.WHITE);
-        applyBtn.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                java.util.Date from = (java.util.Date) fromSpinner.getValue();
-                java.util.Date to   = (java.util.Date) toSpinner.getValue();
-                if (from.after(to)) {
-                    JOptionPane.showMessageDialog(dialog,
-                        "'From' date cannot be after 'To' date.", "Invalid Range", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-                activeDateFrom = new java.sql.Date(from.getTime()).toString();
-                activeDateTo   = new java.sql.Date(to.getTime()).toString();
-                updateDateRangeButtonLabel();
-                loadTableData();
-                dialog.dispose();
-            }
-        });
-
-        btnRow.add(clearBtn);
-        btnRow.add(applyBtn);
-        dialog.add(content, BorderLayout.CENTER);
-        dialog.add(btnRow,  BorderLayout.SOUTH);
-        dialog.setVisible(true);
-    }
-
-    // Creates a row with a label on the left and a spinner on the right
-    private JPanel createSpinnerRow(String label, JSpinner spinner) {
-        JPanel row = new JPanel(new BorderLayout(12, 0));
-        row.setOpaque(false);
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        CustomLabel lbl = new CustomLabel(label, 14f, FontStyle.REGULAR);
-        lbl.setPreferredSize(new Dimension(45, 30));
-        row.add(lbl, BorderLayout.WEST);
-        row.add(spinner, BorderLayout.CENTER);
-        return row;
-    }
-
-    // Updates the Date Range button label to show the selected range (or default text)
-    private void updateDateRangeButtonLabel() {
-        if (btnDateRange == null) return;
-        if (activeDateFrom != null && activeDateTo != null) {
-            btnDateRange.setText(activeDateFrom + " — " + activeDateTo);
-        } else {
-            btnDateRange.setText("Date Range");
-        }
-        btnDateRange.repaint();
-    }
-
-    // Resets all date filters (dropdowns + date range)
-    private void clearAllDateFilters() {
-        activeDateFrom = null;
-        activeDateTo   = null;
-        if (yearBox  != null) yearBox.setSelectedIndex(0);
-        if (monthBox != null) {
-            monthBox.setSelectedIndex(0);
-            monthBox.setEnabled(false);
-        }
-        if (dayBox != null) {
-            dayBox.setSelectedIndex(0);
-            dayBox.setEnabled(false);
-        }
-        updateDateRangeButtonLabel();
-        loadTableData();
-    }
 
     // TABLE
     private CustomPanel initTable() {
@@ -518,15 +232,15 @@ public class AdminTable extends CustomPanel {
 
         // Action buttons for users and items (not logs)
         if (type != TableType.LOGS) {
-            btnPrimaryAction   = new CustomButton("Update Data", 8);
-            btnSecondaryAction = new CustomButton("Archive Data", 8);
-            btnPrimaryAction.setFontSize(12f);
-            btnSecondaryAction.setFontSize(12f);
-            btnPrimaryAction.setPadding(6, 14, 6, 14);
-            btnSecondaryAction.setPadding(6, 14, 6, 14);
+            btnUpdateOrRetrieve = new CustomButton("Update Data",  8);
+            btnArchiveOrDelete  = new CustomButton("Archive Data", 8);
+            btnUpdateOrRetrieve.setFontSize(12f);
+            btnArchiveOrDelete.setFontSize(12f);
+            btnUpdateOrRetrieve.setPadding(6, 14, 6, 14);
+            btnArchiveOrDelete.setPadding(6, 14, 6, 14);
             updateActionUI();
 
-            btnPrimaryAction.addActionListener(new ActionListener() {
+            btnUpdateOrRetrieve.addActionListener(new ActionListener() {
                 public void actionPerformed(ActionEvent e) {
                     if (archiveMode.isSelected()) {
                         handleRetrieve();
@@ -535,7 +249,7 @@ public class AdminTable extends CustomPanel {
                     }
                 }
             });
-            btnSecondaryAction.addActionListener(new ActionListener() {
+            btnArchiveOrDelete.addActionListener(new ActionListener() {
                 public void actionPerformed(ActionEvent e) {
                     if (archiveMode.isSelected()) {
                         handleDelete();
@@ -548,20 +262,20 @@ public class AdminTable extends CustomPanel {
                 if (!e.getValueIsAdjusting()) updateActionUI();
             });
         }
+
         btnAddAction = new CustomButton("Add " + (type == TableType.USERS ? "User" : "Item"), 8);
         btnAddAction.setFontSize(12f);
         btnAddAction.setPadding(6, 14, 6, 14);
         btnAddAction.setDefaultColor(Color.decode("#007bff"));
         btnAddAction.setTextColor(Color.WHITE);
         btnAddAction.setHoverColor(Color.decode("#0056b3"));
-        btnAddAction.setEnabled(true); // Always enabled — no row selection needed
+        btnAddAction.setEnabled(true);
 
         btnAddAction.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 handleAdd();
             }
         });
-        
 
         loadTableData();
         applyColumnWidths();
@@ -584,9 +298,9 @@ public class AdminTable extends CustomPanel {
 
         if (type != TableType.LOGS) {
             CustomPanel actionsPanel = new CustomPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
-            actionsPanel.add(btnAddAction);  
-            actionsPanel.add(btnPrimaryAction);
-            actionsPanel.add(btnSecondaryAction);
+            actionsPanel.add(btnAddAction);
+            actionsPanel.add(btnUpdateOrRetrieve);
+            actionsPanel.add(btnArchiveOrDelete);
             bottomPanel.add(actionsPanel, BorderLayout.EAST);
         }
 
@@ -599,9 +313,12 @@ public class AdminTable extends CustomPanel {
     private Object[] getColumnNames() {
         if (type == TableType.USERS) {
             return new Object[] { "ID", "Student ID", "First Name", "Last Name",
-                                  "College", "Year", "Karma Points", "Contact Number", "Gcash Number", "Maya Number", "Mastercard Card", "Visa Number", "System Role" };
+                                  "College", "Year", "Karma Points", "Contact Number",
+                                  "Gcash Number", "Maya Number", "Mastercard Card",
+                                  "Visa Number", "System Role" };
         } else if (type == TableType.ITEMS) {
-            return new Object[] { "ID", "Item Name", "Condition", "Category", "Stock", "Price", "Status" };
+            return new Object[] { "ID", "Item Name", "Condition", "Category",
+                                  "Stock", "Price", "Status" };
         } else {
             return new Object[] { "ID", "User ID", "Log Type", "Description", "Date" };
         }
@@ -613,14 +330,14 @@ public class AdminTable extends CustomPanel {
         table.setColumnAlignment(0, SwingConstants.LEFT);
 
         if (type == TableType.USERS) {
-            table.setColumnWidth(0, 40); table.setColumnAlignment(0, SwingConstants.LEFT);
-            table.setColumnWidth(1, 90); table.setColumnAlignment(1, SwingConstants.LEFT);
-            table.setColumnWidth(4, 70);
-            table.setColumnWidth(5, 70);  table.setColumnAlignment(5, SwingConstants.LEFT);
-            table.setColumnWidth(6, 110); table.setColumnAlignment(6, SwingConstants.LEFT);
-            table.setColumnWidth(7, 130); table.setColumnAlignment(7, SwingConstants.LEFT);
-            table.setColumnWidth(8, 120); table.setColumnAlignment(8, SwingConstants.LEFT);
-            table.setColumnWidth(9, 110); table.setColumnAlignment(9, SwingConstants.LEFT);
+            table.setColumnWidth(0,  40);  table.setColumnAlignment(0,  SwingConstants.LEFT);
+            table.setColumnWidth(1,  90);  table.setColumnAlignment(1,  SwingConstants.LEFT);
+            table.setColumnWidth(4,  70);
+            table.setColumnWidth(5,  70);  table.setColumnAlignment(5,  SwingConstants.LEFT);
+            table.setColumnWidth(6,  110); table.setColumnAlignment(6,  SwingConstants.LEFT);
+            table.setColumnWidth(7,  130); table.setColumnAlignment(7,  SwingConstants.LEFT);
+            table.setColumnWidth(8,  120); table.setColumnAlignment(8,  SwingConstants.LEFT);
+            table.setColumnWidth(9,  110); table.setColumnAlignment(9,  SwingConstants.LEFT);
             table.setColumnWidth(10, 130); table.setColumnAlignment(10, SwingConstants.LEFT);
             table.setColumnWidth(11, 110); table.setColumnAlignment(11, SwingConstants.LEFT);
             table.setColumnWidth(12, 100); table.setColumnAlignment(12, SwingConstants.LEFT);
@@ -644,7 +361,6 @@ public class AdminTable extends CustomPanel {
 
 
     // DATA LOADING
-    // Loads the correct data into the table based on current filters
     private void loadTableData() {
         if (table == null) return;
 
@@ -678,8 +394,10 @@ public class AdminTable extends CustomPanel {
             }
 
         } else {
-            // Logs
-            String[] range = resolveEffectiveDateRange();
+            // Logs — delegate date range entirely to DateFilterPanel
+            String[] range  = dateFilterPanel != null
+                                  ? dateFilterPanel.getEffectiveDateRange()
+                                  : new String[] { null, null };
             String dateFrom = range[0];
             String dateTo   = range[1];
 
@@ -699,634 +417,61 @@ public class AdminTable extends CustomPanel {
         table.setFullData(data, getColumnNames());
     }
 
-    // Figures out the date range to use based on dropdowns or the range dialog
-    private String[] resolveEffectiveDateRange() {
-        // Date range dialog takes priority over the dropdowns
-        if (activeDateFrom != null && activeDateTo != null) {
-            return new String[] { activeDateFrom, activeDateTo };
-        }
-
-        if (yearBox == null) {
-            return new String[] { null, null };
-        }
-
-        String  selYear  = (String) yearBox.getSelectedItem();
-        String  selMonth = (String) monthBox.getSelectedItem();
-        String  selDay   = (String) dayBox.getSelectedItem();
-
-        boolean hasYear  = selYear  != null && !selYear.equals("All Years");
-        boolean hasMonth = selMonth != null && !selMonth.equals("All Months");
-        boolean hasDay   = selDay   != null && !selDay.equals("All Days");
-
-        if (!hasYear) {
-            return new String[] { null, null };
-        }
-
-        int year  = Integer.parseInt(selYear);
-        int month = hasMonth ? monthNameToNumber(selMonth) : 1;
-
-        if (hasDay) {
-            int    day  = Integer.parseInt(selDay);
-            String date = String.format("%04d-%02d-%02d", year, month, day);
-            return new String[] { date, date };
-
-        } else if (hasMonth) {
-            YearMonth ym   = YearMonth.of(year, month);
-            String    from = String.format("%04d-%02d-01", year, month);
-            String    to   = String.format("%04d-%02d-%02d", year, month, ym.lengthOfMonth());
-            return new String[] { from, to };
-
-        } else {
-            return new String[] { year + "-01-01", year + "-12-31" };
-        }
-    }
 
     // ACTION BUTTONS UI
-    // Updates the action button text, color, and enabled state
     private void updateActionUI() {
-        if (btnPrimaryAction == null || btnSecondaryAction == null) return;
+        if (btnUpdateOrRetrieve == null || btnArchiveOrDelete == null) return;
 
         boolean hasSelection = table != null && table.getSelectedRow() != -1;
-        btnPrimaryAction.setEnabled(hasSelection);
-        btnSecondaryAction.setEnabled(hasSelection);
+        btnUpdateOrRetrieve.setEnabled(hasSelection);
+        btnArchiveOrDelete.setEnabled(hasSelection);
 
         if (archiveMode.isSelected()) {
-            applyButtonStyle(btnPrimaryAction,   "Retrieve Data", "#ffc107");
-            applyButtonStyle(btnSecondaryAction, "Delete Data",   "#dc3545");
+            applyButtonStyle(btnUpdateOrRetrieve, "Retrieve Data", "#ffc107");
+            applyButtonStyle(btnArchiveOrDelete,  "Delete Data",   "#dc3545");
             // Hide Add button in archive mode — adding to archive makes no sense
             if (btnAddAction != null) btnAddAction.setVisible(false);
         } else {
-            applyButtonStyle(btnPrimaryAction,   "Update Data",  "#28a745");
-            applyButtonStyle(btnSecondaryAction, "Archive Data", "#ffc107");
+            applyButtonStyle(btnUpdateOrRetrieve, "Update Data",  "#28a745");
+            applyButtonStyle(btnArchiveOrDelete,  "Archive Data", "#ffc107");
             if (btnAddAction != null) btnAddAction.setVisible(true);
         }
     }
-    
-    private void handleAdd() {
-        CustomPanel formPanel = new CustomPanel();
-        formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
 
+    private void handleAdd() {
+        Window owner = SwingUtilities.getWindowAncestor(this);
         if (type == TableType.USERS) {
-            buildUserAddDialog(formPanel);
+            UserFormDialog.showAdd(owner, userService, new Runnable() {
+                public void run() { loadTableData(); }
+            });
         } else if (type == TableType.ITEMS) {
-            buildItemAddDialog(formPanel);
+            ItemFormDialog.showAdd(owner, itemService, new Runnable() {
+                public void run() { loadTableData(); }
+            });
         }
     }
-
-    private void buildUserAddDialog(CustomPanel formPanel) {
-        CustomTextField studentIdField = new CustomTextField("");
-        CustomTextField firstNameField = new CustomTextField("");
-        CustomTextField lastNameField  = new CustomTextField("");
-        CustomTextField emailField     = new CustomTextField("");
-        CustomTextField passwordField  = new CustomTextField("");
-
-        CustomComboBox<String> yearLevelBox = new CustomComboBox<>(new String[] {
-            "First", "Second", "Third", "Fourth", "Fifth", "Graduate"
-        });
-        CustomComboBox<String> collegeBox = new CustomComboBox<>(getColleges());
-        CustomComboBox<String> roleCategoryBox = new CustomComboBox<>(
-            new String[] { "Standard User", "Admin" });
-        CustomComboBox<String> roleSubBox = new CustomComboBox<>(
-            new String[] { "admin", "super_admin" });
-        roleSubBox.setCustomSize(130, 30);
-        roleSubBox.setVisible(false);
-
-        roleCategoryBox.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                boolean isAdmin = "Admin".equals(roleCategoryBox.getSelectedItem());
-                roleSubBox.setVisible(isAdmin);
-                roleSubBox.getParent().revalidate();
-                roleSubBox.getParent().repaint();
-            }
-        });
-
-        JPanel roleComboPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        roleComboPanel.setOpaque(false);
-        roleCategoryBox.setPreferredSize(new Dimension(140, 32));
-        roleSubBox.setPreferredSize(new Dimension(130, 32));
-        roleComboPanel.add(roleCategoryBox);
-        roleComboPanel.add(roleSubBox);
-
-        JPanel roleRow = new JPanel(new BorderLayout(10, 0));
-        roleRow.setOpaque(false);
-        roleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        CustomLabel roleLabel = new CustomLabel("System Role:", 14f, FontStyle.REGULAR);
-        roleLabel.setPreferredSize(new Dimension(100, 30));
-        roleLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        roleRow.add(roleLabel,      BorderLayout.WEST);
-        roleRow.add(roleComboPanel, BorderLayout.CENTER);
-
-       
-        final String[] profileImageHolder = { "" };
-
-        CustomTextField profileImageField = new CustomTextField("No image selected");
-        profileImageField.setEditable(false);
-        profileImageField.setPreferredSize(new Dimension(170, 32));
-        profileImageField.setMinimumSize(new Dimension(170, 32));
-
-        CustomButton profileBrowseBtn = new CustomButton("Browse", 6);
-        profileBrowseBtn.setFontSize(11f);
-        profileBrowseBtn.setPadding(4, 10, 4, 10);
-        profileBrowseBtn.setDefaultColor(Color.decode("#6c757d"));
-        profileBrowseBtn.setTextColor(Color.WHITE);
-        profileBrowseBtn.setHoverColor(Color.decode("#5a6268"));
-        profileBrowseBtn.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                Window owner = SwingUtilities.getWindowAncestor(AdminTable.this);
-                Frame frame  = (owner instanceof Frame) ? (Frame) owner : null;
-                FileDialog fileDialog = new FileDialog(frame, "Select Profile Image", FileDialog.LOAD);
-                fileDialog.setFilenameFilter((dir, name) -> {
-                    String lower = name.toLowerCase();
-                    return lower.endsWith(".png") || lower.endsWith(".jpg")
-                        || lower.endsWith(".jpeg") || lower.endsWith(".gif");
-                });
-                fileDialog.setVisible(true);
-                String dir  = fileDialog.getDirectory();
-                String file = fileDialog.getFile();
-                if (dir != null && file != null) {
-                    profileImageHolder[0] = dir + file;
-                    profileImageField.setText(file);
-                }
-            }
-        });
-
-        JPanel profileImageInputPanel = new JPanel(new BorderLayout(6, 0));
-        profileImageInputPanel.setOpaque(false);
-        profileImageInputPanel.add(profileImageField, BorderLayout.CENTER);
-        profileImageInputPanel.add(profileBrowseBtn,  BorderLayout.EAST);
-
-        JPanel profileImageRow = new JPanel(new BorderLayout(10, 0));
-        profileImageRow.setOpaque(false);
-        profileImageRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        profileImageRow.setPreferredSize(new Dimension(0, 35));
-        CustomLabel profileImageLabel = new CustomLabel("Profile Image:", 14f, FontStyle.REGULAR);
-        profileImageLabel.setPreferredSize(new Dimension(100, 30));
-        profileImageLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        JPanel profileImageWrap = new JPanel(new BorderLayout());
-        profileImageWrap.setOpaque(false);
-        profileImageWrap.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
-        profileImageWrap.add(profileImageInputPanel, BorderLayout.CENTER);
-        profileImageRow.add(profileImageLabel, BorderLayout.WEST);
-        profileImageRow.add(profileImageWrap,  BorderLayout.CENTER);
-       
-
-        formPanel.add(createFieldPanel("Student ID:",    studentIdField));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("First Name:",    firstNameField));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Last Name:",     lastNameField));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Email:",         emailField));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Password:",      passwordField));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Year Level:",    yearLevelBox));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("College:",       collegeBox));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(roleRow);
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(profileImageRow); // ← new
-
-        Window owner = SwingUtilities.getWindowAncestor(this);
-        new AdminDialog(owner, "Add New User", formPanel, "Add User",
-            new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    String studentId  = studentIdField.getText().trim();
-                    String firstName  = firstNameField.getText().trim();
-                    String lastName   = lastNameField.getText().trim();
-                    String email      = emailField.getText().trim();
-                    String password   = passwordField.getText().trim();
-                    String yearLevel  = yearLevelBox.getSelectedItem() != null
-                                          ? yearLevelBox.getSelectedItem().toString() : "";
-                    String college    = collegeBox.getSelectedItem() != null
-                                          ? collegeBox.getSelectedItem().toString() : "";
-                    String imagePath  = profileImageHolder[0]; // optional — no validation needed
-
-                    if (studentId.isEmpty() || firstName.isEmpty() || lastName.isEmpty()
-                            || email.isEmpty() || password.isEmpty() || college.isEmpty()) {
-                        JOptionPane.showMessageDialog(AdminTable.this,
-                            "Student ID, First Name, Last Name, Email, Password, and College are required.",
-                            "Validation Error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
-
-                    if (!email.toLowerCase().endsWith("@umak.edu.ph")) {
-                        JOptionPane.showMessageDialog(AdminTable.this,
-                            "Email must be a valid UMak address ending in @umak.edu.ph\n"
-                            + "Example: firstname.lastname@umak.edu.ph",
-                            "Invalid Email", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
-
-                    String resolvedRole;
-                    if ("Admin".equals(roleCategoryBox.getSelectedItem())) {
-                        resolvedRole = (roleSubBox.getSelectedItem() != null)
-                            ? roleSubBox.getSelectedItem().toString() : "admin";
-                    } else {
-                        resolvedRole = "end_user";
-                    }
-
-                    boolean success = userService.addUser(
-                        studentId, firstName, lastName, email, password,
-                        yearLevel, college, resolvedRole, imagePath 
-                    );
-
-                    if (success) {
-                        loadTableData();
-                        JOptionPane.showMessageDialog(AdminTable.this, "User added successfully.");
-                        SwingUtilities.getWindowAncestor((Component) e.getSource()).dispose();
-                    } else {
-                        String reason = userService.getLastAddError();
-                        JOptionPane.showMessageDialog(AdminTable.this,
-                            reason != null ? reason : "Failed to add user. Please try again.",
-                            "Error", JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-            }).setVisible(true);
-    }
-    private void buildItemAddDialog(CustomPanel formPanel) {
-        CustomTextField nameField  = new CustomTextField("");
-        CustomTextField stockField = new CustomTextField("");
-        CustomTextField priceField = new CustomTextField("");
-        CustomTextField descField  = new CustomTextField("");
-     
-        CustomComboBox<String> categoryBox = new CustomComboBox<>(
-            new String[] { "Textbooks", "Electronics", "Equipment",
-                           "Supplies", "Consumable-Goods", "Other" });
-        CustomComboBox<String> conditionBox = new CustomComboBox<>(
-            new String[] { "Fair", "Good", "New" });
-        CustomComboBox<String> statusBox = new CustomComboBox<>(
-            new String[] { "Available", "Unavailable" });
-        CustomComboBox<String> actionBox = new CustomComboBox<>(
-            new String[] { "Sharing", "Marketplace", "Barter-Trading" });
-     
-       
-        final String[] imagePathHolder = { "" };
-     
-        CustomTextField imageField = new CustomTextField("No image selected");
-        imageField.setEditable(false);
-        imageField.setPreferredSize(new Dimension(170, 32));
-        imageField.setMinimumSize(new Dimension(170, 32));
-     
-        CustomButton browseBtn = new CustomButton("Browse", 6);
-        browseBtn.setFontSize(11f);
-        browseBtn.setPadding(4, 10, 4, 10);
-        browseBtn.setDefaultColor(Color.decode("#6c757d"));
-        browseBtn.setTextColor(Color.WHITE);
-        browseBtn.setHoverColor(Color.decode("#5a6268"));
-        browseBtn.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-      
-                Window owner = SwingUtilities.getWindowAncestor(AdminTable.this);
-                Frame frame = (owner instanceof Frame) ? (Frame) owner : null;
-
-                FileDialog fileDialog = new FileDialog(frame, "Select Item Image", FileDialog.LOAD);
-                fileDialog.setFilenameFilter((dir, name) -> {
-                    String lower = name.toLowerCase();
-                    return lower.endsWith(".png") || lower.endsWith(".jpg")
-                        || lower.endsWith(".jpeg") || lower.endsWith(".gif");
-                });
-                fileDialog.setVisible(true);
-
-                String dir  = fileDialog.getDirectory();
-                String file = fileDialog.getFile();
-
-                if (dir != null && file != null) {
-                    imagePathHolder[0] = dir + file;
-                    imageField.setText(file);
-                }
-            }
-        });
-        JPanel imageInputPanel = new JPanel(new BorderLayout(6, 0));
-        imageInputPanel.setOpaque(false);
-        imageInputPanel.add(imageField, BorderLayout.CENTER);
-        imageInputPanel.add(browseBtn,  BorderLayout.EAST);
-     
-        JPanel imageRow = new JPanel(new BorderLayout(10, 0));
-        imageRow.setOpaque(false);
-        imageRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        imageRow.setPreferredSize(new Dimension(0, 35));
-        CustomLabel imageLabel = new CustomLabel("Image:", 14f, FontStyle.REGULAR);
-        imageLabel.setPreferredSize(new Dimension(100, 30));
-        imageLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        JPanel imageWrap = new JPanel(new BorderLayout());
-        imageWrap.setOpaque(false);
-        imageWrap.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
-        imageWrap.add(imageInputPanel, BorderLayout.CENTER);
-        imageRow.add(imageLabel, BorderLayout.WEST);
-        imageRow.add(imageWrap,  BorderLayout.CENTER);
-        
-     
-        formPanel.add(createFieldPanel("Item Name:",   nameField));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Category:",    categoryBox));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Condition:",   conditionBox));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Stock:",       stockField));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Price:",       priceField));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Status:",      statusBox));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Action:",      actionBox));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Description:", descField));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(imageRow);
-     
-        Window owner = SwingUtilities.getWindowAncestor(this);
-        new AdminDialog(owner, "Add New Item", formPanel, "Add Item",
-            new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    String name      = nameField.getText().trim();
-                    String category  = categoryBox.getSelectedItem() != null
-                                         ? categoryBox.getSelectedItem().toString() : "";
-                    String cond      = conditionBox.getSelectedItem() != null
-                                         ? conditionBox.getSelectedItem().toString() : "Good";
-                    String status    = statusBox.getSelectedItem() != null
-                                         ? statusBox.getSelectedItem().toString() : "Available";
-                    String action    = actionBox.getSelectedItem() != null
-                                         ? actionBox.getSelectedItem().toString() : "Sharing";
-                    String desc      = descField.getText().trim();
-                    String imagePath = imagePathHolder[0];
-     
-                    if (name.isEmpty() || category.isEmpty()) {
-                        JOptionPane.showMessageDialog(AdminTable.this,
-                            "Item Name and Category are required.",
-                            "Validation Error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
-     
-                    if (imagePath.isEmpty()) {
-                        JOptionPane.showMessageDialog(AdminTable.this,
-                            "Please select an image for the item.",
-                            "Validation Error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
-     
-                    int stock, price;
-                    try {
-                        stock = stockField.getText().trim().isEmpty() ? 0
-                                    : Integer.parseInt(stockField.getText().trim());
-                        price = priceField.getText().trim().isEmpty() ? 0
-                                    : Integer.parseInt(priceField.getText().trim());
-                    } catch (NumberFormatException ex) {
-                        JOptionPane.showMessageDialog(AdminTable.this,
-                            "Stock and Price must be valid whole numbers.",
-                            "Validation Error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
-     
-                    if (stock < 0 || price < 0) {
-                        JOptionPane.showMessageDialog(AdminTable.this,
-                            "Stock and Price cannot be negative.",
-                            "Validation Error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
-     
-                    boolean success = itemService.addItem(
-                        name, category, cond, stock, price,
-                        status, action, desc, imagePath);
-     
-                    if (success) {
-                        loadTableData();
-                        JOptionPane.showMessageDialog(AdminTable.this, "Item added successfully.");
-                        SwingUtilities.getWindowAncestor((Component) e.getSource()).dispose();
-                    } else {
-                        JOptionPane.showMessageDialog(AdminTable.this,
-                            "Failed to add item. Please try again.",
-                            "Error", JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-            }).setVisible(true);
-    }
-
-    private void applyButtonStyle(CustomButton btn, String text, String hexColor) {
-        btn.setText(text);
-        btn.setDefaultColor(Color.decode(hexColor));
-        btn.setHoverColor(btn.getBackground().darker());
-    }
-
 
     private void handleUpdate() {
         int row = table.getSelectedRow();
         if (row == -1) return;
         int id = getSelectedId(row);
 
-        CustomPanel formPanel = new CustomPanel();
-        formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
-
+        Window owner = SwingUtilities.getWindowAncestor(this);
         if (type == TableType.USERS) {
-            buildUserUpdateDialog(id, formPanel);
+            UserFormDialog.showUpdate(owner, id, userService, new Runnable() {
+                public void run() { loadTableData(); }
+            });
         } else if (type == TableType.ITEMS) {
-            buildItemUpdateDialog(id, formPanel);
+            ItemFormDialog.showUpdate(owner, id, itemService, new Runnable() {
+                public void run() { loadTableData(); }
+            });
         }
     }
 
-    // Builds and shows the update dialog for a user
-    private void buildUserUpdateDialog(int id, CustomPanel formPanel) {
-        AdminUsers user = userService.getUserById(id);
-
-        CustomTextField firstNameField = new CustomTextField(user != null ? user.getFirstName() : "");
-        CustomTextField lastNameField  = new CustomTextField(user != null ? user.getLastName()  : "");
-
-        CustomComboBox<String> collegeBox = new CustomComboBox<>(getColleges());
-        if (user != null) {
-            collegeBox.setSelectedItem(user.getCollege());
-        }
-
- 
-        String currentRole = (user != null && user.getSystemRole() != null) ? user.getSystemRole() : "end_user";
-        CustomComboBox<String> roleCategoryBox = new CustomComboBox<>(new String[] { "Standard User", "Admin" });
-        CustomComboBox<String> roleSubBox      = new CustomComboBox<>(new String[] { "admin", "super_admin" });
-        roleSubBox.setCustomSize(130, 30);
-
-        if (currentRole.equals("end_user")) {
-            roleCategoryBox.setSelectedItem("Standard User");
-            roleSubBox.setVisible(false);
-        } else {
-            roleCategoryBox.setSelectedItem("Admin");
-            roleSubBox.setSelectedItem(currentRole);
-        }
-
-  
-        roleCategoryBox.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                boolean isAdmin = "Admin".equals(roleCategoryBox.getSelectedItem());
-                roleSubBox.setVisible(isAdmin);
-                roleSubBox.getParent().revalidate();
-                roleSubBox.getParent().repaint();
-            }
-        });
-
-        JPanel roleComboPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        roleComboPanel.setOpaque(false);
-        roleCategoryBox.setPreferredSize(new Dimension(140, 32));
-        roleSubBox.setPreferredSize(new Dimension(130, 32));
-        roleComboPanel.add(roleCategoryBox);
-        roleComboPanel.add(roleSubBox);
-
-        JPanel roleRow = new JPanel(new BorderLayout(10, 0));
-        roleRow.setOpaque(false);
-        roleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        CustomLabel roleLabel = new CustomLabel("System Role:", 14f, FontStyle.REGULAR);
-        roleLabel.setPreferredSize(new Dimension(100, 30));
-        roleLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        roleRow.add(roleLabel,      BorderLayout.WEST);
-        roleRow.add(roleComboPanel, BorderLayout.CENTER);
-
-        formPanel.add(createFieldPanel("First Name:", firstNameField));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Last Name:",  lastNameField));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("College:",    collegeBox));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(roleRow);
-
-        Window owner = SwingUtilities.getWindowAncestor(this);
-        new AdminDialog(owner, "Update User: " + id, formPanel, "Save Changes", new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                if (user == null) return;
-
-                // Use existing value if the field was left empty
-                String resolvedFirst = firstNameField.getText().trim().isEmpty()
-                    ? user.getFirstName() : firstNameField.getText().trim();
-                String resolvedLast = lastNameField.getText().trim().isEmpty()
-                    ? user.getLastName() : lastNameField.getText().trim();
-                String resolvedCollege = (collegeBox.getSelectedItem() == null)
-                    ? user.getCollege() : collegeBox.getSelectedItem().toString().trim();
-
-                // Determine final role string
-                String resolvedRole;
-                if ("Admin".equals(roleCategoryBox.getSelectedItem())) {
-                    resolvedRole = (roleSubBox.getSelectedItem() != null)
-                        ? roleSubBox.getSelectedItem().toString() : "admin";
-                } else {
-                    resolvedRole = "end_user";
-                }
-
-                if (resolvedFirst.isEmpty() || resolvedLast.isEmpty() || resolvedCollege.isEmpty()) {
-                    JOptionPane.showMessageDialog(AdminTable.this,
-                        "First Name, Last Name, and College cannot be empty.",
-                        "Validation Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-
-                user.setFirstName(resolvedFirst);
-                user.setLastName(resolvedLast);
-                user.setCollege(resolvedCollege);
-                user.setSystemRole(resolvedRole);
-
-                showUpdateResult(userService.updateUser(user), "User");
-            }
-        }).setVisible(true);
-    }
-    private void buildItemUpdateDialog(int id, CustomPanel formPanel) {
-        AdminItems item = itemService.getItemById(id);
-     
-        CustomTextField nameField  = new CustomTextField(item != null ? item.getItemName() : "");
-        CustomTextField stockField = new CustomTextField(item != null ? String.valueOf(item.getItemQuantity()) : "");
-        CustomTextField priceField = new CustomTextField(item != null ? String.valueOf(item.getPrice()) : "");
-     
-        CustomComboBox<String> categoryBox = new CustomComboBox<>(
-            new String[] { "Textbooks", "Electronics", "Equipment",
-                           "Supplies", "Consumable-Goods", "Other" });
-        CustomComboBox<String> conditionBox = new CustomComboBox<>(
-            new String[] { "Fair", "Good", "New" });
-        CustomComboBox<String> statusBox = new CustomComboBox<>(
-            new String[] { "Available", "Unavailable" });
-        CustomComboBox<String> actionBox = new CustomComboBox<>(
-            new String[] { "Sharing", "Marketplace", "Barter-Trading" });
-     
-        if (item != null) {
-            categoryBox.setSelectedItem(item.getCategory());
-            conditionBox.setSelectedItem(item.getItemCondition());
-            statusBox.setSelectedItem(item.getAvailabilityStatus());
-            actionBox.setSelectedItem(item.getAction());
-        }
-     
-        formPanel.add(createFieldPanel("Item Name:", nameField));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Category:",  categoryBox));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Condition:", conditionBox));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Stock:",     stockField));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Price:",     priceField));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Status:",    statusBox));
-        formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Action:",    actionBox));
-     
-        Window owner = SwingUtilities.getWindowAncestor(this);
-        new AdminDialog(owner, "Update Item: " + id, formPanel, "Save Changes",
-            new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    if (item == null) return;
-     
-                    String resolvedName = nameField.getText().trim().isEmpty()
-                        ? item.getItemName() : nameField.getText().trim();
-                    String resolvedCat  = categoryBox.getSelectedItem() != null
-                        ? categoryBox.getSelectedItem().toString() : item.getCategory();
-                    String resolvedCond = conditionBox.getSelectedItem() != null
-                        ? conditionBox.getSelectedItem().toString() : item.getItemCondition();
-                    String resolvedStat = statusBox.getSelectedItem() != null
-                        ? statusBox.getSelectedItem().toString() : item.getAvailabilityStatus();
-                    String resolvedAction = actionBox.getSelectedItem() != null
-                        ? actionBox.getSelectedItem().toString() : item.getAction();
-     
-                    if (resolvedName.isEmpty() || resolvedCat.isEmpty()) {
-                        JOptionPane.showMessageDialog(AdminTable.this,
-                            "Item Name and Category cannot be empty.",
-                            "Validation Error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
-     
-                    int resolvedStock, resolvedPrice;
-                    try {
-                        resolvedStock = stockField.getText().trim().isEmpty()
-                            ? item.getItemQuantity() : Integer.parseInt(stockField.getText().trim());
-                        resolvedPrice = priceField.getText().trim().isEmpty()
-                            ? item.getPrice() : Integer.parseInt(priceField.getText().trim());
-                    } catch (NumberFormatException ex) {
-                        JOptionPane.showMessageDialog(AdminTable.this,
-                            "Stock and Price must be valid whole numbers.",
-                            "Validation Error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
-     
-                    if (resolvedStock < 0 || resolvedPrice < 0) {
-                        JOptionPane.showMessageDialog(AdminTable.this,
-                            "Stock and Price cannot be negative.",
-                            "Validation Error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
-     
-                    item.setItemName(resolvedName);
-                    item.setCategory(resolvedCat);
-                    item.setItemCondition(resolvedCond);
-                    item.setItemQuantity(resolvedStock);
-                    item.setPrice(resolvedPrice);
-                    item.setAvailabilityStatus(resolvedStat);
-                    item.setAction(resolvedAction);
-     
-                    showUpdateResult(itemService.updateItem(item), "Item");
-                }
-            }).setVisible(true);
-    }
-
-
-
-    private void showUpdateResult(boolean success, String entityName) {
-        if (success) {
-            loadTableData();
-            JOptionPane.showMessageDialog(this, entityName + " updated successfully.");
-        } else {
-            JOptionPane.showMessageDialog(this, "Update failed. Please try again.");
-        }
+    private void applyButtonStyle(CustomButton btn, String text, String hexColor) {
+        btn.setText(text);
+        btn.setDefaultColor(Color.decode(hexColor));
+        btn.setHoverColor(btn.getBackground().darker());
     }
 
     private void handleArchive() {
@@ -1336,8 +481,7 @@ public class AdminTable extends CustomPanel {
             return;
         }
         int id = getSelectedId(row);
- 
- 
+
         if (type == TableType.USERS) {
             int currentUserId = SessionManager.get().getCurrentUserId();
             if (id == currentUserId) {
@@ -1347,28 +491,26 @@ public class AdminTable extends CustomPanel {
                 return;
             }
         }
- 
+
         String entityType = type == TableType.USERS ? "user" : "item";
         int choice = JOptionPane.showConfirmDialog(this,
             "Archive " + entityType + " ID " + id + "?",
             "Confirm Archive", JOptionPane.YES_NO_OPTION);
         if (choice != JOptionPane.YES_OPTION) return;
- 
+
         String successMsg = entityType + " ID " + id + " archived successfully.";
         String failureMsg = "Archive failed for " + entityType + " ID " + id + ".\n\n"
             + "Possible reasons:\n"
             + "  • Account has admin or super_admin role\n"
             + "  • Database error or FK constraint\n"
             + "  • Archive table not found";
- 
-        if (type == TableType.USERS) {
-            runAsync(new ArchiveTask(id, "archive_user"), successMsg, failureMsg);
-        } else {
-            runAsync(new ArchiveTask(id, "archive_item"), successMsg, failureMsg);
-        }
+
+        RecordAction action = type == TableType.USERS
+            ? RecordAction.ARCHIVE_USER
+            : RecordAction.ARCHIVE_ITEM;
+        runAsync(new ArchiveTask(id, action), successMsg, failureMsg);
     }
 
-    // Asks the user to confirm, then restores the selected archived row
     private void handleRetrieve() {
         int row = table.getSelectedRow();
         if (row == -1) return;
@@ -1376,21 +518,20 @@ public class AdminTable extends CustomPanel {
 
         String entityType = type == TableType.USERS ? "user" : "item";
         int choice = JOptionPane.showConfirmDialog(this,
-            "Restore " + entityType + " ID " + id + "?", "Confirm Restore", JOptionPane.YES_NO_OPTION);
+            "Restore " + entityType + " ID " + id + "?",
+            "Confirm Restore", JOptionPane.YES_NO_OPTION);
         if (choice != JOptionPane.YES_OPTION) return;
 
         String successMsg = entityType + " ID " + id + " restored successfully.";
         String failureMsg = "Restore failed for " + entityType + " ID " + id
             + ".\nThe record may not exist in the archive.";
 
-        if (type == TableType.USERS) {
-            runAsync(new ArchiveTask(id, "restore_user"), successMsg, failureMsg);
-        } else {
-            runAsync(new ArchiveTask(id, "restore_item"), successMsg, failureMsg);
-        }
+        RecordAction action = type == TableType.USERS
+            ? RecordAction.RESTORE_USER
+            : RecordAction.RESTORE_ITEM;
+        runAsync(new ArchiveTask(id, action), successMsg, failureMsg);
     }
 
-    // Asks the user to confirm, then permanently deletes the selected archived row
     private void handleDelete() {
         int row = table.getSelectedRow();
         if (row == -1) return;
@@ -1408,13 +549,11 @@ public class AdminTable extends CustomPanel {
         String failureMsg = "Permanent delete failed for " + entityType + " ID " + id
             + ".\nThe record may not exist in the archive.";
 
-        if (type == TableType.USERS) {
-            runAsync(new ArchiveTask(id, "delete_user"), successMsg, failureMsg);
-        } else {
-            runAsync(new ArchiveTask(id, "delete_item"), successMsg, failureMsg);
-        }
+        RecordAction action = type == TableType.USERS
+            ? RecordAction.DELETE_USER
+            : RecordAction.DELETE_ITEM;
+        runAsync(new ArchiveTask(id, action), successMsg, failureMsg);
     }
-
 
     private void runAsync(ArchiveTask task, String successMsg, String failureMsg) {
         SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
@@ -1441,24 +580,26 @@ public class AdminTable extends CustomPanel {
         worker.execute();
     }
 
-
+    // Uses ArchiveAction enum instead of raw strings — typos now cause compile errors
     private class ArchiveTask {
-        private final int    id;
-        private final String action;
+        private final int           id;
+        private final RecordAction action;
 
-        public ArchiveTask(int id, String action) {
+        public ArchiveTask(int id, RecordAction action) {
             this.id     = id;
             this.action = action;
         }
 
         public boolean run() {
-            if (action.equals("archive_user"))  return userService.archiveUser(id);
-            if (action.equals("restore_user"))  return userService.unarchiveUser(id);
-            if (action.equals("delete_user"))   return userService.permanentDeleteUser(id);
-            if (action.equals("archive_item"))  return itemService.archiveItem(id);
-            if (action.equals("restore_item"))  return itemService.unarchiveItem(id);
-            if (action.equals("delete_item"))   return itemService.permanentDeleteItem(id);
-            return false;
+            switch (action) {
+                case ARCHIVE_USER: return userService.archiveUser(id);
+                case RESTORE_USER: return userService.unarchiveUser(id);
+                case DELETE_USER:  return userService.permanentDeleteUser(id);
+                case ARCHIVE_ITEM: return itemService.archiveItem(id);
+                case RESTORE_ITEM: return itemService.unarchiveItem(id);
+                case DELETE_ITEM:  return itemService.permanentDeleteItem(id);
+                default:           return false;
+            }
         }
     }
 
@@ -1466,34 +607,5 @@ public class AdminTable extends CustomPanel {
     private int getSelectedId(int viewRow) {
         int modelRow = table.convertRowIndexToModel(viewRow);
         return Integer.parseInt(table.getModel().getValueAt(modelRow, 0).toString());
-    }
-
-    // Creates a label + input field row used inside update dialogs
-    private JPanel createFieldPanel(String label, JComponent component) {
-        JPanel panel = new JPanel(new BorderLayout(10, 0));
-        panel.setOpaque(false);
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        panel.setPreferredSize(new Dimension(0, 35));
-
-        CustomLabel lbl = new CustomLabel(label, 14f, FontStyle.REGULAR);
-        lbl.setPreferredSize(new Dimension(100, 30));
-        lbl.setHorizontalAlignment(SwingConstants.RIGHT);
-        panel.add(lbl, BorderLayout.WEST);
-
-        component.setPreferredSize(new Dimension(250, 32));
-        component.setMinimumSize(new Dimension(250, 32));
-
-        JPanel wrap = new JPanel(new BorderLayout());
-        wrap.setOpaque(false);
-        wrap.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
-        wrap.add(component, BorderLayout.CENTER);
-        panel.add(wrap, BorderLayout.CENTER);
-
-        return panel;
-    }
-
-    // Returns the list of colleges from UMak constants
-    private String[] getColleges() {
-        return UMak.COLLEGES_INSTITUTES;
     }
 }

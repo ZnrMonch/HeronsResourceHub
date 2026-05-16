@@ -11,7 +11,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class LogsDatabase {
+public class LogsDatabase extends BaseDatabase{
 
     public List<AdminLogs> getLogsByType(String logType) {
         return getLogsByTypeFiltered(logType, "", "", null, null);
@@ -370,12 +370,6 @@ public class LogsDatabase {
         return !"TRANSACTION".equals(logType);
     }
 
-    private Connection getConn() throws SQLException {
-        return DriverManager.getConnection(
-                DatabaseManager.getURL(),
-                DatabaseManager.getUser(),
-                DatabaseManager.getPassword());
-    }
 
     private String toUserDbAction(String enumName) {
         if (enumName == null) return "Update";

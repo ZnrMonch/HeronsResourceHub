@@ -7,7 +7,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ItemDatabase {
+public class ItemDatabase extends BaseDatabase {
 
     public int countActiveItems() {
         String sql = "SELECT COUNT(*) FROM items";
@@ -309,21 +309,6 @@ public class ItemDatabase {
             System.out.println("permanentDeleteItem() failed: " + e.getMessage());
         }
         return false;
-    }
-
-    private void exec(Connection conn, String sql, int param) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, param);
-            ps.executeUpdate();
-        }
-    }
-
-    private Connection getConn() throws SQLException {
-        return DriverManager.getConnection(
-            DatabaseManager.getURL(),
-            DatabaseManager.getUser(),
-            DatabaseManager.getPassword()
-        );
     }
 
     private AdminItems mapRow(ResultSet rs, boolean isArchived) throws SQLException {

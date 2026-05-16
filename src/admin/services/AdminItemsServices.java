@@ -56,7 +56,7 @@ public class AdminItemsServices {
             description, imagePath);
 
         if (newItemId > 0) {
-        	logDB.insertLog(ItemLogAction.ITEM_CREATE, adminId, newItemId, "\"" + name + "\"");
+            logDB.insertLog(ItemLogAction.ITEM_CREATE, adminId, newItemId, "\"" + name + "\"");
             return true;
         }
         return false;
@@ -65,8 +65,8 @@ public class AdminItemsServices {
     public boolean updateItem(AdminItems item) {
         boolean success = itemDB.updateItem(item);
         if (success)
-        	logDB.insertLog(ItemLogAction.ITEM_UPDATE, item.getOwnerId(), item.getItemId(),
-        		    "\"" + item.getItemName() + "\"");
+            logDB.insertLog(ItemLogAction.ITEM_UPDATE, item.getOwnerId(), item.getItemId(),
+                    "\"" + item.getItemName() + "\"");
         return success;
     }
 
@@ -76,13 +76,12 @@ public class AdminItemsServices {
             System.out.println("archiveItem() failed: item " + itemId + " not found.");
             return false;
         }
- 
+
         String itemName = item.getItemName();
         int    ownerId  = item.getOwnerId();
         boolean success = itemDB.archiveItem(itemId);
         if (success)
-    
-        	logDB.insertLog(ItemLogAction.ITEM_ARCHIVE, ownerId, 0, "\"" + itemName + "\"");
+            logDB.insertLog(ItemLogAction.ITEM_ARCHIVE, ownerId, 0, "\"" + itemName + "\"");
         return success;
     }
 
@@ -96,22 +95,15 @@ public class AdminItemsServices {
         int    ownerId  = item.getOwnerId();
         boolean success = itemDB.unarchiveItem(itemId);
         if (success)
-
-        	logDB.insertLog(ItemLogAction.ITEM_RESTORE, ownerId, itemId, "\"" + itemName + "\"");
+            logDB.insertLog(ItemLogAction.ITEM_RESTORE, ownerId, itemId, "\"" + itemName + "\"");
         return success;
     }
 
     public boolean permanentDeleteItem(int itemId) {
         boolean success = itemDB.permanentDeleteItem(itemId);
         if (success)
-          
-        	logDB.insertLog(ItemLogAction.ITEM_DELETE, 0, 0, "ID " + itemId);
+            logDB.insertLog(ItemLogAction.ITEM_DELETE, 0, 0, "ID " + itemId);
         return success;
-    }
-
-    @SuppressWarnings("unused")
-	private void insertLog(int ownerId, int itemId, String message) {
-        logDB.insertLog("ITEM", ownerId, itemId, message);
     }
 
     private Object[][] buildTableData(List<AdminItems> items) {
