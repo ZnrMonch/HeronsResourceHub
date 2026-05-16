@@ -770,21 +770,25 @@ public class AdminTable extends CustomPanel {
     // Builds and shows the update dialog for a user
     private void buildUserUpdateDialog(int id, CustomPanel formPanel) {
         AdminUsers user = userService.getUserById(id);
-
+ 
         CustomTextField firstNameField = new CustomTextField(user != null ? user.getFirstName() : "");
         CustomTextField lastNameField  = new CustomTextField(user != null ? user.getLastName()  : "");
-
+ 
         CustomComboBox<String> collegeBox = new CustomComboBox<>(getColleges());
         if (user != null) {
             collegeBox.setSelectedItem(user.getCollege());
         }
-
-        // Role selection: Standard User or Admin
-        String currentRole = (user != null && user.getSystemRole() != null) ? user.getSystemRole() : "end_user";
-        CustomComboBox<String> roleCategoryBox = new CustomComboBox<>(new String[] { "Standard User", "Admin" });
-        CustomComboBox<String> roleSubBox      = new CustomComboBox<>(new String[] { "admin", "super_admin" });
+ 
+        // ── Role fields ───────────────────────────────────────────────────
+        String currentRole = (user != null && user.getSystemRole() != null)
+            ? user.getSystemRole() : "end_user";
+ 
+        CustomComboBox<String> roleCategoryBox = new CustomComboBox<>(
+            new String[] { "Standard User", "Admin" });
+        CustomComboBox<String> roleSubBox = new CustomComboBox<>(
+            new String[] { "admin", "super_admin" });
         roleSubBox.setCustomSize(130, 30);
-
+ 
         if (currentRole.equals("end_user")) {
             roleCategoryBox.setSelectedItem("Standard User");
             roleSubBox.setVisible(false);
@@ -792,24 +796,43 @@ public class AdminTable extends CustomPanel {
             roleCategoryBox.setSelectedItem("Admin");
             roleSubBox.setSelectedItem(currentRole);
         }
-
-        // Show/hide sub-role dropdown based on category selection
-        roleCategoryBox.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                boolean isAdmin = "Admin".equals(roleCategoryBox.getSelectedItem());
-                roleSubBox.setVisible(isAdmin);
-                roleSubBox.getParent().revalidate();
-                roleSubBox.getParent().repaint();
-            }
-        });
-
+ 
+        // ── BUSINESS RULE: cannot edit your own role ──────────────────────
+        // Check if the admin is trying to update their own account.
+        // If so, lock the role dropdowns — another admin must change their role.
+        boolean isSelf = (id == SessionManager.get().getCurrentUserId());
+ 
+        if (isSelf) {
+            roleCategoryBox.setEnabled(false);
+            roleSubBox.setEnabled(false);
+        } else {
+            // Only wire up the show/hide listener when editing someone else
+            roleCategoryBox.addActionListener(new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    boolean isAdmin = "Admin".equals(roleCategoryBox.getSelectedItem());
+                    roleSubBox.setVisible(isAdmin);
+                    roleSubBox.getParent().revalidate();
+                    roleSubBox.getParent().repaint();
+                }
+            });
+        }
+ 
+        // ── Layout ────────────────────────────────────────────────────────
         JPanel roleComboPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         roleComboPanel.setOpaque(false);
         roleCategoryBox.setPreferredSize(new Dimension(140, 32));
         roleSubBox.setPreferredSize(new Dimension(130, 32));
         roleComboPanel.add(roleCategoryBox);
         roleComboPanel.add(roleSubBox);
-
+ 
+        // Warning label shown only when editing yourself
+        if (isSelf) {
+            CustomLabel selfRoleWarning = new CustomLabel(
+                "⚠ Another admin must change your role.", 11f, FontStyle.REGULAR);
+            selfRoleWarning.setForeground(Color.decode("#dc3545")); // red
+            roleComboPanel.add(selfRoleWarning);
+        }
+ 
         JPanel roleRow = new JPanel(new BorderLayout(10, 0));
         roleRow.setOpaque(false);
         roleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
@@ -818,7 +841,7 @@ public class AdminTable extends CustomPanel {
         roleLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         roleRow.add(roleLabel,      BorderLayout.WEST);
         roleRow.add(roleComboPanel, BorderLayout.CENTER);
-
+ 
         formPanel.add(createFieldPanel("First Name:", firstNameField));
         formPanel.add(Box.createVerticalStrut(10));
         formPanel.add(createFieldPanel("Last Name:",  lastNameField));
@@ -826,46 +849,48 @@ public class AdminTable extends CustomPanel {
         formPanel.add(createFieldPanel("College:",    collegeBox));
         formPanel.add(Box.createVerticalStrut(10));
         formPanel.add(roleRow);
-
+ 
         Window owner = SwingUtilities.getWindowAncestor(this);
-        new AdminDialog(owner, "Update User: " + id, formPanel, "Save Changes", new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                if (user == null) return;
-
-                // Use existing value if the field was left empty
-                String resolvedFirst = firstNameField.getText().trim().isEmpty()
-                    ? user.getFirstName() : firstNameField.getText().trim();
-                String resolvedLast = lastNameField.getText().trim().isEmpty()
-                    ? user.getLastName() : lastNameField.getText().trim();
-                String resolvedCollege = (collegeBox.getSelectedItem() == null)
-                    ? user.getCollege() : collegeBox.getSelectedItem().toString().trim();
-
-                // Determine final role string
-                String resolvedRole;
-                if ("Admin".equals(roleCategoryBox.getSelectedItem())) {
-                    resolvedRole = (roleSubBox.getSelectedItem() != null)
-                        ? roleSubBox.getSelectedItem().toString() : "admin";
-                } else {
-                    resolvedRole = "end_user";
+        new AdminDialog(owner, "Update User: " + id, formPanel, "Save Changes",
+            new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    if (user == null) return;
+ 
+                    String resolvedFirst = firstNameField.getText().trim().isEmpty()
+                        ? user.getFirstName() : firstNameField.getText().trim();
+                    String resolvedLast = lastNameField.getText().trim().isEmpty()
+                        ? user.getLastName() : lastNameField.getText().trim();
+                    String resolvedCollege = (collegeBox.getSelectedItem() == null)
+                        ? user.getCollege() : collegeBox.getSelectedItem().toString().trim();
+ 
+                    // If editing yourself, keep the existing role — dropdowns are
+                    // disabled so we just carry the original value forward.
+                    String resolvedRole;
+                    if (isSelf) {
+                        resolvedRole = currentRole;
+                    } else if ("Admin".equals(roleCategoryBox.getSelectedItem())) {
+                        resolvedRole = (roleSubBox.getSelectedItem() != null)
+                            ? roleSubBox.getSelectedItem().toString() : "admin";
+                    } else {
+                        resolvedRole = "end_user";
+                    }
+ 
+                    if (resolvedFirst.isEmpty() || resolvedLast.isEmpty() || resolvedCollege.isEmpty()) {
+                        JOptionPane.showMessageDialog(AdminTable.this,
+                            "First Name, Last Name, and College cannot be empty.",
+                            "Validation Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+ 
+                    user.setFirstName(resolvedFirst);
+                    user.setLastName(resolvedLast);
+                    user.setCollege(resolvedCollege);
+                    user.setSystemRole(resolvedRole); // unchanged when isSelf
+ 
+                    showUpdateResult(userService.updateUser(user), "User");
                 }
-
-                if (resolvedFirst.isEmpty() || resolvedLast.isEmpty() || resolvedCollege.isEmpty()) {
-                    JOptionPane.showMessageDialog(AdminTable.this,
-                        "First Name, Last Name, and College cannot be empty.",
-                        "Validation Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-
-                user.setFirstName(resolvedFirst);
-                user.setLastName(resolvedLast);
-                user.setCollege(resolvedCollege);
-                user.setSystemRole(resolvedRole);
-
-                showUpdateResult(userService.updateUser(user), "User");
-            }
-        }).setVisible(true);
+            }).setVisible(true);
     }
-
     // Builds and shows the update dialog for an item
     private void buildItemUpdateDialog(int id, CustomPanel formPanel) {
         AdminItems item = itemService.getItemById(id);
@@ -970,19 +995,33 @@ public class AdminTable extends CustomPanel {
             return;
         }
         int id = getSelectedId(row);
-
+ 
+        // ── Self-archive check (Users table only) ─────────────────────────
+        // Block the action immediately in the UI before even hitting the DB,
+        // so the admin gets a clear, specific message.
+        if (type == TableType.USERS) {
+            int currentUserId = SessionManager.get().getCurrentUserId();
+            if (id == currentUserId) {
+                JOptionPane.showMessageDialog(this,
+                    "You cannot archive your own account.",
+                    "Action Not Allowed", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+        }
+ 
         String entityType = type == TableType.USERS ? "user" : "item";
         int choice = JOptionPane.showConfirmDialog(this,
-            "Archive " + entityType + " ID " + id + "?", "Confirm Archive", JOptionPane.YES_NO_OPTION);
+            "Archive " + entityType + " ID " + id + "?",
+            "Confirm Archive", JOptionPane.YES_NO_OPTION);
         if (choice != JOptionPane.YES_OPTION) return;
-
+ 
         String successMsg = entityType + " ID " + id + " archived successfully.";
         String failureMsg = "Archive failed for " + entityType + " ID " + id + ".\n\n"
             + "Possible reasons:\n"
             + "  • Account has admin or super_admin role\n"
             + "  • Database error or FK constraint\n"
             + "  • Archive table not found";
-
+ 
         if (type == TableType.USERS) {
             runAsync(new ArchiveTask(id, "archive_user"), successMsg, failureMsg);
         } else {
