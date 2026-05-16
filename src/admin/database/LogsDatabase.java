@@ -2,6 +2,10 @@ package admin.database;
 
 import admin.models.AdminLogs;
 import database.DatabaseManager;
+import enums.ItemLogAction;
+import enums.ReputationLogAction;
+import enums.TransactionLogAction;
+import enums.UserLogAction;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -132,14 +136,52 @@ public class LogsDatabase {
         return 0;
     }
 
+
+    public boolean insertLog(UserLogAction action, int userId, String userName) {
+        String description = userName.isEmpty()
+            ? action.getDescription()
+            : "User " + userName + ": " + action.getDescription();
+        return insertLog("USER", userId, 0, action.name(), description);
+    }
+
+    public boolean insertLog(ItemLogAction action, int userId, int itemId, String context) {
+        String description = context.isEmpty()
+            ? action.getDescription()
+            : context + ": " + action.getDescription();
+        return insertLog("ITEM", userId, itemId, action.name(), description);
+    }
+
+    public boolean insertLog(TransactionLogAction action, int userId, int itemId, String context) {
+        String description = context.isEmpty()
+            ? action.getDescription()
+            : context + ": " + action.getDescription();
+        return insertLog("TRANSACTION", userId, itemId, action.name(), description);
+    }
+
+    public boolean insertLog(ReputationLogAction action, int userId, String context) {
+        String description = context.isEmpty()
+            ? action.getDescription()
+            : context + ": " + action.getDescription();
+        return insertLog("REPUTATION", userId, 0, action.name(), description);
+    }
+
+
    
     public boolean insertLog(String logType, int userId, int itemId, String description) {
+        String action;
+        if ("USER".equals(logType))       action = resolveUserAction(description);
+        else if ("ITEM".equals(logType))  action = resolveItemAction(description);
+        else                              action = description;
+        return insertLog(logType, userId, itemId, action, description);
+    }
+
+
+   
+
+    private boolean insertLog(String logType, int userId, int itemId,
+            String action, String description) {
 
         if ("USER".equals(logType)) {
-            // Resolve action enum from the description text
-            String action = resolveUserAction(description);
-
-            // Look up the user's name (try live table first, then archive)
             String firstName = "";
             String lastName  = "";
             if (userId > 0) {
@@ -147,7 +189,6 @@ public class LogsDatabase {
                 lastName  = lookupLastName(userId);
             }
 
-          
             String sql =
                 "INSERT INTO users_log "
                 + "(user_id, initiator_firstname, initiator_lastname, action, reason) "
@@ -159,18 +200,14 @@ public class LogsDatabase {
                 else            stmt.setNull(1, Types.INTEGER);
                 stmt.setString(2, firstName);
                 stmt.setString(3, lastName);
-                stmt.setString(4, action);
-                stmt.setString(5, truncate(description, 100));
+                stmt.setString(4, toUserDbAction(action));                     
+                stmt.setString(5, truncate(description, 255));    
                 return stmt.executeUpdate() > 0;
             } catch (SQLException e) {
                 System.err.println("insertLog(USER) failed: " + e.getMessage());
             }
-            return false;
 
         } else if ("ITEM".equals(logType)) {
-          
-            String action = resolveItemAction(description);
-
             String firstName = "";
             String lastName  = "";
             if (userId > 0) {
@@ -191,44 +228,85 @@ public class LogsDatabase {
                 else            stmt.setNull(2, Types.INTEGER);
                 stmt.setString(3, firstName);
                 stmt.setString(4, lastName);
-                stmt.setString(5, action);
-                stmt.setString(6, truncate(description, 100));
+                stmt.setString(5, toItemDbAction(action));                     // enum name e.g. ITEM_CREATE
+                stmt.setString(6, truncate(description, 255));
                 return stmt.executeUpdate() > 0;
             } catch (SQLException e) {
                 System.err.println("insertLog(ITEM) failed: " + e.getMessage());
             }
-            return false;
+
+        } else if ("TRANSACTION".equals(logType)) {
+            String sql =
+                "INSERT INTO transaction_log "
+                + "(user_id, item_id, action, reason) "
+                + "VALUES (?, ?, ?, ?)";
+
+            try (Connection conn = getConn();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                if (userId > 0) stmt.setInt(1, userId);
+                else            stmt.setNull(1, Types.INTEGER);
+                if (itemId > 0) stmt.setInt(2, itemId);
+                else            stmt.setNull(2, Types.INTEGER);
+                stmt.setString(3, action);                        // enum name e.g. TRANSACTION_BUY
+                stmt.setString(4, truncate(description, 255));
+                return stmt.executeUpdate() > 0;
+            } catch (SQLException e) {
+                System.err.println("insertLog(TRANSACTION) failed: " + e.getMessage());
+            }
+
+        } else if ("REPUTATION".equals(logType)) {
+            String sql =
+                "INSERT INTO reputation_log "
+                + "(user_id, action, reason) "
+                + "VALUES (?, ?, ?)";
+
+            try (Connection conn = getConn();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                if (userId > 0) stmt.setInt(1, userId);
+                else            stmt.setNull(1, Types.INTEGER);
+                stmt.setString(2, action);                        // enum name e.g. REPUTATION_UPDATE
+                stmt.setString(3, truncate(description, 255));
+                return stmt.executeUpdate() > 0;
+            } catch (SQLException e) {
+                System.err.println("insertLog(REPUTATION) failed: " + e.getMessage());
+            }
 
         } else {
             System.out.println("insertLog() skipped: unknown logType '" + logType + "'");
-            return false;
         }
+
+        return false;
     }
 
-   
+
+    // ── Private helpers ──────────────────────────────────────────────────────
+
     private String resolveUserAction(String description) {
-        if (description == null) return "Update";
+        if (description == null) return UserLogAction.USER_UPDATE_PROFILE.name();
         String lower = description.toLowerCase();
-        if (lower.contains("permanently deleted") || lower.contains("permanent delete")) return "Delete";
-        if (lower.contains("restored")            || lower.contains("unarchive"))        return "Unarchive";
-        if (lower.contains("archived")            || lower.contains("archive"))          return "Archive";
-        if (lower.contains("added")               || lower.contains("registered")
-                                                  || lower.contains("new user"))         return "Create";
-        return "Update";
+        if (lower.contains("permanently deleted") || lower.contains("permanent delete"))
+            return UserLogAction.USER_DELETE.name();
+        if (lower.contains("restored") || lower.contains("unarchive"))
+            return UserLogAction.USER_RESTORE.name();
+        if (lower.contains("archived") || lower.contains("archive"))
+            return UserLogAction.USER_ARCHIVE.name();
+        if (lower.contains("added") || lower.contains("registered") || lower.contains("new user"))
+            return UserLogAction.USER_REGISTER.name();
+        if (lower.contains("role"))
+            return UserLogAction.USER_ROLE_UPDATE.name();
+        return UserLogAction.USER_UPDATE_PROFILE.name();
     }
 
-    // Derives a readable action string for items_log (varchar — no strict enum)
     private String resolveItemAction(String description) {
-        if (description == null) return "UPDATE_ITEM";
+        if (description == null) return ItemLogAction.ITEM_UPDATE.name();
         String lower = description.toLowerCase();
-        if (lower.contains("archived"))  return "ARCHIVE_ITEM";
-        if (lower.contains("restored"))  return "RESTORE_ITEM";
-        if (lower.contains("added")
-                || lower.contains("new item")) return "LIST_ITEM";
-        return "UPDATE_ITEM";
+        if (lower.contains("archived"))  return ItemLogAction.ITEM_ARCHIVE.name();
+        if (lower.contains("restored"))  return ItemLogAction.ITEM_RESTORE.name();
+        if (lower.contains("added") || lower.contains("new item"))
+            return ItemLogAction.ITEM_CREATE.name();
+        return ItemLogAction.ITEM_UPDATE.name();
     }
 
-    // Looks up first_name from users or users_archive
     private String lookupFirstName(int userId) {
         return lookupNameField(userId, "first_name");
     }
@@ -299,6 +377,43 @@ public class LogsDatabase {
                 DatabaseManager.getPassword());
     }
 
+    private String toUserDbAction(String enumName) {
+        if (enumName == null) return "Update";
+        switch (enumName) {
+            case "USER_REGISTER":         return "Create";
+            case "USER_UPDATE_PROFILE":
+            case "USER_CHANGE_PASSWORD":
+            case "USER_UPLOAD_PROFILE":
+            case "USER_ROLE_UPDATE":      return "Update";
+            case "USER_ARCHIVE":          return "Archive";
+            case "USER_UNARCHIVE":
+            case "USER_RESTORE":          return "Unarchive";
+            case "USER_DELETE":           return "Delete";
+            default:                      return "Update";
+        }
+    }
+    
+    private String toItemDbAction(String enumName) {
+        if (enumName == null) return "UPDATE_ITEM";
+        switch (enumName) {
+            case "ITEM_CREATE":
+            case "ITEM_LIST":             return "LIST_ITEM";
+            case "ITEM_UPDATE":
+            case "ITEM_MARK_AVAILABLE":
+            case "ITEM_MARK_UNAVAILABLE":
+            case "ITEM_APPROVE":
+            case "ITEM_REJECT":
+            case "ITEM_UPLOAD_IMAGE":
+            case "ITEM_DELETE_IMAGE":
+            case "ITEM_UNLIST":           return "UPDATE_ITEM";
+            case "ITEM_ARCHIVE":          return "ARCHIVE_ITEM";
+            case "ITEM_UNARCHIVE":
+            case "ITEM_RESTORE":          return "RESTORE_ITEM";
+            case "ITEM_DELETE":           return "DELETE_ITEM";
+            default:                      return "UPDATE_ITEM";
+        }
+    }
+    
     private AdminLogs mapRow(ResultSet rs) throws SQLException {
         AdminLogs log = new AdminLogs();
         log.setId(rs.getInt("id"));

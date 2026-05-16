@@ -3,6 +3,8 @@ package admin.services;
 import admin.database.LogsDatabase;
 import admin.database.UsersDatabase;
 import admin.models.AdminUsers;
+import enums.*;
+
 import java.util.List;
 
 public class AdminUsersServices {
@@ -57,9 +59,7 @@ public class AdminUsersServices {
                                           profileImagePath);
         if (newUserId > 0) {
             lastAddError = null;
-            logDB.insertLog("USER", newUserId, 0,
-                "New user " + firstName + " " + lastName
-                + " (" + studentId + ") added by admin.");
+            logDB.insertLog(UserLogAction.USER_REGISTER, newUserId, firstName + " " + lastName);;
             return true;
         } else {
             lastAddError = "Database error. Please try again.";
@@ -70,8 +70,7 @@ public class AdminUsersServices {
     public boolean updateUser(AdminUsers user) {
         boolean success = userDB.updateUser(user);
         if (success)
-            logDB.insertLog("USER", user.getUserId(), 0,
-                "User " + user.getFullName() + " (ID " + user.getUserId() + ") was updated by admin.");
+        	logDB.insertLog(UserLogAction.USER_UPDATE_PROFILE, user.getUserId(), user.getFullName());
         return success;
     }
 
@@ -91,8 +90,7 @@ public class AdminUsersServices {
         boolean success = userDB.archiveUser(userId);
         if (success)
         
-            logDB.insertLog("USER", 0, 0,
-                "User " + fullName + " (ID " + userId + ") archived by admin.");
+        	logDB.insertLog(UserLogAction.USER_ARCHIVE, 0, fullName);
         return success;
     }
 
@@ -106,18 +104,18 @@ public class AdminUsersServices {
         boolean success = userDB.unarchiveUser(userId);
         if (success)
             // userId is safe to pass — user row is restored before this runs
-            logDB.insertLog("USER", userId, 0,
-                "User " + fullName + " (ID " + userId + ") restored by admin.");
+        	logDB.insertLog(UserLogAction.USER_RESTORE, userId, fullName);
         return success;
     }
 
     public boolean permanentDeleteUser(int userId) {
         boolean success = userDB.permanentDeleteUser(userId);
         if (success)
-            logDB.insertLog("USER", 0, 0,
-                "User ID " + userId + " permanently deleted from archive by admin.");
+        	logDB.insertLog(UserLogAction.USER_DELETE, 0, "ID " + userId);
         return success;
     }
+    
+    
 
     private Object[][] buildTableData(List<AdminUsers> users) {
         Object[][] data = new Object[users.size()][13];

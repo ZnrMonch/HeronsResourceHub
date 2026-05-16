@@ -7,6 +7,7 @@ import admin.models.AdminItems;
 import admin.models.AdminUsers;
 import utils.SessionManager;
 import java.util.List;
+import enums.*;
 
 public class AdminItemsServices {
 
@@ -55,8 +56,7 @@ public class AdminItemsServices {
             description, imagePath);
 
         if (newItemId > 0) {
-            logDB.insertLog("ITEM", adminId, newItemId,
-                "New item \"" + name + "\" (ID " + newItemId + ") added by admin.");
+        	logDB.insertLog(ItemLogAction.ITEM_CREATE, adminId, newItemId, "\"" + name + "\"");
             return true;
         }
         return false;
@@ -65,8 +65,8 @@ public class AdminItemsServices {
     public boolean updateItem(AdminItems item) {
         boolean success = itemDB.updateItem(item);
         if (success)
-            logDB.insertLog("ITEM", item.getOwnerId(), item.getItemId(),
-                "Item \"" + item.getItemName() + "\" (ID " + item.getItemId() + ") was updated by admin.");
+        	logDB.insertLog(ItemLogAction.ITEM_UPDATE, item.getOwnerId(), item.getItemId(),
+        		    "\"" + item.getItemName() + "\"");
         return success;
     }
 
@@ -82,8 +82,7 @@ public class AdminItemsServices {
         boolean success = itemDB.archiveItem(itemId);
         if (success)
     
-            logDB.insertLog("ITEM", ownerId, 0,
-                "Item \"" + itemName + "\" (ID " + itemId + ") archived by admin.");
+        	logDB.insertLog(ItemLogAction.ITEM_ARCHIVE, ownerId, 0, "\"" + itemName + "\"");
         return success;
     }
 
@@ -98,8 +97,7 @@ public class AdminItemsServices {
         boolean success = itemDB.unarchiveItem(itemId);
         if (success)
 
-            logDB.insertLog("ITEM", ownerId, itemId,
-                "Item \"" + itemName + "\" (ID " + itemId + ") restored by admin.");
+        	logDB.insertLog(ItemLogAction.ITEM_RESTORE, ownerId, itemId, "\"" + itemName + "\"");
         return success;
     }
 
@@ -107,12 +105,12 @@ public class AdminItemsServices {
         boolean success = itemDB.permanentDeleteItem(itemId);
         if (success)
           
-            logDB.insertLog("ITEM", 0, 0,
-                "Item ID " + itemId + " permanently deleted from archive by admin.");
+        	logDB.insertLog(ItemLogAction.ITEM_DELETE, 0, 0, "ID " + itemId);
         return success;
     }
 
-    private void insertLog(int ownerId, int itemId, String message) {
+    @SuppressWarnings("unused")
+	private void insertLog(int ownerId, int itemId, String message) {
         logDB.insertLog("ITEM", ownerId, itemId, message);
     }
 

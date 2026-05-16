@@ -341,7 +341,7 @@ public class ItemDatabase {
         item.setArchived(isArchived);
         return item;
     }
-
+  
     private AdminItems mapRowArchived(ResultSet rs) throws SQLException {
         AdminItems item = new AdminItems();
         item.setItemId(rs.getInt("item_id"));
