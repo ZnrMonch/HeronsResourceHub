@@ -4,6 +4,7 @@ import java.awt.*;
 import javax.swing.*;
 import components.*;
 import utils.*;
+import profile.EditProfilePicture;
 
 public class Profile extends CustomPanel {
 	private static final long serialVersionUID = 1L;
@@ -16,6 +17,12 @@ public class Profile extends CustomPanel {
 	private boolean isEditing = false;
 	private CustomPanel profileContentPanel;
 	
+	// Track the current profile picture path so we can change it dynamically
+	private String currentProfilePicturePath = "/resources/defaultpictures/renzjan.jpg";
+	
+	// Custom interactive panel for handling the avatar painting and hover effects
+	private AvatarPanel avatarPanel;
+	
 	private String studentId = "K12360080";
 	private String lastName = "Moncinilla";
 	private String firstName = "Renzjan";
@@ -23,21 +30,17 @@ public class Profile extends CustomPanel {
 	private String email = "renzjan.moncinilla@umak.edu.ph";
 	private String memberSince = "January 01, 2001";
 	private String password = "*";
-	// Actual stored password (empty by default). We display a masked version in password.
 	private String storedPassword = "";
 	
 	private String college = "CCIS";
 	private String course = "BS in Information Technology";
 	private String yearLevel = "1st Year";
 
-	// s (unmasked) for payment numbers. Stored separately so we can show a censored
-	// version in view mode while keeping the real value available for editing/saving.
 	private String gcash = "0913456789";
 	private String maya = "0913456789";
 	private String mastercard= "1234567891234567";
 	private String visa = "1234567891234567";
 
-	// Names associated with each payment method (displayed below the number)
 	private String gcashName = "Renzjan Moncinilla";
 	private String mayaName = "Renzjan Moncinilla";
 	private String mastercardName = "Renzjan Moncinilla";
@@ -52,7 +55,6 @@ public class Profile extends CustomPanel {
 	private CustomTextField courseField = new CustomTextField("");
 	private CustomTextField yearLevelField = new CustomTextField("");
 
-	// Combo boxes for college and year level (used in edit mode)
 	private CustomComboBox<String> collegeCombo = null;
 	private CustomComboBox<String> yearCombo = null;
 	
@@ -61,7 +63,6 @@ public class Profile extends CustomPanel {
 	private CustomTextField mastercardField = new CustomTextField("");
 	private CustomTextField visaField = new CustomTextField("");
 
-	// Editable name fields for payment methods (editable when profile is in edit mode)
 	private CustomTextField gcashNameField = new CustomTextField("");
 	private CustomTextField mayaNameField = new CustomTextField("");
 	private CustomTextField mastercardNameField = new CustomTextField("");
@@ -79,7 +80,10 @@ public class Profile extends CustomPanel {
 		
 		CustomPanel profilePictureWrapper = new CustomPanel(new GridBagLayout());
 		profilePictureWrapper.setPreferredSize(new Dimension(300, 300));
-		profilePictureWrapper.add(new JLabel(IconLoader.loadAndScaleCircularIcon("/resources/defaultpictures/renzjan.jpg", 250, 250)));
+		
+		// Use our custom panel instead of a standard JLabel
+		avatarPanel = new AvatarPanel();
+		profilePictureWrapper.add(avatarPanel);
 		
 		CustomPanel karmaWrapper = new CustomPanel(new BorderLayout());
 		karmaWrapper.setBorder(BorderFactory.createEmptyBorder(30, 20, 30, 20)); 
@@ -103,6 +107,86 @@ public class Profile extends CustomPanel {
 		wrapper.add(profilePictureWrapper, BorderLayout.NORTH);
 		wrapper.add(karmaWrapper, BorderLayout.CENTER);
 		return wrapper;
+	}
+
+	// --- CUSTOM AVATAR COMPONENT WITH HOVER PROFILE/EDIT ICON OVERLAY ---
+	private class AvatarPanel extends JPanel {
+		private static final long serialVersionUID = 1L;
+		private boolean isHovered = false;
+		private Icon editIcon;
+
+		public AvatarPanel() {
+			setOpaque(false);
+			setPreferredSize(new Dimension(250, 250));
+			
+			// Load the edit/profile indicator icon overlay 
+			// (Uses your edit icon scaled down cleanly to fit over the avatar)
+			editIcon = IconLoader.loadAndScaleIcon("/resources/icons/edit.png", 40, 40);
+
+			addMouseListener(new java.awt.event.MouseAdapter() {
+				@Override
+				public void mouseReleased(java.awt.event.MouseEvent e) {
+					if (isEditing) {
+						Window parentWindow = SwingUtilities.getWindowAncestor(Profile.this);
+						JFrame parentFrame = (parentWindow instanceof JFrame) ? (JFrame) parentWindow : null;
+						
+						EditProfilePicture dialog = new EditProfilePicture(parentFrame);
+						
+						String updatedPath = dialog.getSavedImagePath();
+						if (updatedPath != null) {
+							currentProfilePicturePath = updatedPath;
+							AvatarPanel.this.repaint();
+						}
+					}
+				}
+				
+				@Override
+				public void mouseEntered(java.awt.event.MouseEvent e) {
+					if (isEditing) {
+						isHovered = true;
+						setCursor(new Cursor(Cursor.HAND_CURSOR));
+						repaint();
+					} else {
+						setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+					}
+				}
+				
+				@Override
+				public void mouseExited(java.awt.event.MouseEvent e) {
+					isHovered = false;
+					setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+					repaint();
+				}
+			});
+		}
+
+		@Override
+		protected void paintComponent(Graphics g) {
+			super.paintComponent(g);
+			Graphics2D g2 = (Graphics2D) g.create();
+			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+			// 1. Draw Circular Profile Picture
+			Icon mainAvatar = IconLoader.loadAndScaleCircularIcon(currentProfilePicturePath, 250, 250);
+			if (mainAvatar != null) {
+				mainAvatar.paintIcon(this, g2, 0, 0);
+			}
+
+			// 2. Overlay an Indicator Icon ONLY if currently Hovered and in Editing Mode
+			if (isEditing && isHovered) {
+				// Create a dark transparent circular mask over the picture
+				g2.setColor(new Color(0, 0, 0, 110));
+				g2.fillOval(0, 0, 250, 250);
+				
+				// Center the edit/profile indicator icon exactly in the middle of the circle
+				if (editIcon != null) {
+					int iconX = (250 - editIcon.getIconWidth()) / 2;
+					int iconY = (250 - editIcon.getIconHeight()) / 2;
+					editIcon.paintIcon(this, g2, iconX, iconY);
+				}
+			}
+			g2.dispose();
+		}
 	}
 
 	private CustomPanel comboInfoWrapper(String info, String value, JComboBox<String> combo, boolean isEditable) {
@@ -171,6 +255,7 @@ public class Profile extends CustomPanel {
 			if (!toggled && isEditing) {
 				if (!hasUnsavedChanges()) {
 					isEditing = false;
+					avatarPanel.repaint();
 					buildProfileFields();
 					return;
 				}
@@ -190,15 +275,18 @@ public class Profile extends CustomPanel {
 				if (choice == JOptionPane.YES_OPTION) { 
 					saveFields();
 					isEditing = false;
+					avatarPanel.repaint();
 					buildProfileFields();
 				} else if (choice == JOptionPane.NO_OPTION) { 
 					isEditing = false;
+					avatarPanel.repaint();
 					buildProfileFields();
 				} else {
 					SwingUtilities.invokeLater(() -> editProfileButton.setToggled(true));
 				}
 			} else if (toggled && !isEditing) {
 				isEditing = true;
+				avatarPanel.repaint();
 				buildProfileFields();
 			}
 		});
@@ -423,7 +511,6 @@ public class Profile extends CustomPanel {
 					@Override
 					public void mouseClicked(java.awt.event.MouseEvent e) {
 						Window win = SwingUtilities.getWindowAncestor(Profile.this);
-						// Invoke the newly extracted class here
 						new ChangePasswordDialog(win, storedPassword, newPassword -> {
 							storedPassword = newPassword;
 							password = maskPasswordDisplay(storedPassword);
