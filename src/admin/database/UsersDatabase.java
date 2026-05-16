@@ -9,7 +9,6 @@ import java.util.List;
 
 public class UsersDatabase {
 
-
     private static Boolean softDeleteColumnExists  = null;
     private static Boolean archiveTableExistsCache = null;
 
@@ -50,7 +49,7 @@ public class UsersDatabase {
     }
 
     public List<AdminUsers> getArchivedUsers() {
-  
+
         if (hasSoftDeleteColumn()) {
             List<AdminUsers> list = new ArrayList<>();
             String sql = "SELECT user_id, system_role, student_id, first_name, last_name, "
@@ -65,7 +64,6 @@ public class UsersDatabase {
                 System.err.println("getArchivedUsers() soft-delete failed: " + e.getMessage());
             }
         }
-
 
         if (archiveTableExists()) {
             List<AdminUsers> list = new ArrayList<>();
@@ -180,8 +178,6 @@ public class UsersDatabase {
         return null;
     }
 
-
-
     public boolean updateUser(AdminUsers user) {
         String sql = "UPDATE users SET first_name = ?, last_name = ?, college = ?, "
             + "year_level = ?, karma_score = ?, system_role = ? WHERE user_id = ?";
@@ -201,95 +197,153 @@ public class UsersDatabase {
         return false;
     }
 
-
     public boolean archiveUser(int userId) {
         if (!archiveTableExists()) {
             System.err.println("archiveUser() failed: users_archive table not found.");
             return false;
         }
 
-        String deleteItemsLog =
+      
+        String deleteRepLogByItem =
+            "DELETE FROM reputation_log "
+            + "WHERE transaction_id IN ("
+            + "  SELECT transaction_id FROM transaction_log "
+            + "  WHERE item_id IN (SELECT item_id FROM items WHERE owner_id = ?)"
+            + ")";
+
+        
+        String deleteRepLogByUser =
+            "DELETE FROM reputation_log "
+            + "WHERE transaction_id IN ("
+            + "  SELECT transaction_id FROM transaction_log WHERE user_id = ?"
+            + ")";
+
+       
+        String deleteItemsLogByItem =
             "DELETE FROM items_log "
             + "WHERE item_id IN (SELECT item_id FROM items WHERE owner_id = ?)";
 
+      
+        String deleteItemsLogByUser =
+            "DELETE FROM items_log WHERE user_id = ?";
+
+        
         String deleteTransLogByItem =
             "DELETE FROM transaction_log "
             + "WHERE item_id IN (SELECT item_id FROM items WHERE owner_id = ?)";
 
+      
         String deleteTransLogByUser =
             "DELETE FROM transaction_log WHERE user_id = ?";
 
-        String archiveItems =
-            "INSERT IGNORE INTO items_archive SELECT * FROM items WHERE owner_id = ?";
+      
+        String nullifyUsersLog =
+            "UPDATE users_log SET user_id = NULL WHERE user_id = ?";
 
+        
+        String deleteItemsArchiveByOwner =
+            "DELETE FROM items_archive WHERE owner_id = ?";
+
+        
+        String archiveItems =
+            "INSERT INTO items_archive ("
+            + "  item_id, owner_id, initiator_firstname, initiator_lastname,"
+            + "  item_name, item_quantity, description, items_image,"
+            + "  category, `condition`, price, availability_status,"
+            + "  maximum_borrow_days, desired_item, date_listed,"
+            + "  pickup_area, pickup_time, pickup_days, `action`"
+            + ") "
+            + "SELECT"
+            + "  item_id, owner_id, initiator_firstname, initiator_lastname,"
+            + "  item_name, item_quantity, description, items_image,"
+            + "  CASE category WHEN 'Consumable-Goods' THEN 'Consumable' ELSE category END,"
+            + "  `condition`, price, availability_status,"
+            + "  maximum_borrow_days, desired_item, date_listed,"
+            + "  pickup_area, pickup_time, pickup_days, `action`"
+            + " FROM items WHERE owner_id = ?";
+
+       
         String deleteItems =
             "DELETE FROM items WHERE owner_id = ?";
+
 
         String insertUserArchive =
             "INSERT INTO users_archive "
             + "(user_id, system_role, student_id, umak_email_address, password, "
             + " college, year_level, course_program, first_name, last_name, "
-            + " karma_score, profile_image, bio, contact, home_address, gcash_num, bank_number) "
+            + " karma_score, profile_image, contact, home_address, gcash_num, maya_num, mastercard_num, visa_num) "
             + "SELECT user_id, system_role, student_id, umak_email_address, password, "
             + "       college, year_level, course_program, first_name, last_name, "
-            + "       karma_score, profile_image, bio, contact_num, home_address, gcash_num, bank_network "
+            + "       karma_score, profile_image, contact_num, home_address, gcash_num, maya_num, mastercard_num, visa_num "
             + "FROM users WHERE user_id = ?";
-
-        String insertAuditLog =
-            "INSERT INTO users_log (user_id, action, created_at) "
-            + "VALUES (?, 'ARCHIVED', NOW())";
 
         String deleteUser =
             "DELETE FROM users WHERE user_id = ?";
 
+      
+        String insertAuditLog =
+            "INSERT INTO users_log (user_id, initiator_firstname, initiator_lastname, action, reason, timestamp) "
+            + "VALUES (NULL, '', '', 'Archive', 'User archived by admin.', NOW())";
+
         try (Connection conn = getConn()) {
             conn.setAutoCommit(false);
             try {
-              
-                for (String sql : new String[]{ deleteItemsLog, deleteTransLogByItem }) {
+             
+                for (String sql : new String[]{ deleteRepLogByItem, deleteRepLogByUser }) {
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setInt(1, userId);
                         ps.executeUpdate();
                     }
                 }
 
-             
-                try (PreparedStatement ps = conn.prepareStatement(deleteTransLogByUser)) {
+      
+                for (String sql : new String[]{ deleteItemsLogByItem, deleteItemsLogByUser }) {
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setInt(1, userId);
+                        ps.executeUpdate();
+                    }
+                }
+
+                for (String sql : new String[]{ deleteTransLogByItem, deleteTransLogByUser }) {
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setInt(1, userId);
+                        ps.executeUpdate();
+                    }
+                }
+
+       
+                try (PreparedStatement ps = conn.prepareStatement(nullifyUsersLog)) {
                     ps.setInt(1, userId);
                     ps.executeUpdate();
                 }
 
-             
+    
+                try (PreparedStatement ps = conn.prepareStatement(deleteItemsArchiveByOwner)) {
+                    ps.setInt(1, userId);
+                    int deleted = ps.executeUpdate();
+                    System.out.println("archiveUser() removed " + deleted
+                        + " row(s) from items_archive for user " + userId);
+                }
+
+       
                 try (PreparedStatement ps = conn.prepareStatement(archiveItems)) {
                     ps.setInt(1, userId);
-                    ps.executeUpdate();
-                } catch (SQLException ignored) {
-                    System.out.println("archiveUser() items_archive not found, skipping item archive.");
+                    int archived = ps.executeUpdate();
+                    System.out.println("archiveUser() copied " + archived
+                        + " item(s) into items_archive for user " + userId);
                 }
 
-               
                 try (PreparedStatement ps = conn.prepareStatement(deleteItems)) {
                     ps.setInt(1, userId);
                     ps.executeUpdate();
                 }
 
-             
                 try (PreparedStatement ps = conn.prepareStatement(insertUserArchive)) {
                     ps.setInt(1, userId);
                     int rows = ps.executeUpdate();
                     if (rows == 0)
                         throw new SQLException("User " + userId + " not found or already archived.");
                 }
-
-               
-                try (PreparedStatement ps = conn.prepareStatement(insertAuditLog)) {
-                    ps.setInt(1, userId);
-                    ps.executeUpdate();
-                } catch (SQLException e) {
-                   
-                    System.out.println("archiveUser() audit log skipped: " + e.getMessage());
-                }
-
 
                 try (PreparedStatement ps = conn.prepareStatement(deleteUser)) {
                     ps.setInt(1, userId);
@@ -298,7 +352,6 @@ public class UsersDatabase {
 
                 conn.commit();
                 System.out.println("archiveUser() success: user " + userId + " archived.");
-                return true;
 
             } catch (SQLException e) {
                 conn.rollback();
@@ -309,10 +362,20 @@ public class UsersDatabase {
             System.err.println("archiveUser() connection failed: " + e.getMessage());
             return false;
         }
+
+        try (Connection conn = getConn();
+             PreparedStatement ps = conn.prepareStatement(insertAuditLog)) {
+            ps.executeUpdate();
+            System.out.println("archiveUser() audit log written for user " + userId + ".");
+        } catch (SQLException e) {
+            System.out.println("archiveUser() audit log skipped (non-fatal): " + e.getMessage());
+        }
+
+        return true;
     }
 
     public boolean unarchiveUser(int userId) {
- 
+
         if (hasSoftDeleteColumn()) {
             String sql = "UPDATE users SET deleted_at = NULL WHERE user_id = ? AND deleted_at IS NOT NULL";
             try (Connection conn = getConn();
@@ -333,10 +396,10 @@ public class UsersDatabase {
                 "INSERT INTO users "
                 + "(user_id, system_role, student_id, umak_email_address, password, "
                 + " college, year_level, course_program, first_name, last_name, "
-                + " karma_score, profile_image, bio, contact_num, home_address, gcash_num, bank_network) "
+                + " karma_score, profile_image, contact_num, home_address, gcash_num, maya_num, mastercard_num, visa_num) "
                 + "SELECT user_id, system_role, student_id, umak_email_address, password, "
                 + "       college, year_level, course_program, first_name, last_name, "
-                + "       karma_score, profile_image, bio, contact, home_address, gcash_num, bank_number "
+                + "       karma_score, profile_image, contact, home_address, gcash_num, maya_num, mastercard_num, visa_num "
                 + "FROM users_archive WHERE user_id = ?";
             String delete = "DELETE FROM users_archive WHERE user_id = ?";
 
@@ -364,7 +427,6 @@ public class UsersDatabase {
         return false;
     }
 
-   
     public boolean permanentDeleteUser(int userId) {
         String sql = "DELETE FROM users_archive WHERE user_id = ?";
         try (Connection conn = getConn();
@@ -412,7 +474,6 @@ public class UsersDatabase {
         System.out.println("Schema detection — users_archive table exists: " + archiveTableExistsCache);
         return archiveTableExistsCache;
     }
-
 
     private Connection getConn() throws SQLException {
         return DriverManager.getConnection(

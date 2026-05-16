@@ -72,7 +72,6 @@ public class AdminTable extends CustomPanel {
 
   
     // HEADER
-
     private CustomPanel initHeader() {
         CustomPanel header = new CustomPanel();
         header.setPadding(20, 15);

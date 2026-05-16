@@ -13,18 +13,6 @@ import admin.services.AdminUsersServices;
 import components.*;
 
 
-/* 
-
-	TO DO:
-	
-	- Add "Add User" option for super_admin.
-	- Edit access for admin and super_admin.
-	- The UI for filters
-
-
- */
-
-
 public class AdminPanel extends CustomPanel {
 	private static final long serialVersionUID = 1L;
 

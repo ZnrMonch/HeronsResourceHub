@@ -53,6 +53,7 @@ public class AdminUsersServices {
             System.out.println("archiveUser() blocked: cannot archive admin account (role=" + role + ").");
             return false;
         }
+   
         return userDB.archiveUser(userId);
     }
 
@@ -70,18 +71,11 @@ public class AdminUsersServices {
     }
 
     public boolean permanentDeleteUser(int userId) {
-        // Fetch before deleting so we can include their name in the log
-        AdminUsers user  = userDB.getUserById(userId);
-        String userLabel = (user != null)
-            ? user.getFullName() + " (ID " + userId + ")"
-            : "ID " + userId;
-        boolean success = userDB.permanentDeleteUser(userId);
-        if (success)
-            insertLog(0, "User " + userLabel + " was permanently deleted from archive by admin.");
-        return success;
+        // No log written for permanent delete.
+        return userDB.permanentDeleteUser(userId);
     }
 
-    // Inserts a USER audit log entry
+    // Inserts a USER audit log entry with action='Update'
     private void insertLog(int userId, String message) {
         logDB.insertLog("USER", userId, 0, message);
     }

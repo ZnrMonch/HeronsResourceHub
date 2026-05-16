@@ -50,7 +50,7 @@ public class AdminItemsServices {
         }
         boolean success = itemDB.archiveItem(itemId);
         if (success)
-            insertLog(item.getOwnerId(), 0,
+            insertLog(item.getOwnerId(), itemId,
                 "Item \"" + item.getItemName() + "\" (ID " + itemId + ") was archived by admin.");
         return success;
     }
@@ -63,29 +63,19 @@ public class AdminItemsServices {
         }
         boolean success = itemDB.unarchiveItem(itemId);
         if (success)
-            insertLog(item.getOwnerId(), 0,
+            insertLog(item.getOwnerId(), itemId,
                 "Item \"" + item.getItemName() + "\" (ID " + itemId + ") was restored from archive by admin.");
         return success;
     }
 
     public boolean permanentDeleteItem(int itemId) {
-        AdminItems item  = itemDB.getItemById(itemId);
-        String itemLabel = (item != null)
-            ? "\"" + item.getItemName() + "\" (ID " + itemId + ")"
-            : "ID " + itemId;
-        boolean success = itemDB.permanentDeleteItem(itemId);
-        if (success)
-            insertLog(item != null ? item.getOwnerId() : 0, 0,
-                "Item " + itemLabel + " was permanently deleted from archive by admin.");
-        return success;
+        return itemDB.permanentDeleteItem(itemId);
     }
 
-    // Inserts an ITEM audit log entry
     private void insertLog(int ownerId, int itemId, String message) {
         logDB.insertLog("ITEM", ownerId, itemId, message);
     }
 
-    // Maps a list of AdminItems into the 7-column table format
     private Object[][] buildTableData(List<AdminItems> items) {
         Object[][] data = new Object[items.size()][7];
         for (int i = 0; i < items.size(); i++) {
