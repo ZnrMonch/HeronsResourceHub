@@ -498,14 +498,14 @@ public class AdminTable extends CustomPanel {
                     boolean isSelected, boolean hasFocus, int row, int col) {
                 super.getTableCellRendererComponent(t, value, isSelected, hasFocus, row, col);
                 setText(value != null ? value.toString() : "");
-                setBackground(Brand.PRIMARY_COLOR);
-                setForeground(Color.WHITE);
+                setBackground(Color.LIGHT_GRAY);
+                setForeground(Color.DARK_GRAY);
                 setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(0, 0, 0, 1, new Color(80, 85, 90)),
-                    BorderFactory.createEmptyBorder(0, 10, 0, 10)));
+                    BorderFactory.createMatteBorder(0, 0, 0, 0, new Color(80, 85, 90)),
+                    BorderFactory.createEmptyBorder(0, 0, 0, 10)));
                 setHorizontalAlignment(SwingConstants.LEFT);
                 if (FontLib.POPPINS_BOLD != null) {
-                    setFont(FontLib.POPPINS_BOLD.deriveFont(12f));
+                    setFont(FontLib.POPPINS_BOLD.deriveFont(13f));
                 }
                 return this;
             }
@@ -582,7 +582,7 @@ public class AdminTable extends CustomPanel {
     private Object[] getColumnNames() {
         if (type == TableType.USERS) {
             return new Object[] { "ID", "Student ID", "First Name", "Last Name",
-                                  "College", "Year", "Karma Points", "System Role" };
+                                  "College", "Year", "Karma Points", "Contact Number", "Gcash Number", "Maya Number", "Mastercard Card", "Visa Number", "System Role" };
         } else if (type == TableType.ITEMS) {
             return new Object[] { "ID", "Item Name", "Condition", "Category", "Stock", "Price", "Status" };
         } else {
@@ -593,26 +593,32 @@ public class AdminTable extends CustomPanel {
     // Sets column widths and text alignment for each table type
     private void applyColumnWidths() {
         table.setColumnWidth(0, 55);
-        table.setColumnAlignment(0, SwingConstants.CENTER);
+        table.setColumnAlignment(0, SwingConstants.LEFT);
 
         if (type == TableType.USERS) {
-            table.setColumnWidth(1, 160); table.setColumnAlignment(1, SwingConstants.CENTER);
-            table.setColumnWidth(4, 150);
-            table.setColumnWidth(5, 70);  table.setColumnAlignment(5, SwingConstants.CENTER);
-            table.setColumnWidth(6, 110); table.setColumnAlignment(6, SwingConstants.CENTER);
-            table.setColumnWidth(7, 130); table.setColumnAlignment(7, SwingConstants.CENTER);
+            table.setColumnWidth(0, 40); table.setColumnAlignment(0, SwingConstants.LEFT);
+            table.setColumnWidth(1, 80); table.setColumnAlignment(1, SwingConstants.LEFT);
+            table.setColumnWidth(4, 70);
+            table.setColumnWidth(5, 70);  table.setColumnAlignment(5, SwingConstants.LEFT);
+            table.setColumnWidth(6, 100); table.setColumnAlignment(6, SwingConstants.LEFT);
+            table.setColumnWidth(7, 130); table.setColumnAlignment(7, SwingConstants.LEFT);
+            table.setColumnWidth(8, 120); table.setColumnAlignment(8, SwingConstants.LEFT);
+            table.setColumnWidth(9, 110); table.setColumnAlignment(9, SwingConstants.LEFT);
+            table.setColumnWidth(10, 130); table.setColumnAlignment(10, SwingConstants.LEFT);
+            table.setColumnWidth(11, 110); table.setColumnAlignment(11, SwingConstants.LEFT);
+            table.setColumnWidth(12, 100); table.setColumnAlignment(12, SwingConstants.LEFT);
 
         } else if (type == TableType.ITEMS) {
-            table.setColumnWidth(2, 110); table.setColumnAlignment(2, SwingConstants.CENTER);
-            table.setColumnWidth(3, 140); table.setColumnAlignment(3, SwingConstants.CENTER);
-            table.setColumnWidth(4, 75);  table.setColumnAlignment(4, SwingConstants.CENTER);
-            table.setColumnWidth(5, 80);  table.setColumnAlignment(5, SwingConstants.CENTER);
-            table.setColumnWidth(6, 115); table.setColumnAlignment(6, SwingConstants.CENTER);
+            table.setColumnWidth(2, 110); table.setColumnAlignment(2, SwingConstants.LEFT);
+            table.setColumnWidth(3, 140); table.setColumnAlignment(3, SwingConstants.LEFT);
+            table.setColumnWidth(4, 75);  table.setColumnAlignment(4, SwingConstants.LEFT);
+            table.setColumnWidth(5, 80);  table.setColumnAlignment(5, SwingConstants.LEFT);
+            table.setColumnWidth(6, 115); table.setColumnAlignment(6, SwingConstants.LEFT);
 
         } else {
-            table.setColumnWidth(1, 90);  table.setColumnAlignment(1, SwingConstants.CENTER);
-            table.setColumnWidth(2, 150); table.setColumnAlignment(2, SwingConstants.CENTER);
-            table.setColumnWidth(4, 160); table.setColumnAlignment(4, SwingConstants.CENTER);
+            table.setColumnWidth(1, 90);  table.setColumnAlignment(1, SwingConstants.LEFT);
+            table.setColumnWidth(2, 150); table.setColumnAlignment(2, SwingConstants.LEFT);
+            table.setColumnWidth(4, 160); table.setColumnAlignment(4, SwingConstants.LEFT);
             TableColumn descCol = table.getColumnModel().getColumn(3);
             descCol.setPreferredWidth(260);
             descCol.setMinWidth(150);

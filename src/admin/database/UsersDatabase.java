@@ -12,12 +12,24 @@ public class UsersDatabase {
     private static Boolean softDeleteColumnExists  = null;
     private static Boolean archiveTableExistsCache = null;
 
+   
+    private static final String SELECT_USERS_COLS =
+        "user_id, system_role, student_id, first_name, last_name, "
+        + "college, year_level, course_program, karma_score, "
+        + "contact_num, gcash_num, maya_num, mastercard_num, visa_num";
+
+    private static final String SELECT_ARCHIVE_COLS =
+        "user_id, system_role, student_id, first_name, last_name, "
+        + "college, year_level, course_program, karma_score, "
+        + "contact AS contact_num, gcash_num, maya_num, mastercard_num, visa_num";
+
+
+ 
 
     public int countActiveUsers() {
         String sql = hasSoftDeleteColumn()
             ? "SELECT COUNT(*) FROM users WHERE deleted_at IS NULL"
             : "SELECT COUNT(*) FROM users";
-
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
@@ -29,14 +41,9 @@ public class UsersDatabase {
     }
 
     public List<AdminUsers> getAllUsers() {
-        String sql = hasSoftDeleteColumn()
-            ? "SELECT user_id, system_role, student_id, first_name, last_name, "
-                + "college, year_level, course_program, karma_score "
-                + "FROM users WHERE deleted_at IS NULL ORDER BY user_id ASC"
-            : "SELECT user_id, system_role, student_id, first_name, last_name, "
-                + "college, year_level, course_program, karma_score "
-                + "FROM users ORDER BY user_id ASC";
-
+        String condition = hasSoftDeleteColumn() ? " WHERE deleted_at IS NULL" : "";
+        String sql = "SELECT " + SELECT_USERS_COLS
+                   + " FROM users" + condition + " ORDER BY user_id ASC";
         List<AdminUsers> list = new ArrayList<>();
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(sql);
@@ -49,12 +56,10 @@ public class UsersDatabase {
     }
 
     public List<AdminUsers> getArchivedUsers() {
-
         if (hasSoftDeleteColumn()) {
             List<AdminUsers> list = new ArrayList<>();
-            String sql = "SELECT user_id, system_role, student_id, first_name, last_name, "
-                + "college, year_level, course_program, karma_score "
-                + "FROM users WHERE deleted_at IS NOT NULL ORDER BY user_id ASC";
+            String sql = "SELECT " + SELECT_USERS_COLS
+                       + " FROM users WHERE deleted_at IS NOT NULL ORDER BY user_id ASC";
             try (Connection conn = getConn();
                  PreparedStatement stmt = conn.prepareStatement(sql);
                  ResultSet rs = stmt.executeQuery()) {
@@ -67,9 +72,8 @@ public class UsersDatabase {
 
         if (archiveTableExists()) {
             List<AdminUsers> list = new ArrayList<>();
-            String sql = "SELECT user_id, system_role, student_id, first_name, last_name, "
-                + "college, year_level, course_program, karma_score "
-                + "FROM users_archive ORDER BY user_id ASC";
+            String sql = "SELECT " + SELECT_ARCHIVE_COLS
+                       + " FROM users_archive ORDER BY user_id ASC";
             try (Connection conn = getConn();
                  PreparedStatement stmt = conn.prepareStatement(sql);
                  ResultSet rs = stmt.executeQuery()) {
@@ -79,17 +83,14 @@ public class UsersDatabase {
             }
             return list;
         }
-
         return new ArrayList<>();
     }
 
     public List<AdminUsers> searchUsers(String filter, String keyword) {
-        String column          = resolveUserColumn(filter);
-        String activeCondition = hasSoftDeleteColumn() ? " AND deleted_at IS NULL" : "";
-        String sql = "SELECT user_id, system_role, student_id, first_name, last_name, "
-            + "college, year_level, course_program, karma_score "
-            + "FROM users WHERE " + column + " LIKE ?" + activeCondition;
-
+        String column      = resolveUserColumn(filter);
+        String activeWhere = hasSoftDeleteColumn() ? " AND deleted_at IS NULL" : "";
+        String sql = "SELECT " + SELECT_USERS_COLS
+                   + " FROM users WHERE " + column + " LIKE ?" + activeWhere;
         List<AdminUsers> list = new ArrayList<>();
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -107,9 +108,8 @@ public class UsersDatabase {
         List<AdminUsers> list = new ArrayList<>();
 
         if (hasSoftDeleteColumn()) {
-            String sql = "SELECT user_id, system_role, student_id, first_name, last_name, "
-                + "college, year_level, course_program, karma_score "
-                + "FROM users WHERE " + column + " LIKE ? AND deleted_at IS NOT NULL";
+            String sql = "SELECT " + SELECT_USERS_COLS
+                       + " FROM users WHERE " + column + " LIKE ? AND deleted_at IS NOT NULL";
             try (Connection conn = getConn();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setString(1, "%" + keyword + "%");
@@ -122,9 +122,10 @@ public class UsersDatabase {
         }
 
         if (archiveTableExists()) {
-            String sql = "SELECT user_id, system_role, student_id, first_name, last_name, "
-                + "college, year_level, course_program, karma_score "
-                + "FROM users_archive WHERE " + column + " LIKE ?";
+          
+            String archiveCol = "Contact Number".equals(filter) ? "contact" : column;
+            String sql = "SELECT " + SELECT_ARCHIVE_COLS
+                       + " FROM users_archive WHERE " + archiveCol + " LIKE ?";
             try (Connection conn = getConn();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setString(1, "%" + keyword + "%");
@@ -137,9 +138,9 @@ public class UsersDatabase {
         return list;
     }
 
+  
     public AdminUsers getUserById(int userId) {
-        String base      = "SELECT user_id, system_role, student_id, first_name, last_name, "
-            + "college, year_level, course_program, karma_score FROM users WHERE user_id = ?";
+        String base      = "SELECT " + SELECT_USERS_COLS + " FROM users WHERE user_id = ?";
         String activeSql = hasSoftDeleteColumn() ? base + " AND deleted_at IS NULL" : base;
 
         try (Connection conn = getConn();
@@ -158,38 +159,46 @@ public class UsersDatabase {
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) return mapRow(rs, true);
             } catch (SQLException e) {
-                System.err.println("getUserById() soft-delete archived lookup failed: " + e.getMessage());
+                System.err.println("getUserById() soft-delete lookup failed: " + e.getMessage());
             }
         }
 
-        if (archiveTableExists()) {
-            String sql = "SELECT user_id, system_role, student_id, first_name, last_name, "
-                + "college, year_level, course_program, karma_score "
-                + "FROM users_archive WHERE user_id = ?";
-            try (Connection conn = getConn();
-                 PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setInt(1, userId);
-                ResultSet rs = stmt.executeQuery();
-                if (rs.next()) return mapRow(rs, true);
-            } catch (SQLException e) {
-                System.err.println("getUserById() archive table lookup failed: " + e.getMessage());
-            }
+      
+        return null;
+    }
+
+  
+    public AdminUsers getUserFromArchiveById(int userId) {
+        if (!archiveTableExists()) return null;
+        String sql = "SELECT " + SELECT_ARCHIVE_COLS
+                   + " FROM users_archive WHERE user_id = ?"
+                   + " ORDER BY user_archive_id DESC LIMIT 1";
+        try (Connection conn = getConn();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, userId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) return mapRow(rs, true);
+        } catch (SQLException e) {
+            System.err.println("getUserFromArchiveById() failed: " + e.getMessage());
         }
         return null;
     }
 
+
+
+
     public boolean updateUser(AdminUsers user) {
         String sql = "UPDATE users SET first_name = ?, last_name = ?, college = ?, "
-            + "year_level = ?, karma_score = ?, system_role = ? WHERE user_id = ?";
+                   + "year_level = ?, karma_score = ?, system_role = ? WHERE user_id = ?";
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, user.getFirstName());
             stmt.setString(2, user.getLastName());
             stmt.setString(3, user.getCollege());
             stmt.setString(4, user.getYearLevel());
-            stmt.setInt(5, user.getKarmaScore());
+            stmt.setInt(5,    user.getKarmaScore());
             stmt.setString(6, user.getSystemRole());
-            stmt.setInt(7, user.getUserId());
+            stmt.setInt(7,    user.getUserId());
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             System.err.println("updateUser() failed: " + e.getMessage());
@@ -197,54 +206,43 @@ public class UsersDatabase {
         return false;
     }
 
+
+   
     public boolean archiveUser(int userId) {
         if (!archiveTableExists()) {
             System.err.println("archiveUser() failed: users_archive table not found.");
             return false;
         }
 
-      
-        String deleteRepLogByItem =
-            "DELETE FROM reputation_log "
-            + "WHERE transaction_id IN ("
-            + "  SELECT transaction_id FROM transaction_log "
-            + "  WHERE item_id IN (SELECT item_id FROM items WHERE owner_id = ?)"
-            + ")";
-
         
-        String deleteRepLogByUser =
-            "DELETE FROM reputation_log "
-            + "WHERE transaction_id IN ("
-            + "  SELECT transaction_id FROM transaction_log WHERE user_id = ?"
-            + ")";
+        String deleteStaleArchive = "DELETE FROM users_archive WHERE user_id = ?";
+
+        // Step 1 — reputation_log (child of transaction_log AND users)
+        String deleteRepByItem =
+            "DELETE FROM reputation_log WHERE transaction_id IN "
+            + "(SELECT transaction_id FROM transaction_log "
+            + " WHERE item_id IN (SELECT item_id FROM items WHERE owner_id = ?))";
+        String deleteRepByUser =
+            "DELETE FROM reputation_log WHERE transaction_id IN "
+            + "(SELECT transaction_id FROM transaction_log WHERE user_id = ?)";
+
+        // Step 2 — items_log
+        String deleteItemsLogByItem =
+            "DELETE FROM items_log WHERE item_id IN (SELECT item_id FROM items WHERE owner_id = ?)";
+        String deleteItemsLogByUser = "DELETE FROM items_log WHERE user_id = ?";
+
+        // Step 3 — transaction_log
+        String deleteTransByItem =
+            "DELETE FROM transaction_log WHERE item_id IN (SELECT item_id FROM items WHERE owner_id = ?)";
+        String deleteTransByUser = "DELETE FROM transaction_log WHERE user_id = ?";
+
+        // Step 4 — NULL out users_log.user_id instead of deleting (preserves audit history)
+        String nullifyUsersLog = "UPDATE users_log SET user_id = NULL WHERE user_id = ?";
+
+        // Step 5 — items_archive rows owned by this user (fk_archive_owner → users.user_id)
+        String deleteItemsArchiveByOwner = "DELETE FROM items_archive WHERE owner_id = ?";
 
        
-        String deleteItemsLogByItem =
-            "DELETE FROM items_log "
-            + "WHERE item_id IN (SELECT item_id FROM items WHERE owner_id = ?)";
-
-      
-        String deleteItemsLogByUser =
-            "DELETE FROM items_log WHERE user_id = ?";
-
-        
-        String deleteTransLogByItem =
-            "DELETE FROM transaction_log "
-            + "WHERE item_id IN (SELECT item_id FROM items WHERE owner_id = ?)";
-
-      
-        String deleteTransLogByUser =
-            "DELETE FROM transaction_log WHERE user_id = ?";
-
-      
-        String nullifyUsersLog =
-            "UPDATE users_log SET user_id = NULL WHERE user_id = ?";
-
-        
-        String deleteItemsArchiveByOwner =
-            "DELETE FROM items_archive WHERE owner_id = ?";
-
-        
         String archiveItems =
             "INSERT INTO items_archive ("
             + "  item_id, owner_id, initiator_firstname, initiator_lastname,"
@@ -252,8 +250,7 @@ public class UsersDatabase {
             + "  category, `condition`, price, availability_status,"
             + "  maximum_borrow_days, desired_item, date_listed,"
             + "  pickup_area, pickup_time, pickup_days, `action`"
-            + ") "
-            + "SELECT"
+            + ") SELECT"
             + "  item_id, owner_id, initiator_firstname, initiator_lastname,"
             + "  item_name, item_quantity, description, items_image,"
             + "  CASE category WHEN 'Consumable-Goods' THEN 'Consumable' ELSE category END,"
@@ -262,25 +259,26 @@ public class UsersDatabase {
             + "  pickup_area, pickup_time, pickup_days, `action`"
             + " FROM items WHERE owner_id = ?";
 
-       
-        String deleteItems =
-            "DELETE FROM items WHERE owner_id = ?";
+        // Step 7 — delete items
+        String deleteItems = "DELETE FROM items WHERE owner_id = ?";
 
-
+        // Step 8 — copy user → users_archive  (contact_num → contact)
         String insertUserArchive =
             "INSERT INTO users_archive "
             + "(user_id, system_role, student_id, umak_email_address, password, "
             + " college, year_level, course_program, first_name, last_name, "
-            + " karma_score, profile_image, contact, home_address, gcash_num, maya_num, mastercard_num, visa_num) "
+            + " karma_score, profile_image, contact, home_address, "
+            + " gcash_num, maya_num, mastercard_num, visa_num) "
             + "SELECT user_id, system_role, student_id, umak_email_address, password, "
             + "       college, year_level, course_program, first_name, last_name, "
-            + "       karma_score, profile_image, contact_num, home_address, gcash_num, maya_num, mastercard_num, visa_num "
+            + "       karma_score, profile_image, contact_num, home_address, "
+            + "       gcash_num, maya_num, mastercard_num, visa_num "
             + "FROM users WHERE user_id = ?";
 
-        String deleteUser =
-            "DELETE FROM users WHERE user_id = ?";
+        // Step 9 — delete user row (users_log is nullified so FK is satisfied)
+        String deleteUser = "DELETE FROM users WHERE user_id = ?";
 
-      
+        // Step 10 — audit log with NULL user_id (written after commit so it never blocks)
         String insertAuditLog =
             "INSERT INTO users_log (user_id, initiator_firstname, initiator_lastname, action, reason, timestamp) "
             + "VALUES (NULL, '', '', 'Archive', 'User archived by admin.', NOW())";
@@ -288,67 +286,32 @@ public class UsersDatabase {
         try (Connection conn = getConn()) {
             conn.setAutoCommit(false);
             try {
-             
-                for (String sql : new String[]{ deleteRepLogByItem, deleteRepLogByUser }) {
-                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                        ps.setInt(1, userId);
-                        ps.executeUpdate();
-                    }
-                }
+                exec(conn, deleteStaleArchive,        userId); // 0
+                exec(conn, deleteRepByItem,            userId); // 1a
+                exec(conn, deleteRepByUser,            userId); // 1b
+                exec(conn, deleteItemsLogByItem,       userId); // 2a
+                exec(conn, deleteItemsLogByUser,       userId); // 2b
+                exec(conn, deleteTransByItem,          userId); // 3a
+                exec(conn, deleteTransByUser,          userId); // 3b
+                exec(conn, nullifyUsersLog,            userId); // 4
+                exec(conn, deleteItemsArchiveByOwner,  userId); // 5
 
-      
-                for (String sql : new String[]{ deleteItemsLogByItem, deleteItemsLogByUser }) {
-                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                        ps.setInt(1, userId);
-                        ps.executeUpdate();
-                    }
-                }
-
-                for (String sql : new String[]{ deleteTransLogByItem, deleteTransLogByUser }) {
-                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                        ps.setInt(1, userId);
-                        ps.executeUpdate();
-                    }
-                }
-
-       
-                try (PreparedStatement ps = conn.prepareStatement(nullifyUsersLog)) {
-                    ps.setInt(1, userId);
-                    ps.executeUpdate();
-                }
-
-    
-                try (PreparedStatement ps = conn.prepareStatement(deleteItemsArchiveByOwner)) {
-                    ps.setInt(1, userId);
-                    int deleted = ps.executeUpdate();
-                    System.out.println("archiveUser() removed " + deleted
-                        + " row(s) from items_archive for user " + userId);
-                }
-
-       
                 try (PreparedStatement ps = conn.prepareStatement(archiveItems)) {
                     ps.setInt(1, userId);
-                    int archived = ps.executeUpdate();
-                    System.out.println("archiveUser() copied " + archived
-                        + " item(s) into items_archive for user " + userId);
-                }
+                    int n = ps.executeUpdate();
+                    System.out.println("archiveUser() copied " + n + " item(s) to items_archive.");
+                }                                              // 6
 
-                try (PreparedStatement ps = conn.prepareStatement(deleteItems)) {
-                    ps.setInt(1, userId);
-                    ps.executeUpdate();
-                }
+                exec(conn, deleteItems,               userId); // 7
 
                 try (PreparedStatement ps = conn.prepareStatement(insertUserArchive)) {
                     ps.setInt(1, userId);
                     int rows = ps.executeUpdate();
                     if (rows == 0)
-                        throw new SQLException("User " + userId + " not found or already archived.");
-                }
+                        throw new SQLException("User " + userId + " not found — cannot archive.");
+                }                                              // 8
 
-                try (PreparedStatement ps = conn.prepareStatement(deleteUser)) {
-                    ps.setInt(1, userId);
-                    ps.executeUpdate();
-                }
+                exec(conn, deleteUser, userId);                // 9
 
                 conn.commit();
                 System.out.println("archiveUser() success: user " + userId + " archived.");
@@ -363,10 +326,10 @@ public class UsersDatabase {
             return false;
         }
 
+        // Step 10 — audit log is best-effort; written outside the main transaction
         try (Connection conn = getConn();
              PreparedStatement ps = conn.prepareStatement(insertAuditLog)) {
             ps.executeUpdate();
-            System.out.println("archiveUser() audit log written for user " + userId + ".");
         } catch (SQLException e) {
             System.out.println("archiveUser() audit log skipped (non-fatal): " + e.getMessage());
         }
@@ -374,15 +337,18 @@ public class UsersDatabase {
         return true;
     }
 
+
+   
     public boolean unarchiveUser(int userId) {
 
+        // Strategy A: soft-delete schema
         if (hasSoftDeleteColumn()) {
-            String sql = "UPDATE users SET deleted_at = NULL WHERE user_id = ? AND deleted_at IS NOT NULL";
+            String sql = "UPDATE users SET deleted_at = NULL "
+                       + "WHERE user_id = ? AND deleted_at IS NOT NULL";
             try (Connection conn = getConn();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setInt(1, userId);
-                int rows = stmt.executeUpdate();
-                if (rows > 0) {
+                if (stmt.executeUpdate() > 0) {
                     System.out.println("unarchiveUser() soft-delete: restored user " + userId);
                     return true;
                 }
@@ -391,42 +357,120 @@ public class UsersDatabase {
             }
         }
 
-        if (archiveTableExists()) {
-            String insert =
-                "INSERT INTO users "
-                + "(user_id, system_role, student_id, umak_email_address, password, "
-                + " college, year_level, course_program, first_name, last_name, "
-                + " karma_score, profile_image, contact_num, home_address, gcash_num, maya_num, mastercard_num, visa_num) "
-                + "SELECT user_id, system_role, student_id, umak_email_address, password, "
-                + "       college, year_level, course_program, first_name, last_name, "
-                + "       karma_score, profile_image, contact, home_address, gcash_num, maya_num, mastercard_num, visa_num "
-                + "FROM users_archive WHERE user_id = ?";
-            String delete = "DELETE FROM users_archive WHERE user_id = ?";
+        // Strategy B: archive-table schema
+        if (!archiveTableExists()) return false;
 
-            try (Connection conn = getConn()) {
-                conn.setAutoCommit(false);
-                try (PreparedStatement ins = conn.prepareStatement(insert);
-                     PreparedStatement del = conn.prepareStatement(delete)) {
-                    ins.setInt(1, userId);
-                    int rows = ins.executeUpdate();
+        // Restore user row (contact → contact_num)
+        String insertUser =
+            "INSERT INTO users "
+            + "(user_id, system_role, student_id, umak_email_address, password, "
+            + " college, year_level, course_program, first_name, last_name, "
+            + " karma_score, profile_image, contact_num, home_address, "
+            + " gcash_num, maya_num, mastercard_num, visa_num) "
+            + "SELECT user_id, system_role, student_id, umak_email_address, password, "
+            + "       college, year_level, course_program, first_name, last_name, "
+            + "       karma_score, profile_image, contact, home_address, "
+            + "       gcash_num, maya_num, mastercard_num, visa_num "
+            + "FROM users_archive WHERE user_id = ? "
+            + "ORDER BY user_archive_id DESC LIMIT 1";
+
+        String deleteFromArchive = "DELETE FROM users_archive WHERE user_id = ?";
+
+        // Restore the user's items from items_archive back to items
+        String restoreItems =
+            "INSERT IGNORE INTO items "
+            + "(item_id, owner_id, initiator_firstname, initiator_lastname, item_name, item_quantity, "
+            + " description, items_image, category, `condition`, price, availability_status, "
+            + " maximum_borrow_days, desired_item, date_listed, pickup_area, pickup_time, pickup_days, action) "
+            + "SELECT ia.item_id, ia.owner_id, ia.initiator_firstname, ia.initiator_lastname, "
+            + "       ia.item_name, ia.item_quantity, ia.description, ia.items_image, "
+            + "       ia.category, ia.`condition`, ia.price, ia.availability_status, "
+            + "       ia.maximum_borrow_days, ia.desired_item, ia.date_listed, "
+            + "       ia.pickup_area, ia.pickup_time, ia.pickup_days, ia.action "
+            + "FROM items_archive ia "
+            + "INNER JOIN ("
+            + "  SELECT item_id, MAX(item_archive_id) AS max_aid "
+            + "  FROM items_archive WHERE owner_id = ? GROUP BY item_id"
+            + ") latest ON ia.item_archive_id = latest.max_aid";
+
+        String deleteRestoredItems = "DELETE FROM items_archive WHERE owner_id = ?";
+
+        // Ghost-row cleanup SQLs (same FK child order as archiveUser)
+        String cleanRepByItem  = "DELETE FROM reputation_log WHERE transaction_id IN "
+                               + "(SELECT transaction_id FROM transaction_log "
+                               + " WHERE item_id IN (SELECT item_id FROM items WHERE owner_id = ?))";
+        String cleanRepByUser  = "DELETE FROM reputation_log WHERE transaction_id IN "
+                               + "(SELECT transaction_id FROM transaction_log WHERE user_id = ?)";
+        String cleanItemsLogIt = "DELETE FROM items_log WHERE item_id IN "
+                               + "(SELECT item_id FROM items WHERE owner_id = ?)";
+        String cleanItemsLog   = "DELETE FROM items_log WHERE user_id = ?";
+        String cleanTransItem  = "DELETE FROM transaction_log WHERE item_id IN "
+                               + "(SELECT item_id FROM items WHERE owner_id = ?)";
+        String cleanTransUser  = "DELETE FROM transaction_log WHERE user_id = ?";
+        String cleanUsersLog   = "UPDATE users_log SET user_id = NULL WHERE user_id = ?";
+        String cleanItemsArch  = "DELETE FROM items_archive WHERE owner_id = ?";
+        String cleanItems      = "DELETE FROM items WHERE owner_id = ?";
+        String cleanUser       = "DELETE FROM users WHERE user_id = ?";
+
+        try (Connection conn = getConn()) {
+            conn.setAutoCommit(false);
+            try {
+              
+                boolean ghostExists = false;
+                try (PreparedStatement chk = conn.prepareStatement(
+                        "SELECT 1 FROM users WHERE user_id = ? LIMIT 1")) {
+                    chk.setInt(1, userId);
+                    ghostExists = chk.executeQuery().next();
+                }
+
+                if (ghostExists) {
+                    System.out.println("unarchiveUser() purging ghost row for user " + userId);
+                    exec(conn, cleanRepByItem,  userId);
+                    exec(conn, cleanRepByUser,  userId);
+                    exec(conn, cleanItemsLogIt, userId);
+                    exec(conn, cleanItemsLog,   userId);
+                    exec(conn, cleanTransItem,  userId);
+                    exec(conn, cleanTransUser,  userId);
+                    exec(conn, cleanUsersLog,   userId);
+                    exec(conn, cleanItemsArch,  userId);
+                    exec(conn, cleanItems,      userId);
+                    exec(conn, cleanUser,       userId);
+                }
+
+              
+                try (PreparedStatement ps = conn.prepareStatement(insertUser)) {
+                    ps.setInt(1, userId);
+                    int rows = ps.executeUpdate();
                     if (rows == 0)
                         throw new SQLException("User " + userId + " not found in users_archive.");
-                    del.setInt(1, userId);
-                    del.executeUpdate();
-                    conn.commit();
-                    System.out.println("unarchiveUser() success: restored user " + userId);
-                    return true;
-                } catch (SQLException e) {
-                    conn.rollback();
-                    System.err.println("unarchiveUser() rolled back: " + e.getMessage());
                 }
+
+                exec(conn, deleteFromArchive, userId);
+
+               
+                try {
+                    exec(conn, restoreItems,        userId);
+                    exec(conn, deleteRestoredItems, userId);
+                } catch (SQLException e) {
+                    System.out.println("unarchiveUser() item restore skipped: " + e.getMessage());
+                }
+
+                conn.commit();
+                System.out.println("unarchiveUser() success: restored user " + userId);
+                return true;
+
             } catch (SQLException e) {
-                System.err.println("unarchiveUser() connection failed: " + e.getMessage());
+                conn.rollback();
+                System.err.println("unarchiveUser() rolled back: " + e.getMessage());
             }
+        } catch (SQLException e) {
+            System.err.println("unarchiveUser() connection failed: " + e.getMessage());
         }
         return false;
     }
 
+
+ 
     public boolean permanentDeleteUser(int userId) {
         String sql = "DELETE FROM users_archive WHERE user_id = ?";
         try (Connection conn = getConn();
@@ -445,6 +489,7 @@ public class UsersDatabase {
         return false;
     }
 
+
     private boolean hasSoftDeleteColumn() {
         if (softDeleteColumnExists != null) return softDeleteColumnExists;
         try (Connection conn = getConn()) {
@@ -453,10 +498,10 @@ public class UsersDatabase {
                 softDeleteColumnExists = rs.next();
             }
         } catch (SQLException e) {
-            System.err.println("hasSoftDeleteColumn() check failed: " + e.getMessage());
+            System.err.println("hasSoftDeleteColumn() failed: " + e.getMessage());
             softDeleteColumnExists = false;
         }
-        System.out.println("Schema detection — users.deleted_at exists: " + softDeleteColumnExists);
+        System.out.println("Schema — users.deleted_at exists: " + softDeleteColumnExists);
         return softDeleteColumnExists;
     }
 
@@ -464,15 +509,39 @@ public class UsersDatabase {
         if (archiveTableExistsCache != null) return archiveTableExistsCache;
         try (Connection conn = getConn()) {
             DatabaseMetaData meta = conn.getMetaData();
-            try (ResultSet rs = meta.getTables(null, null, "users_archive", new String[]{ "TABLE" })) {
+            try (ResultSet rs = meta.getTables(null, null, "users_archive", new String[]{"TABLE"})) {
                 archiveTableExistsCache = rs.next();
             }
         } catch (SQLException e) {
-            System.err.println("archiveTableExists() check failed: " + e.getMessage());
+            System.err.println("archiveTableExists() failed: " + e.getMessage());
             archiveTableExistsCache = false;
         }
-        System.out.println("Schema detection — users_archive table exists: " + archiveTableExistsCache);
+        System.out.println("Schema — users_archive exists: " + archiveTableExistsCache);
         return archiveTableExistsCache;
+    }
+
+
+   
+    private void exec(Connection conn, String sql, int param) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, param);
+            ps.executeUpdate();
+        }
+    }
+
+    private String resolveUserColumn(String filter) {
+        if (filter == null) return "first_name";
+        switch (filter) {
+            case "ID":             return "user_id";
+            case "Student ID":     return "student_id";
+            case "First Name":     return "first_name";
+            case "Last Name":      return "last_name";
+            case "College":        return "college";
+            case "Year Level":     return "year_level";
+            case "Contact Number": return "contact_num";
+            case "System Role":    return "system_role";
+            default:               return "first_name";
+        }
     }
 
     private Connection getConn() throws SQLException {
@@ -481,20 +550,6 @@ public class UsersDatabase {
             DatabaseManager.getUser(),
             DatabaseManager.getPassword()
         );
-    }
-
-    private String resolveUserColumn(String filter) {
-        if (filter == null) return "first_name";
-        switch (filter) {
-            case "ID":          return "user_id";
-            case "Student ID":  return "student_id";
-            case "First Name":  return "first_name";
-            case "Last Name":   return "last_name";
-            case "College":     return "college";
-            case "Year Level":  return "year_level";
-            case "System Role": return "system_role";
-            default:            return "first_name";
-        }
     }
 
     private AdminUsers mapRow(ResultSet rs, boolean isArchived) throws SQLException {
@@ -509,6 +564,12 @@ public class UsersDatabase {
         user.setCourseProgram(rs.getString("course_program"));
         user.setKarmaScore(rs.getInt("karma_score"));
         user.setArchived(isArchived);
+        // New columns
+        user.setContactNumber(rs.getString("contact_num"));
+        user.setGcashNum(rs.getString("gcash_num"));
+        user.setMayaNum(rs.getString("maya_num"));
+        user.setMastercardNum(rs.getString("mastercard_num"));
+        user.setVisaNum(rs.getString("visa_num"));
         return user;
     }
 }

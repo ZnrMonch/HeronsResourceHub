@@ -43,6 +43,7 @@ public class AdminUsersServices {
     }
 
     public boolean archiveUser(int userId) {
+       
         AdminUsers user = userDB.getUserById(userId);
         if (user == null) {
             System.out.println("archiveUser() failed: user " + userId + " not found.");
@@ -53,46 +54,46 @@ public class AdminUsersServices {
             System.out.println("archiveUser() blocked: cannot archive admin account (role=" + role + ").");
             return false;
         }
-   
         return userDB.archiveUser(userId);
     }
 
     public boolean unarchiveUser(int userId) {
-        AdminUsers user = userDB.getUserById(userId);
+      
+        AdminUsers user = userDB.getUserFromArchiveById(userId);
         if (user == null) {
-            System.out.println("unarchiveUser() failed: user " + userId + " not found.");
+            System.out.println("unarchiveUser() failed: user " + userId + " not found in archive.");
             return false;
         }
-        boolean success = userDB.unarchiveUser(userId);
-        if (success)
-            insertLog(userId,
-                "User " + user.getFullName() + " (ID " + userId + ") was restored from archive by admin.");
-        return success;
+        return userDB.unarchiveUser(userId);
     }
 
     public boolean permanentDeleteUser(int userId) {
-        // No log written for permanent delete.
         return userDB.permanentDeleteUser(userId);
     }
 
-    // Inserts a USER audit log entry with action='Update'
+    // Inserts a USER audit log entry
     private void insertLog(int userId, String message) {
         logDB.insertLog("USER", userId, 0, message);
     }
 
-    // Maps a list of AdminUsers into the 8-column table format
+   
     private Object[][] buildTableData(List<AdminUsers> users) {
-        Object[][] data = new Object[users.size()][8];
+        Object[][] data = new Object[users.size()][13];
         for (int i = 0; i < users.size(); i++) {
             AdminUsers u = users.get(i);
-            data[i][0] = u.getUserId();
-            data[i][1] = u.getStudentId();
-            data[i][2] = u.getFirstName();
-            data[i][3] = u.getLastName();
-            data[i][4] = u.getCollege();
-            data[i][5] = u.getYearLevel();
-            data[i][6] = u.getKarmaScore();
-            data[i][7] = u.getSystemRole();
+            data[i][0]  = u.getUserId();
+            data[i][1]  = u.getStudentId();
+            data[i][2]  = u.getFirstName();
+            data[i][3]  = u.getLastName();
+            data[i][4]  = u.getCollege();
+            data[i][5]  = u.getYearLevel();
+            data[i][6]  = u.getKarmaScore();
+            data[i][7]  = u.getContactNumber();
+            data[i][8]  = u.getGcashNum();
+            data[i][9] = u.getMayaNum();
+            data[i][10] = u.getMastercardNum();
+            data[i][11] = u.getVisaNum();
+            data[i][12]  = u.getSystemRole();
         }
         return data;
     }
