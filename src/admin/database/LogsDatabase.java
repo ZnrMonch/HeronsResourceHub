@@ -40,7 +40,7 @@ public class LogsDatabase {
             case "TRANSACTION":
                 table        = "transaction_log";
                 idCol        = "transaction_id";
-                timestampCol = "timestamp";
+                timestampCol = null;
                 hasItemId    = true;
                 break;
             case "REPUTATION":
@@ -54,11 +54,12 @@ public class LogsDatabase {
         }
 
         String itemIdExpr  = hasItemId ? "item_id" : "0 AS item_id";
-        String createdExpr = timestampCol + " AS created_at";
+        String createdExpr = (timestampCol != null)
+                ? timestampCol + " AS created_at"
+                : "CAST(NULL AS CHAR) AS created_at";
 
         String selectSql = "SELECT " + idCol + " AS id, user_id, " + itemIdExpr + ", "
-                + "'" + logType + "' AS log_type, "
-                + "reason AS description, " + createdExpr + " "
+                + "action AS log_type, reason AS description, " + createdExpr + " "
                 + "FROM " + table;
 
         List<String> conditions = new ArrayList<>();
@@ -70,20 +71,24 @@ public class LogsDatabase {
             params.add("%" + keyword.trim() + "%");
         }
 
-        if (dateFrom != null && !dateFrom.isEmpty()) {
-            conditions.add(timestampCol + " >= ?");
-            params.add(dateFrom + " 00:00:00");
-        }
-        if (dateTo != null && !dateTo.isEmpty()) {
-            conditions.add(timestampCol + " <= ?");
-            params.add(dateTo + " 23:59:59");
+        if (timestampCol != null) {
+            if (dateFrom != null && !dateFrom.isEmpty()) {
+                conditions.add(timestampCol + " >= ?");
+                params.add(dateFrom + " 00:00:00");
+            }
+            if (dateTo != null && !dateTo.isEmpty()) {
+                conditions.add(timestampCol + " <= ?");
+                params.add(dateTo + " 23:59:59");
+            }
         }
 
         StringBuilder sql = new StringBuilder(selectSql);
         if (!conditions.isEmpty()) {
             sql.append(" WHERE ").append(String.join(" AND ", conditions));
         }
-        sql.append(" ORDER BY ").append(timestampCol).append(" DESC");
+        sql.append(timestampCol != null
+                ? " ORDER BY " + timestampCol + " DESC"
+                : " ORDER BY " + idCol + " ASC");
 
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
@@ -127,51 +132,139 @@ public class LogsDatabase {
         return 0;
     }
 
+   
     public boolean insertLog(String logType, int userId, int itemId, String description) {
-        String table;
-        String sql;
 
-        switch (logType) {
-            case "USER":
-                table = "users_log";
-                sql   = "INSERT INTO " + table
-                      + " (user_id, initiator_firstname, initiator_lastname, action, reason, timestamp)"
-                      + " VALUES (?, '', '', 'Update', ?, NOW())";
-                break;
-            case "ITEM":
-                table = "items_log";
-                sql   = "INSERT INTO " + table
-                      + " (user_id, item_id, initiator_firstname, initiator_lastname, action, reason, timestamp)"
-                      + " VALUES (?, ?, '', '', 'Update', ?, NOW())";
-                break;
-            default:
-                System.out.println("insertLog() skipped: unknown logType '" + logType + "'");
-                return false;
-        }
+        if ("USER".equals(logType)) {
+            // Resolve action enum from the description text
+            String action = resolveUserAction(description);
 
-        try (Connection conn = getConn();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            int i = 1;
-
-            // user_id — NULL when 0
-            if (userId > 0) stmt.setInt(i++, userId);
-            else            stmt.setNull(i++, Types.INTEGER);
-
-            // item_id (ITEM logs only) — NULL when 0
-            if ("ITEM".equals(logType)) {
-                if (itemId > 0) stmt.setInt(i++, itemId);
-                else            stmt.setNull(i++, Types.INTEGER);
+            // Look up the user's name (try live table first, then archive)
+            String firstName = "";
+            String lastName  = "";
+            if (userId > 0) {
+                firstName = lookupFirstName(userId);
+                lastName  = lookupLastName(userId);
             }
 
-            stmt.setString(i, description);
+          
+            String sql =
+                "INSERT INTO users_log "
+                + "(user_id, initiator_firstname, initiator_lastname, action, reason) "
+                + "VALUES (?, ?, ?, ?, ?)";
 
-            return stmt.executeUpdate() > 0;
+            try (Connection conn = getConn();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                if (userId > 0) stmt.setInt(1, userId);
+                else            stmt.setNull(1, Types.INTEGER);
+                stmt.setString(2, firstName);
+                stmt.setString(3, lastName);
+                stmt.setString(4, action);
+                stmt.setString(5, truncate(description, 100));
+                return stmt.executeUpdate() > 0;
+            } catch (SQLException e) {
+                System.err.println("insertLog(USER) failed: " + e.getMessage());
+            }
+            return false;
 
-        } catch (SQLException e) {
-            System.err.println("insertLog() failed [" + logType + "]: " + e.getMessage());
+        } else if ("ITEM".equals(logType)) {
+          
+            String action = resolveItemAction(description);
+
+            String firstName = "";
+            String lastName  = "";
+            if (userId > 0) {
+                firstName = lookupFirstName(userId);
+                lastName  = lookupLastName(userId);
+            }
+
+            String sql =
+                "INSERT INTO items_log "
+                + "(user_id, item_id, initiator_firstname, initiator_lastname, action, reason) "
+                + "VALUES (?, ?, ?, ?, ?, ?)";
+
+            try (Connection conn = getConn();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                if (userId > 0) stmt.setInt(1, userId);
+                else            stmt.setNull(1, Types.INTEGER);
+                if (itemId > 0) stmt.setInt(2, itemId);
+                else            stmt.setNull(2, Types.INTEGER);
+                stmt.setString(3, firstName);
+                stmt.setString(4, lastName);
+                stmt.setString(5, action);
+                stmt.setString(6, truncate(description, 100));
+                return stmt.executeUpdate() > 0;
+            } catch (SQLException e) {
+                System.err.println("insertLog(ITEM) failed: " + e.getMessage());
+            }
+            return false;
+
+        } else {
+            System.out.println("insertLog() skipped: unknown logType '" + logType + "'");
             return false;
         }
+    }
+
+   
+    private String resolveUserAction(String description) {
+        if (description == null) return "Update";
+        String lower = description.toLowerCase();
+        if (lower.contains("permanently deleted") || lower.contains("permanent delete")) return "Delete";
+        if (lower.contains("restored")            || lower.contains("unarchive"))        return "Unarchive";
+        if (lower.contains("archived")            || lower.contains("archive"))          return "Archive";
+        if (lower.contains("added")               || lower.contains("registered")
+                                                  || lower.contains("new user"))         return "Create";
+        return "Update";
+    }
+
+    // Derives a readable action string for items_log (varchar — no strict enum)
+    private String resolveItemAction(String description) {
+        if (description == null) return "UPDATE_ITEM";
+        String lower = description.toLowerCase();
+        if (lower.contains("archived"))  return "ARCHIVE_ITEM";
+        if (lower.contains("restored"))  return "RESTORE_ITEM";
+        if (lower.contains("added")
+                || lower.contains("new item")) return "LIST_ITEM";
+        return "UPDATE_ITEM";
+    }
+
+    // Looks up first_name from users or users_archive
+    private String lookupFirstName(int userId) {
+        return lookupNameField(userId, "first_name");
+    }
+
+    private String lookupLastName(int userId) {
+        return lookupNameField(userId, "last_name");
+    }
+
+    private String lookupNameField(int userId, String field) {
+        String fromUsers   = "SELECT " + field + " FROM users WHERE user_id = ? LIMIT 1";
+        String fromArchive = "SELECT " + field + " FROM users_archive WHERE user_id = ? "
+                           + "ORDER BY user_archive_id DESC LIMIT 1";
+        try (Connection conn = getConn();
+             PreparedStatement stmt = conn.prepareStatement(fromUsers)) {
+            stmt.setInt(1, userId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                String val = rs.getString(1);
+                return val != null ? val : "";
+            }
+        } catch (SQLException ignored) {}
+        try (Connection conn = getConn();
+             PreparedStatement stmt = conn.prepareStatement(fromArchive)) {
+            stmt.setInt(1, userId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                String val = rs.getString(1);
+                return val != null ? val : "";
+            }
+        } catch (SQLException ignored) {}
+        return "";
+    }
+
+    private String truncate(String s, int maxLen) {
+        if (s == null) return "";
+        return s.length() <= maxLen ? s : s.substring(0, maxLen);
     }
 
     private String resolveLogColumn(String filter, String logType, boolean hasItemId) {
@@ -182,7 +275,7 @@ public class LogsDatabase {
             case "Item ID":     return hasItemId ? "item_id" : "user_id";
             case "Action":      return "action";
             case "Description": return "reason";
-            case "Date":        return "DATE(timestamp)";
+            case "Date":        return hasTimestamp(logType) ? "DATE(timestamp)" : getIdColumn(logType);
             default:            return "reason";
         }
     }
@@ -193,6 +286,10 @@ public class LogsDatabase {
             case "REPUTATION":  return "reputation_id";
             default:            return "log_id";
         }
+    }
+
+    private boolean hasTimestamp(String logType) {
+        return !"TRANSACTION".equals(logType);
     }
 
     private Connection getConn() throws SQLException {
@@ -206,8 +303,8 @@ public class LogsDatabase {
         AdminLogs log = new AdminLogs();
         log.setId(rs.getInt("id"));
         log.setUserId(rs.getInt("user_id"));
-        log.setItemId(rs.getInt("item_id"));
         log.setLogType(rs.getString("log_type"));
+        log.setItemId(rs.getInt("item_id"));
         log.setDescription(rs.getString("description"));
         log.setCreatedAt(rs.getString("created_at"));
         return log;

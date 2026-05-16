@@ -15,6 +15,7 @@ import utils.*;
 import admin.models.*;
 import admin.services.*;
 import enums.*;
+import java.awt.FileDialog;
 
 public class AdminTable extends CustomPanel {
     private static final long serialVersionUID = 1L;
@@ -27,6 +28,7 @@ public class AdminTable extends CustomPanel {
     private int hoveredRow = -1;
 
     private CustomTable table;
+    private CustomButton btnAddAction;
     private CustomButton btnPrimaryAction;
     private CustomButton btnSecondaryAction;
     private CustomSearchField searchField;
@@ -546,6 +548,20 @@ public class AdminTable extends CustomPanel {
                 if (!e.getValueIsAdjusting()) updateActionUI();
             });
         }
+        btnAddAction = new CustomButton("Add " + (type == TableType.USERS ? "User" : "Item"), 8);
+        btnAddAction.setFontSize(12f);
+        btnAddAction.setPadding(6, 14, 6, 14);
+        btnAddAction.setDefaultColor(Color.decode("#007bff"));
+        btnAddAction.setTextColor(Color.WHITE);
+        btnAddAction.setHoverColor(Color.decode("#0056b3"));
+        btnAddAction.setEnabled(true); // Always enabled — no row selection needed
+
+        btnAddAction.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                handleAdd();
+            }
+        });
+        
 
         loadTableData();
         applyColumnWidths();
@@ -568,6 +584,7 @@ public class AdminTable extends CustomPanel {
 
         if (type != TableType.LOGS) {
             CustomPanel actionsPanel = new CustomPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
+            actionsPanel.add(btnAddAction);  
             actionsPanel.add(btnPrimaryAction);
             actionsPanel.add(btnSecondaryAction);
             bottomPanel.add(actionsPanel, BorderLayout.EAST);
@@ -597,10 +614,10 @@ public class AdminTable extends CustomPanel {
 
         if (type == TableType.USERS) {
             table.setColumnWidth(0, 40); table.setColumnAlignment(0, SwingConstants.LEFT);
-            table.setColumnWidth(1, 80); table.setColumnAlignment(1, SwingConstants.LEFT);
+            table.setColumnWidth(1, 90); table.setColumnAlignment(1, SwingConstants.LEFT);
             table.setColumnWidth(4, 70);
             table.setColumnWidth(5, 70);  table.setColumnAlignment(5, SwingConstants.LEFT);
-            table.setColumnWidth(6, 100); table.setColumnAlignment(6, SwingConstants.LEFT);
+            table.setColumnWidth(6, 110); table.setColumnAlignment(6, SwingConstants.LEFT);
             table.setColumnWidth(7, 130); table.setColumnAlignment(7, SwingConstants.LEFT);
             table.setColumnWidth(8, 120); table.setColumnAlignment(8, SwingConstants.LEFT);
             table.setColumnWidth(9, 110); table.setColumnAlignment(9, SwingConstants.LEFT);
@@ -736,13 +753,356 @@ public class AdminTable extends CustomPanel {
         if (archiveMode.isSelected()) {
             applyButtonStyle(btnPrimaryAction,   "Retrieve Data", "#ffc107");
             applyButtonStyle(btnSecondaryAction, "Delete Data",   "#dc3545");
+            // Hide Add button in archive mode — adding to archive makes no sense
+            if (btnAddAction != null) btnAddAction.setVisible(false);
         } else {
-            applyButtonStyle(btnPrimaryAction,   "Update Data",   "#28a745");
-            applyButtonStyle(btnSecondaryAction, "Archive Data",  "#ffc107");
+            applyButtonStyle(btnPrimaryAction,   "Update Data",  "#28a745");
+            applyButtonStyle(btnSecondaryAction, "Archive Data", "#ffc107");
+            if (btnAddAction != null) btnAddAction.setVisible(true);
+        }
+    }
+    
+    private void handleAdd() {
+        CustomPanel formPanel = new CustomPanel();
+        formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
+
+        if (type == TableType.USERS) {
+            buildUserAddDialog(formPanel);
+        } else if (type == TableType.ITEMS) {
+            buildItemAddDialog(formPanel);
         }
     }
 
-    // Sets the text, background color, and hover color on a button
+    private void buildUserAddDialog(CustomPanel formPanel) {
+        CustomTextField studentIdField = new CustomTextField("");
+        CustomTextField firstNameField = new CustomTextField("");
+        CustomTextField lastNameField  = new CustomTextField("");
+        CustomTextField emailField     = new CustomTextField("");
+        CustomTextField passwordField  = new CustomTextField("");
+
+        CustomComboBox<String> yearLevelBox = new CustomComboBox<>(new String[] {
+            "First", "Second", "Third", "Fourth", "Fifth", "Graduate"
+        });
+        CustomComboBox<String> collegeBox = new CustomComboBox<>(getColleges());
+        CustomComboBox<String> roleCategoryBox = new CustomComboBox<>(
+            new String[] { "Standard User", "Admin" });
+        CustomComboBox<String> roleSubBox = new CustomComboBox<>(
+            new String[] { "admin", "super_admin" });
+        roleSubBox.setCustomSize(130, 30);
+        roleSubBox.setVisible(false);
+
+        roleCategoryBox.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                boolean isAdmin = "Admin".equals(roleCategoryBox.getSelectedItem());
+                roleSubBox.setVisible(isAdmin);
+                roleSubBox.getParent().revalidate();
+                roleSubBox.getParent().repaint();
+            }
+        });
+
+        JPanel roleComboPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        roleComboPanel.setOpaque(false);
+        roleCategoryBox.setPreferredSize(new Dimension(140, 32));
+        roleSubBox.setPreferredSize(new Dimension(130, 32));
+        roleComboPanel.add(roleCategoryBox);
+        roleComboPanel.add(roleSubBox);
+
+        JPanel roleRow = new JPanel(new BorderLayout(10, 0));
+        roleRow.setOpaque(false);
+        roleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+        CustomLabel roleLabel = new CustomLabel("System Role:", 14f, FontStyle.REGULAR);
+        roleLabel.setPreferredSize(new Dimension(100, 30));
+        roleLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        roleRow.add(roleLabel,      BorderLayout.WEST);
+        roleRow.add(roleComboPanel, BorderLayout.CENTER);
+
+       
+        final String[] profileImageHolder = { "" };
+
+        CustomTextField profileImageField = new CustomTextField("No image selected");
+        profileImageField.setEditable(false);
+        profileImageField.setPreferredSize(new Dimension(170, 32));
+        profileImageField.setMinimumSize(new Dimension(170, 32));
+
+        CustomButton profileBrowseBtn = new CustomButton("Browse", 6);
+        profileBrowseBtn.setFontSize(11f);
+        profileBrowseBtn.setPadding(4, 10, 4, 10);
+        profileBrowseBtn.setDefaultColor(Color.decode("#6c757d"));
+        profileBrowseBtn.setTextColor(Color.WHITE);
+        profileBrowseBtn.setHoverColor(Color.decode("#5a6268"));
+        profileBrowseBtn.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                Window owner = SwingUtilities.getWindowAncestor(AdminTable.this);
+                Frame frame  = (owner instanceof Frame) ? (Frame) owner : null;
+                FileDialog fileDialog = new FileDialog(frame, "Select Profile Image", FileDialog.LOAD);
+                fileDialog.setFilenameFilter((dir, name) -> {
+                    String lower = name.toLowerCase();
+                    return lower.endsWith(".png") || lower.endsWith(".jpg")
+                        || lower.endsWith(".jpeg") || lower.endsWith(".gif");
+                });
+                fileDialog.setVisible(true);
+                String dir  = fileDialog.getDirectory();
+                String file = fileDialog.getFile();
+                if (dir != null && file != null) {
+                    profileImageHolder[0] = dir + file;
+                    profileImageField.setText(file);
+                }
+            }
+        });
+
+        JPanel profileImageInputPanel = new JPanel(new BorderLayout(6, 0));
+        profileImageInputPanel.setOpaque(false);
+        profileImageInputPanel.add(profileImageField, BorderLayout.CENTER);
+        profileImageInputPanel.add(profileBrowseBtn,  BorderLayout.EAST);
+
+        JPanel profileImageRow = new JPanel(new BorderLayout(10, 0));
+        profileImageRow.setOpaque(false);
+        profileImageRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+        profileImageRow.setPreferredSize(new Dimension(0, 35));
+        CustomLabel profileImageLabel = new CustomLabel("Profile Image:", 14f, FontStyle.REGULAR);
+        profileImageLabel.setPreferredSize(new Dimension(100, 30));
+        profileImageLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        JPanel profileImageWrap = new JPanel(new BorderLayout());
+        profileImageWrap.setOpaque(false);
+        profileImageWrap.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
+        profileImageWrap.add(profileImageInputPanel, BorderLayout.CENTER);
+        profileImageRow.add(profileImageLabel, BorderLayout.WEST);
+        profileImageRow.add(profileImageWrap,  BorderLayout.CENTER);
+       
+
+        formPanel.add(createFieldPanel("Student ID:",    studentIdField));
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(createFieldPanel("First Name:",    firstNameField));
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(createFieldPanel("Last Name:",     lastNameField));
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(createFieldPanel("Email:",         emailField));
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(createFieldPanel("Password:",      passwordField));
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(createFieldPanel("Year Level:",    yearLevelBox));
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(createFieldPanel("College:",       collegeBox));
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(roleRow);
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(profileImageRow); // ← new
+
+        Window owner = SwingUtilities.getWindowAncestor(this);
+        new AdminDialog(owner, "Add New User", formPanel, "Add User",
+            new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    String studentId  = studentIdField.getText().trim();
+                    String firstName  = firstNameField.getText().trim();
+                    String lastName   = lastNameField.getText().trim();
+                    String email      = emailField.getText().trim();
+                    String password   = passwordField.getText().trim();
+                    String yearLevel  = yearLevelBox.getSelectedItem() != null
+                                          ? yearLevelBox.getSelectedItem().toString() : "";
+                    String college    = collegeBox.getSelectedItem() != null
+                                          ? collegeBox.getSelectedItem().toString() : "";
+                    String imagePath  = profileImageHolder[0]; // optional — no validation needed
+
+                    if (studentId.isEmpty() || firstName.isEmpty() || lastName.isEmpty()
+                            || email.isEmpty() || password.isEmpty() || college.isEmpty()) {
+                        JOptionPane.showMessageDialog(AdminTable.this,
+                            "Student ID, First Name, Last Name, Email, Password, and College are required.",
+                            "Validation Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    if (!email.toLowerCase().endsWith("@umak.edu.ph")) {
+                        JOptionPane.showMessageDialog(AdminTable.this,
+                            "Email must be a valid UMak address ending in @umak.edu.ph\n"
+                            + "Example: firstname.lastname@umak.edu.ph",
+                            "Invalid Email", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    String resolvedRole;
+                    if ("Admin".equals(roleCategoryBox.getSelectedItem())) {
+                        resolvedRole = (roleSubBox.getSelectedItem() != null)
+                            ? roleSubBox.getSelectedItem().toString() : "admin";
+                    } else {
+                        resolvedRole = "end_user";
+                    }
+
+                    boolean success = userService.addUser(
+                        studentId, firstName, lastName, email, password,
+                        yearLevel, college, resolvedRole, imagePath 
+                    );
+
+                    if (success) {
+                        loadTableData();
+                        JOptionPane.showMessageDialog(AdminTable.this, "User added successfully.");
+                        SwingUtilities.getWindowAncestor((Component) e.getSource()).dispose();
+                    } else {
+                        String reason = userService.getLastAddError();
+                        JOptionPane.showMessageDialog(AdminTable.this,
+                            reason != null ? reason : "Failed to add user. Please try again.",
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            }).setVisible(true);
+    }
+    private void buildItemAddDialog(CustomPanel formPanel) {
+        CustomTextField nameField  = new CustomTextField("");
+        CustomTextField stockField = new CustomTextField("");
+        CustomTextField priceField = new CustomTextField("");
+        CustomTextField descField  = new CustomTextField("");
+     
+        CustomComboBox<String> categoryBox = new CustomComboBox<>(
+            new String[] { "Textbooks", "Electronics", "Equipment",
+                           "Supplies", "Consumable-Goods", "Other" });
+        CustomComboBox<String> conditionBox = new CustomComboBox<>(
+            new String[] { "Fair", "Good", "New" });
+        CustomComboBox<String> statusBox = new CustomComboBox<>(
+            new String[] { "Available", "Unavailable" });
+        CustomComboBox<String> actionBox = new CustomComboBox<>(
+            new String[] { "Sharing", "Marketplace", "Barter-Trading" });
+     
+       
+        final String[] imagePathHolder = { "" };
+     
+        CustomTextField imageField = new CustomTextField("No image selected");
+        imageField.setEditable(false);
+        imageField.setPreferredSize(new Dimension(170, 32));
+        imageField.setMinimumSize(new Dimension(170, 32));
+     
+        CustomButton browseBtn = new CustomButton("Browse", 6);
+        browseBtn.setFontSize(11f);
+        browseBtn.setPadding(4, 10, 4, 10);
+        browseBtn.setDefaultColor(Color.decode("#6c757d"));
+        browseBtn.setTextColor(Color.WHITE);
+        browseBtn.setHoverColor(Color.decode("#5a6268"));
+        browseBtn.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+      
+                Window owner = SwingUtilities.getWindowAncestor(AdminTable.this);
+                Frame frame = (owner instanceof Frame) ? (Frame) owner : null;
+
+                FileDialog fileDialog = new FileDialog(frame, "Select Item Image", FileDialog.LOAD);
+                fileDialog.setFilenameFilter((dir, name) -> {
+                    String lower = name.toLowerCase();
+                    return lower.endsWith(".png") || lower.endsWith(".jpg")
+                        || lower.endsWith(".jpeg") || lower.endsWith(".gif");
+                });
+                fileDialog.setVisible(true);
+
+                String dir  = fileDialog.getDirectory();
+                String file = fileDialog.getFile();
+
+                if (dir != null && file != null) {
+                    imagePathHolder[0] = dir + file;
+                    imageField.setText(file);
+                }
+            }
+        });
+        JPanel imageInputPanel = new JPanel(new BorderLayout(6, 0));
+        imageInputPanel.setOpaque(false);
+        imageInputPanel.add(imageField, BorderLayout.CENTER);
+        imageInputPanel.add(browseBtn,  BorderLayout.EAST);
+     
+        JPanel imageRow = new JPanel(new BorderLayout(10, 0));
+        imageRow.setOpaque(false);
+        imageRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+        imageRow.setPreferredSize(new Dimension(0, 35));
+        CustomLabel imageLabel = new CustomLabel("Image:", 14f, FontStyle.REGULAR);
+        imageLabel.setPreferredSize(new Dimension(100, 30));
+        imageLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        JPanel imageWrap = new JPanel(new BorderLayout());
+        imageWrap.setOpaque(false);
+        imageWrap.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
+        imageWrap.add(imageInputPanel, BorderLayout.CENTER);
+        imageRow.add(imageLabel, BorderLayout.WEST);
+        imageRow.add(imageWrap,  BorderLayout.CENTER);
+        
+     
+        formPanel.add(createFieldPanel("Item Name:",   nameField));
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(createFieldPanel("Category:",    categoryBox));
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(createFieldPanel("Condition:",   conditionBox));
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(createFieldPanel("Stock:",       stockField));
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(createFieldPanel("Price:",       priceField));
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(createFieldPanel("Status:",      statusBox));
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(createFieldPanel("Action:",      actionBox));
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(createFieldPanel("Description:", descField));
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(imageRow);
+     
+        Window owner = SwingUtilities.getWindowAncestor(this);
+        new AdminDialog(owner, "Add New Item", formPanel, "Add Item",
+            new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    String name      = nameField.getText().trim();
+                    String category  = categoryBox.getSelectedItem() != null
+                                         ? categoryBox.getSelectedItem().toString() : "";
+                    String cond      = conditionBox.getSelectedItem() != null
+                                         ? conditionBox.getSelectedItem().toString() : "Good";
+                    String status    = statusBox.getSelectedItem() != null
+                                         ? statusBox.getSelectedItem().toString() : "Available";
+                    String action    = actionBox.getSelectedItem() != null
+                                         ? actionBox.getSelectedItem().toString() : "Sharing";
+                    String desc      = descField.getText().trim();
+                    String imagePath = imagePathHolder[0];
+     
+                    if (name.isEmpty() || category.isEmpty()) {
+                        JOptionPane.showMessageDialog(AdminTable.this,
+                            "Item Name and Category are required.",
+                            "Validation Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+     
+                    if (imagePath.isEmpty()) {
+                        JOptionPane.showMessageDialog(AdminTable.this,
+                            "Please select an image for the item.",
+                            "Validation Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+     
+                    int stock, price;
+                    try {
+                        stock = stockField.getText().trim().isEmpty() ? 0
+                                    : Integer.parseInt(stockField.getText().trim());
+                        price = priceField.getText().trim().isEmpty() ? 0
+                                    : Integer.parseInt(priceField.getText().trim());
+                    } catch (NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(AdminTable.this,
+                            "Stock and Price must be valid whole numbers.",
+                            "Validation Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+     
+                    if (stock < 0 || price < 0) {
+                        JOptionPane.showMessageDialog(AdminTable.this,
+                            "Stock and Price cannot be negative.",
+                            "Validation Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+     
+                    boolean success = itemService.addItem(
+                        name, category, cond, stock, price,
+                        status, action, desc, imagePath);
+     
+                    if (success) {
+                        loadTableData();
+                        JOptionPane.showMessageDialog(AdminTable.this, "Item added successfully.");
+                        SwingUtilities.getWindowAncestor((Component) e.getSource()).dispose();
+                    } else {
+                        JOptionPane.showMessageDialog(AdminTable.this,
+                            "Failed to add item. Please try again.",
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            }).setVisible(true);
+    }
+
     private void applyButtonStyle(CustomButton btn, String text, String hexColor) {
         btn.setText(text);
         btn.setDefaultColor(Color.decode(hexColor));
@@ -750,8 +1110,6 @@ public class AdminTable extends CustomPanel {
     }
 
 
-    // CRUD HANDLERS
-    // Opens the correct update dialog depending on whether it's a user or item
     private void handleUpdate() {
         int row = table.getSelectedRow();
         if (row == -1) return;
@@ -770,25 +1128,21 @@ public class AdminTable extends CustomPanel {
     // Builds and shows the update dialog for a user
     private void buildUserUpdateDialog(int id, CustomPanel formPanel) {
         AdminUsers user = userService.getUserById(id);
- 
+
         CustomTextField firstNameField = new CustomTextField(user != null ? user.getFirstName() : "");
         CustomTextField lastNameField  = new CustomTextField(user != null ? user.getLastName()  : "");
- 
+
         CustomComboBox<String> collegeBox = new CustomComboBox<>(getColleges());
         if (user != null) {
             collegeBox.setSelectedItem(user.getCollege());
         }
+
  
-        // ── Role fields ───────────────────────────────────────────────────
-        String currentRole = (user != null && user.getSystemRole() != null)
-            ? user.getSystemRole() : "end_user";
- 
-        CustomComboBox<String> roleCategoryBox = new CustomComboBox<>(
-            new String[] { "Standard User", "Admin" });
-        CustomComboBox<String> roleSubBox = new CustomComboBox<>(
-            new String[] { "admin", "super_admin" });
+        String currentRole = (user != null && user.getSystemRole() != null) ? user.getSystemRole() : "end_user";
+        CustomComboBox<String> roleCategoryBox = new CustomComboBox<>(new String[] { "Standard User", "Admin" });
+        CustomComboBox<String> roleSubBox      = new CustomComboBox<>(new String[] { "admin", "super_admin" });
         roleSubBox.setCustomSize(130, 30);
- 
+
         if (currentRole.equals("end_user")) {
             roleCategoryBox.setSelectedItem("Standard User");
             roleSubBox.setVisible(false);
@@ -796,43 +1150,24 @@ public class AdminTable extends CustomPanel {
             roleCategoryBox.setSelectedItem("Admin");
             roleSubBox.setSelectedItem(currentRole);
         }
- 
-        // ── BUSINESS RULE: cannot edit your own role ──────────────────────
-        // Check if the admin is trying to update their own account.
-        // If so, lock the role dropdowns — another admin must change their role.
-        boolean isSelf = (id == SessionManager.get().getCurrentUserId());
- 
-        if (isSelf) {
-            roleCategoryBox.setEnabled(false);
-            roleSubBox.setEnabled(false);
-        } else {
-            // Only wire up the show/hide listener when editing someone else
-            roleCategoryBox.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    boolean isAdmin = "Admin".equals(roleCategoryBox.getSelectedItem());
-                    roleSubBox.setVisible(isAdmin);
-                    roleSubBox.getParent().revalidate();
-                    roleSubBox.getParent().repaint();
-                }
-            });
-        }
- 
-        // ── Layout ────────────────────────────────────────────────────────
+
+  
+        roleCategoryBox.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                boolean isAdmin = "Admin".equals(roleCategoryBox.getSelectedItem());
+                roleSubBox.setVisible(isAdmin);
+                roleSubBox.getParent().revalidate();
+                roleSubBox.getParent().repaint();
+            }
+        });
+
         JPanel roleComboPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         roleComboPanel.setOpaque(false);
         roleCategoryBox.setPreferredSize(new Dimension(140, 32));
         roleSubBox.setPreferredSize(new Dimension(130, 32));
         roleComboPanel.add(roleCategoryBox);
         roleComboPanel.add(roleSubBox);
- 
-        // Warning label shown only when editing yourself
-        if (isSelf) {
-            CustomLabel selfRoleWarning = new CustomLabel(
-                "⚠ Another admin must change your role.", 11f, FontStyle.REGULAR);
-            selfRoleWarning.setForeground(Color.decode("#dc3545")); // red
-            roleComboPanel.add(selfRoleWarning);
-        }
- 
+
         JPanel roleRow = new JPanel(new BorderLayout(10, 0));
         roleRow.setOpaque(false);
         roleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
@@ -841,7 +1176,7 @@ public class AdminTable extends CustomPanel {
         roleLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         roleRow.add(roleLabel,      BorderLayout.WEST);
         roleRow.add(roleComboPanel, BorderLayout.CENTER);
- 
+
         formPanel.add(createFieldPanel("First Name:", firstNameField));
         formPanel.add(Box.createVerticalStrut(10));
         formPanel.add(createFieldPanel("Last Name:",  lastNameField));
@@ -849,67 +1184,69 @@ public class AdminTable extends CustomPanel {
         formPanel.add(createFieldPanel("College:",    collegeBox));
         formPanel.add(Box.createVerticalStrut(10));
         formPanel.add(roleRow);
- 
+
         Window owner = SwingUtilities.getWindowAncestor(this);
-        new AdminDialog(owner, "Update User: " + id, formPanel, "Save Changes",
-            new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    if (user == null) return;
- 
-                    String resolvedFirst = firstNameField.getText().trim().isEmpty()
-                        ? user.getFirstName() : firstNameField.getText().trim();
-                    String resolvedLast = lastNameField.getText().trim().isEmpty()
-                        ? user.getLastName() : lastNameField.getText().trim();
-                    String resolvedCollege = (collegeBox.getSelectedItem() == null)
-                        ? user.getCollege() : collegeBox.getSelectedItem().toString().trim();
- 
-                    // If editing yourself, keep the existing role — dropdowns are
-                    // disabled so we just carry the original value forward.
-                    String resolvedRole;
-                    if (isSelf) {
-                        resolvedRole = currentRole;
-                    } else if ("Admin".equals(roleCategoryBox.getSelectedItem())) {
-                        resolvedRole = (roleSubBox.getSelectedItem() != null)
-                            ? roleSubBox.getSelectedItem().toString() : "admin";
-                    } else {
-                        resolvedRole = "end_user";
-                    }
- 
-                    if (resolvedFirst.isEmpty() || resolvedLast.isEmpty() || resolvedCollege.isEmpty()) {
-                        JOptionPane.showMessageDialog(AdminTable.this,
-                            "First Name, Last Name, and College cannot be empty.",
-                            "Validation Error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
- 
-                    user.setFirstName(resolvedFirst);
-                    user.setLastName(resolvedLast);
-                    user.setCollege(resolvedCollege);
-                    user.setSystemRole(resolvedRole); // unchanged when isSelf
- 
-                    showUpdateResult(userService.updateUser(user), "User");
+        new AdminDialog(owner, "Update User: " + id, formPanel, "Save Changes", new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                if (user == null) return;
+
+                // Use existing value if the field was left empty
+                String resolvedFirst = firstNameField.getText().trim().isEmpty()
+                    ? user.getFirstName() : firstNameField.getText().trim();
+                String resolvedLast = lastNameField.getText().trim().isEmpty()
+                    ? user.getLastName() : lastNameField.getText().trim();
+                String resolvedCollege = (collegeBox.getSelectedItem() == null)
+                    ? user.getCollege() : collegeBox.getSelectedItem().toString().trim();
+
+                // Determine final role string
+                String resolvedRole;
+                if ("Admin".equals(roleCategoryBox.getSelectedItem())) {
+                    resolvedRole = (roleSubBox.getSelectedItem() != null)
+                        ? roleSubBox.getSelectedItem().toString() : "admin";
+                } else {
+                    resolvedRole = "end_user";
                 }
-            }).setVisible(true);
+
+                if (resolvedFirst.isEmpty() || resolvedLast.isEmpty() || resolvedCollege.isEmpty()) {
+                    JOptionPane.showMessageDialog(AdminTable.this,
+                        "First Name, Last Name, and College cannot be empty.",
+                        "Validation Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                user.setFirstName(resolvedFirst);
+                user.setLastName(resolvedLast);
+                user.setCollege(resolvedCollege);
+                user.setSystemRole(resolvedRole);
+
+                showUpdateResult(userService.updateUser(user), "User");
+            }
+        }).setVisible(true);
     }
-    // Builds and shows the update dialog for an item
     private void buildItemUpdateDialog(int id, CustomPanel formPanel) {
         AdminItems item = itemService.getItemById(id);
-
+     
         CustomTextField nameField  = new CustomTextField(item != null ? item.getItemName() : "");
         CustomTextField stockField = new CustomTextField(item != null ? String.valueOf(item.getItemQuantity()) : "");
         CustomTextField priceField = new CustomTextField(item != null ? String.valueOf(item.getPrice()) : "");
-
+     
         CustomComboBox<String> categoryBox = new CustomComboBox<>(
-            new String[] { "Textbooks", "Electronics", "Equipment", "Supplies", "Consumable Goods", "Other" });
-        CustomComboBox<String> conditionBox = new CustomComboBox<>(new String[] { "Fair", "Good", "New" });
-        CustomComboBox<String> statusBox    = new CustomComboBox<>(new String[] { "Available", "Unavailable" });
-
+            new String[] { "Textbooks", "Electronics", "Equipment",
+                           "Supplies", "Consumable-Goods", "Other" });
+        CustomComboBox<String> conditionBox = new CustomComboBox<>(
+            new String[] { "Fair", "Good", "New" });
+        CustomComboBox<String> statusBox = new CustomComboBox<>(
+            new String[] { "Available", "Unavailable" });
+        CustomComboBox<String> actionBox = new CustomComboBox<>(
+            new String[] { "Sharing", "Marketplace", "Barter-Trading" });
+     
         if (item != null) {
             categoryBox.setSelectedItem(item.getCategory());
             conditionBox.setSelectedItem(item.getItemCondition());
             statusBox.setSelectedItem(item.getAvailabilityStatus());
+            actionBox.setSelectedItem(item.getAction());
         }
-
+     
         formPanel.add(createFieldPanel("Item Name:", nameField));
         formPanel.add(Box.createVerticalStrut(10));
         formPanel.add(createFieldPanel("Category:",  categoryBox));
@@ -921,63 +1258,68 @@ public class AdminTable extends CustomPanel {
         formPanel.add(createFieldPanel("Price:",     priceField));
         formPanel.add(Box.createVerticalStrut(10));
         formPanel.add(createFieldPanel("Status:",    statusBox));
-
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(createFieldPanel("Action:",    actionBox));
+     
         Window owner = SwingUtilities.getWindowAncestor(this);
-        new AdminDialog(owner, "Update Item: " + id, formPanel, "Save Changes", new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                if (item == null) return;
-
-                // Use existing value if the field was left empty
-                String resolvedName = nameField.getText().trim().isEmpty()
-                    ? item.getItemName() : nameField.getText().trim();
-                String resolvedCat = (categoryBox.getSelectedItem() != null)
-                    ? categoryBox.getSelectedItem().toString() : item.getCategory();
-                String resolvedCond = (conditionBox.getSelectedItem() != null)
-                    ? conditionBox.getSelectedItem().toString() : item.getItemCondition();
-                String resolvedStat = (statusBox.getSelectedItem() != null)
-                    ? statusBox.getSelectedItem().toString() : item.getAvailabilityStatus();
-
-                if (resolvedName.isEmpty() || resolvedCat.isEmpty()) {
-                    JOptionPane.showMessageDialog(AdminTable.this,
-                        "Item Name and Category cannot be empty.",
-                        "Validation Error", JOptionPane.ERROR_MESSAGE);
-                    return;
+        new AdminDialog(owner, "Update Item: " + id, formPanel, "Save Changes",
+            new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    if (item == null) return;
+     
+                    String resolvedName = nameField.getText().trim().isEmpty()
+                        ? item.getItemName() : nameField.getText().trim();
+                    String resolvedCat  = categoryBox.getSelectedItem() != null
+                        ? categoryBox.getSelectedItem().toString() : item.getCategory();
+                    String resolvedCond = conditionBox.getSelectedItem() != null
+                        ? conditionBox.getSelectedItem().toString() : item.getItemCondition();
+                    String resolvedStat = statusBox.getSelectedItem() != null
+                        ? statusBox.getSelectedItem().toString() : item.getAvailabilityStatus();
+                    String resolvedAction = actionBox.getSelectedItem() != null
+                        ? actionBox.getSelectedItem().toString() : item.getAction();
+     
+                    if (resolvedName.isEmpty() || resolvedCat.isEmpty()) {
+                        JOptionPane.showMessageDialog(AdminTable.this,
+                            "Item Name and Category cannot be empty.",
+                            "Validation Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+     
+                    int resolvedStock, resolvedPrice;
+                    try {
+                        resolvedStock = stockField.getText().trim().isEmpty()
+                            ? item.getItemQuantity() : Integer.parseInt(stockField.getText().trim());
+                        resolvedPrice = priceField.getText().trim().isEmpty()
+                            ? item.getPrice() : Integer.parseInt(priceField.getText().trim());
+                    } catch (NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(AdminTable.this,
+                            "Stock and Price must be valid whole numbers.",
+                            "Validation Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+     
+                    if (resolvedStock < 0 || resolvedPrice < 0) {
+                        JOptionPane.showMessageDialog(AdminTable.this,
+                            "Stock and Price cannot be negative.",
+                            "Validation Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+     
+                    item.setItemName(resolvedName);
+                    item.setCategory(resolvedCat);
+                    item.setItemCondition(resolvedCond);
+                    item.setItemQuantity(resolvedStock);
+                    item.setPrice(resolvedPrice);
+                    item.setAvailabilityStatus(resolvedStat);
+                    item.setAction(resolvedAction);
+     
+                    showUpdateResult(itemService.updateItem(item), "Item");
                 }
-
-                int resolvedStock;
-                int resolvedPrice;
-                try {
-                    resolvedStock = stockField.getText().trim().isEmpty()
-                        ? item.getItemQuantity() : Integer.parseInt(stockField.getText().trim());
-                    resolvedPrice = priceField.getText().trim().isEmpty()
-                        ? item.getPrice() : Integer.parseInt(priceField.getText().trim());
-                } catch (NumberFormatException ex) {
-                    JOptionPane.showMessageDialog(AdminTable.this,
-                        "Stock and Price must be valid whole numbers.",
-                        "Validation Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-
-                if (resolvedStock < 0 || resolvedPrice < 0) {
-                    JOptionPane.showMessageDialog(AdminTable.this,
-                        "Stock and Price cannot be negative.",
-                        "Validation Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-
-                item.setItemName(resolvedName);
-                item.setCategory(resolvedCat);
-                item.setItemCondition(resolvedCond);
-                item.setItemQuantity(resolvedStock);
-                item.setPrice(resolvedPrice);
-                item.setAvailabilityStatus(resolvedStat);
-
-                showUpdateResult(itemService.updateItem(item), "Item");
-            }
-        }).setVisible(true);
+            }).setVisible(true);
     }
 
-    // Shows a success or failure message after an update
+
+
     private void showUpdateResult(boolean success, String entityName) {
         if (success) {
             loadTableData();
@@ -987,7 +1329,6 @@ public class AdminTable extends CustomPanel {
         }
     }
 
-    // Asks the user to confirm, then archives the selected row
     private void handleArchive() {
         int row = table.getSelectedRow();
         if (row == -1) {
@@ -996,9 +1337,7 @@ public class AdminTable extends CustomPanel {
         }
         int id = getSelectedId(row);
  
-        // ── Self-archive check (Users table only) ─────────────────────────
-        // Block the action immediately in the UI before even hitting the DB,
-        // so the admin gets a clear, specific message.
+ 
         if (type == TableType.USERS) {
             int currentUserId = SessionManager.get().getCurrentUserId();
             if (id == currentUserId) {
@@ -1077,7 +1416,6 @@ public class AdminTable extends CustomPanel {
     }
 
 
-    // Runs the given task in the background so the UI doesn't freeze
     private void runAsync(ArchiveTask task, String successMsg, String failureMsg) {
         SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
             protected Boolean doInBackground() throws Exception {
@@ -1103,7 +1441,7 @@ public class AdminTable extends CustomPanel {
         worker.execute();
     }
 
-    // Simple helper class used to pass a DB task into runAsync without lambdas
+
     private class ArchiveTask {
         private final int    id;
         private final String action;

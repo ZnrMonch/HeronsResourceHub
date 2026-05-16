@@ -23,10 +23,9 @@ public class ItemDatabase {
 
     public List<AdminItems> getAllItems() {
         List<AdminItems> list = new ArrayList<>();
-        // CHANGED: item_condition -> condition; added initiator_firstname, initiator_lastname, items_image
         String sql = "SELECT item_id, owner_id, initiator_firstname, initiator_lastname, "
-                + "item_name, item_quantity, description, items_image, "
-                + "`condition`, category, price, availability_status, action FROM items";
+                   + "item_name, item_quantity, description, items_image, "
+                   + "`condition`, category, price, availability_status, action FROM items";
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
@@ -39,10 +38,14 @@ public class ItemDatabase {
 
     public List<AdminItems> getArchivedItems() {
         List<AdminItems> list = new ArrayList<>();
-        // CHANGED: item_condition -> condition; added initiator_firstname, initiator_lastname, items_image
-        String sql = "SELECT item_id, owner_id, initiator_firstname, initiator_lastname, "
-                + "item_name, item_quantity, description, items_image, "
-                + "`condition`, category, price, availability_status FROM items_archive";
+        String sql = "SELECT ia.item_id, ia.owner_id, ia.initiator_firstname, ia.initiator_lastname, "
+                   + "ia.item_name, ia.item_quantity, ia.description, ia.items_image, "
+                   + "ia.`condition`, ia.category, ia.price, ia.availability_status "
+                   + "FROM items_archive ia "
+                   + "INNER JOIN ("
+                   + "  SELECT item_id, MAX(item_archive_id) AS max_aid FROM items_archive GROUP BY item_id"
+                   + ") latest ON ia.item_archive_id = latest.max_aid "
+                   + "ORDER BY ia.item_id ASC";
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
@@ -66,11 +69,10 @@ public class ItemDatabase {
             case "Status":    column = "availability_status"; break;
             default:          column = "item_name";           break;
         }
-        // CHANGED: item_condition -> condition; added initiator_firstname, initiator_lastname, items_image
         String sql = "SELECT item_id, owner_id, initiator_firstname, initiator_lastname, "
-                + "item_name, item_quantity, description, items_image, "
-                + "`condition`, category, price, availability_status, action FROM items "
-                + "WHERE " + column + " LIKE ?";
+                   + "item_name, item_quantity, description, items_image, "
+                   + "`condition`, category, price, availability_status, action FROM items "
+                   + "WHERE " + column + " LIKE ?";
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, "%" + keyword + "%");
@@ -86,18 +88,21 @@ public class ItemDatabase {
         List<AdminItems> list = new ArrayList<>();
         String column;
         switch (filter) {
-            case "ID":        column = "item_id";   break;
-            case "Item Name": column = "item_name"; break;
-            // CHANGED: "Condition" now maps to "condition" (was "item_condition")
-            case "Condition": column = "`condition`"; break;
-            case "Category":  column = "category";  break;
-            default:          column = "item_name"; break;
+            case "ID":        column = "item_id";       break;
+            case "Item Name": column = "item_name";     break;
+            case "Condition": column = "`condition`";   break;
+            case "Category":  column = "category";      break;
+            default:          column = "item_name";     break;
         }
-        // CHANGED: item_condition -> condition; added initiator_firstname, initiator_lastname, items_image
-        String sql = "SELECT item_id, owner_id, initiator_firstname, initiator_lastname, "
-                + "item_name, item_quantity, description, items_image, "
-                + "`condition`, category, price, availability_status FROM items_archive "
-                + "WHERE " + column + " LIKE ?";
+        String sql = "SELECT ia.item_id, ia.owner_id, ia.initiator_firstname, ia.initiator_lastname, "
+                   + "ia.item_name, ia.item_quantity, ia.description, ia.items_image, "
+                   + "ia.`condition`, ia.category, ia.price, ia.availability_status "
+                   + "FROM items_archive ia "
+                   + "INNER JOIN ("
+                   + "  SELECT item_id, MAX(item_archive_id) AS max_aid FROM items_archive GROUP BY item_id"
+                   + ") latest ON ia.item_archive_id = latest.max_aid "
+                   + "WHERE ia." + column + " LIKE ? "
+                   + "ORDER BY ia.item_id ASC";
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, "%" + keyword + "%");
@@ -110,11 +115,10 @@ public class ItemDatabase {
     }
 
     public AdminItems getItemById(int itemId) {
-        // CHANGED: item_condition -> condition; added initiator_firstname, initiator_lastname, items_image
         String sql = "SELECT item_id, owner_id, initiator_firstname, initiator_lastname, "
-                + "item_name, item_quantity, description, items_image, "
-                + "`condition`, category, price, availability_status, action FROM items "
-                + "WHERE item_id = ?";
+                   + "item_name, item_quantity, description, items_image, "
+                   + "`condition`, category, price, availability_status, action FROM items "
+                   + "WHERE item_id = ?";
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, itemId);
@@ -124,11 +128,11 @@ public class ItemDatabase {
             System.out.println("getItemById() active lookup failed: " + e.getMessage());
         }
 
-        // CHANGED: item_condition -> condition; added initiator_firstname, initiator_lastname, items_image
         String archiveSql = "SELECT item_id, owner_id, initiator_firstname, initiator_lastname, "
-                + "item_name, item_quantity, description, items_image, "
-                + "`condition`, category, price, availability_status FROM items_archive "
-                + "WHERE item_id = ?";
+                          + "item_name, item_quantity, description, items_image, "
+                          + "`condition`, category, price, availability_status "
+                          + "FROM items_archive WHERE item_id = ? "
+                          + "ORDER BY item_archive_id DESC LIMIT 1";
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(archiveSql)) {
             stmt.setInt(1, itemId);
@@ -140,20 +144,56 @@ public class ItemDatabase {
         return null;
     }
 
+
+    public int insertItem(int ownerId, String initiatorFirstName, String initiatorLastName,
+            String name, String category, String condition,
+            int quantity, int price, String status, String action,
+            String description, String imagePath) {
+        String sql =
+            "INSERT INTO items "
+            + "(owner_id, initiator_firstname, initiator_lastname, item_name, category, `condition`, "
+            + " item_quantity, price, availability_status, description, "
+            + " items_image, date_listed, action) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+        try (Connection conn = getConn();
+             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            stmt.setInt(1,     ownerId);
+            stmt.setString(2,  initiatorFirstName);
+            stmt.setString(3,  initiatorLastName);
+            stmt.setString(4,  name);
+            stmt.setString(5,  category);
+            stmt.setString(6,  condition);
+            stmt.setInt(7,     quantity);
+            stmt.setInt(8,     price);
+            stmt.setString(9,  status);
+            stmt.setString(10, description);
+            stmt.setString(11, imagePath);
+            stmt.setString(12, action);
+            int rows = stmt.executeUpdate();
+            if (rows > 0) {
+                ResultSet keys = stmt.getGeneratedKeys();
+                if (keys.next()) return keys.getInt(1);
+            }
+        } catch (SQLException e) {
+            System.out.println("insertItem() failed: " + e.getMessage());
+        }
+        return -1;
+    }
+
     public boolean updateItem(AdminItems item) {
-        // CHANGED: item_condition -> condition
         String sql = "UPDATE items SET item_name = ?, category = ?, `condition` = ?, "
-                + "item_quantity = ?, price = ?, availability_status = ? "
-                + "WHERE item_id = ?";
+                   + "item_quantity = ?, price = ?, availability_status = ?, action = ? "
+                   + "WHERE item_id = ?";
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, item.getItemName());
             stmt.setString(2, item.getCategory());
             stmt.setString(3, item.getItemCondition());
-            stmt.setInt(4, item.getItemQuantity());
-            stmt.setInt(5, item.getPrice());
+            stmt.setInt(4,    item.getItemQuantity());
+            stmt.setInt(5,    item.getPrice());
             stmt.setString(6, item.getAvailabilityStatus());
-            stmt.setInt(7, item.getItemId());
+            stmt.setString(7, item.getAction());
+            stmt.setInt(8,    item.getItemId());
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             System.out.println("updateItem() failed: " + e.getMessage());
@@ -162,6 +202,18 @@ public class ItemDatabase {
     }
 
     public boolean archiveItem(int itemId) {
+        // Step 1 — reputation_log rows tied to this item's transactions
+        String deleteRepLog =
+            "DELETE FROM reputation_log WHERE transaction_id IN "
+            + "(SELECT transaction_id FROM transaction_log WHERE item_id = ?)";
+
+        // Step 2 — transaction_log rows for this item
+        String deleteTransLog = "DELETE FROM transaction_log WHERE item_id = ?";
+
+        // Step 3 — items_log rows for this item
+        String deleteItemsLog = "DELETE FROM items_log WHERE item_id = ?";
+
+        // Step 4a — copy item to archive
         String archiveItem =
             "INSERT IGNORE INTO items_archive "
             + "(item_id, owner_id, initiator_firstname, initiator_lastname, item_name, item_quantity, "
@@ -172,23 +224,24 @@ public class ItemDatabase {
             + "       maximum_borrow_days, desired_item, pickup_area, pickup_time, pickup_days, action "
             + "FROM items WHERE item_id = ?";
 
-        String deleteItem =
-            "DELETE FROM items WHERE item_id = ?";
+        // Step 4b — delete item row
+        String deleteItem = "DELETE FROM items WHERE item_id = ?";
 
         try (Connection conn = getConn()) {
             conn.setAutoCommit(false);
             try {
+                exec(conn, deleteRepLog,   itemId); // 1
+                exec(conn, deleteTransLog, itemId); // 2
+                exec(conn, deleteItemsLog, itemId); // 3
+
                 try (PreparedStatement ps = conn.prepareStatement(archiveItem)) {
                     ps.setInt(1, itemId);
                     int rows = ps.executeUpdate();
                     if (rows == 0)
                         throw new SQLException("Item " + itemId + " not found in items table.");
-                }
+                }                                   // 4a
 
-                try (PreparedStatement ps = conn.prepareStatement(deleteItem)) {
-                    ps.setInt(1, itemId);
-                    ps.executeUpdate();
-                }
+                exec(conn, deleteItem, itemId);     // 4b
 
                 conn.commit();
                 System.out.println("archiveItem() success: item " + itemId + " archived.");
@@ -219,14 +272,14 @@ public class ItemDatabase {
 
         try (Connection conn = getConn()) {
             conn.setAutoCommit(false);
-            try (PreparedStatement ins = conn.prepareStatement(insert);
-                 PreparedStatement del = conn.prepareStatement(delete)) {
-                ins.setInt(1, itemId);
-                int rows = ins.executeUpdate();
-                if (rows == 0)
-                    throw new SQLException("Item " + itemId + " not found in items_archive.");
-                del.setInt(1, itemId);
-                del.executeUpdate();
+            try {
+                try (PreparedStatement ins = conn.prepareStatement(insert)) {
+                    ins.setInt(1, itemId);
+                    int rows = ins.executeUpdate();
+                    if (rows == 0)
+                        throw new SQLException("Item " + itemId + " not found in items_archive.");
+                }
+                exec(conn, delete, itemId);
                 conn.commit();
                 System.out.println("unarchiveItem() success: item " + itemId + " restored.");
                 return true;
@@ -258,6 +311,13 @@ public class ItemDatabase {
         return false;
     }
 
+    private void exec(Connection conn, String sql, int param) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, param);
+            ps.executeUpdate();
+        }
+    }
+
     private Connection getConn() throws SQLException {
         return DriverManager.getConnection(
             DatabaseManager.getURL(),
@@ -274,7 +334,6 @@ public class ItemDatabase {
         item.setItemQuantity(rs.getInt("item_quantity"));
         item.setDescription(rs.getString("description"));
         item.setCategory(rs.getString("category"));
-        // CHANGED: column is now "condition" instead of "item_condition"
         item.setItemCondition(rs.getString("condition"));
         item.setPrice(rs.getInt("price"));
         item.setAvailabilityStatus(rs.getString("availability_status"));
@@ -291,11 +350,10 @@ public class ItemDatabase {
         item.setItemQuantity(rs.getInt("item_quantity"));
         item.setDescription(rs.getString("description"));
         item.setCategory(rs.getString("category"));
-        // CHANGED: column is now "condition" instead of "item_condition"
         item.setItemCondition(rs.getString("condition"));
         item.setPrice(rs.getInt("price"));
         item.setAvailabilityStatus(rs.getString("availability_status"));
-        item.setAction("—");   // items_archive has no action column exposed in admin view
+        item.setAction("—");
         item.setArchived(true);
         return item;
     }
