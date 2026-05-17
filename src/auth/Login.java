@@ -18,6 +18,15 @@ import pages.Page;
 import utils.*;
 import database.UserRecord;
 
+
+// need to connect on the database first to have a validations on the log in is
+// first of all on the student id if the users doesnt have an account, but they input student id
+// it will appear a error message that the "Student ID doesn't exists" as well 
+// on the password if the users input a password but the student ID is doesn't exixts 
+// it will also appear a error message that "Password doesn't exists'. for the whole
+
+
+
 public class Login extends JPanel {
 
 	private static final long serialVersionUID = 1L;
@@ -70,9 +79,7 @@ public class Login extends JPanel {
 
 			@Override
 			public Dimension getPreferredSize() {
-
 				Dimension size = super.getPreferredSize();
-
 				return new Dimension(510, size.height);
 			}
 		};
@@ -164,6 +171,9 @@ public class Login extends JPanel {
 		bottomPanel.add(registerPanel);
 		bottomPanel.add(errorWrapper);
 
+		// =========================
+		// LOGIN BUTTON LOGIC (UPDATED ONLY HERE)
+		// =========================
 		loginButton.addActionListener(e -> {
 
 			String studentId = studentIdField.getText().trim();
@@ -198,10 +208,33 @@ public class Login extends JPanel {
 				return;
 			}
 
+			// =========================
+			// FETCH + EXISTENCE VALIDATION
+			// =========================
 			this.currentStudentId = studentId;
-
 			fetchItemData();
 
+			// Student ID does not exist
+			if (createLogs.isEmpty()) {
+				studentIdError.setText("Student ID doesn't exist.");
+				return;
+			}
+
+			UserRecord user = createLogs.get(0);
+
+			// Account does not exist
+			if (user.studentId == null || user.studentId.isEmpty()) {
+				loginEmptyError.setText("The account doesn't exist.");
+				return;
+			}
+
+			// Password mismatch
+			if (!user.password.equals(password)) {
+				passwordError.setText("Password doesn't exist.");
+				return;
+			}
+
+			// SUCCESS LOGIN
 			this.authFrame.setContentPane(new Page(new Marketplace()));
 			this.authFrame.revalidate();
 			this.authFrame.repaint();
@@ -214,10 +247,6 @@ public class Login extends JPanel {
 
 		setOpaque(false);
 		add(formPanel);
-	}
-
-	public Login() {
-		// TODO Auto-generated constructor stub
 	}
 
 	// DATABASE FETCH

@@ -265,4 +265,14 @@ public class CustomTextArea extends JPanel {
 		}
 		return super.getPreferredSize();
 	}
+
+	public void setLineWrap(boolean b) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	public void setWrapStyleWord(boolean b) {
+		// TODO Auto-generated method stub
+		
+	}
 }

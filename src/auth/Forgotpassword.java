@@ -8,6 +8,8 @@ import utils.*;
 
 public class Forgotpassword extends JDialog {
 
+	private static final long serialVersionUID = 1L;
+
 	private CustomLabel forgotError;
 
 	public Forgotpassword(Auth authFrame) {
@@ -15,209 +17,425 @@ public class Forgotpassword extends JDialog {
 		super(authFrame, "Forgot Password", true);
 
 		setUndecorated(true);
-		setSize(420, 650);
+
+		setSize(420, 700);
+
 		setLocationRelativeTo(authFrame);
+
 		setBackground(new Color(0, 0, 0, 0));
 
-		// =========================
+		// =====================================================
 		// MAIN PANEL
-		// =========================
+		// =====================================================
 		JPanel mainPanel = new RoundedPanel(25);
+
 		mainPanel.setLayout(new BorderLayout());
+
 		mainPanel.setBackground(Color.WHITE);
 
-		// =========================
+		// =====================================================
 		// TOP PANEL
-		// =========================
-		JPanel topPanel = new JPanel(new BorderLayout());
+		// =====================================================
+		JPanel topPanel =
+				new JPanel(new BorderLayout());
+
 		topPanel.setOpaque(false);
-		topPanel.setBorder(BorderFactory.createEmptyBorder(12, 12, 0, 12));
 
-		JButton backButton = new JButton("← Back");
+		topPanel.setBorder(
+				BorderFactory.createEmptyBorder(
+						12,
+						12,
+						0,
+						12));
+
+		JButton backButton =
+				new JButton("← Back");
+
 		backButton.setFocusPainted(false);
+
 		backButton.setBorderPainted(false);
+
 		backButton.setContentAreaFilled(false);
-		backButton.setFont(new Font("SansSerif", Font.PLAIN, 18));
-		backButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-		backButton.addActionListener(e -> dispose());
+		backButton.setFont(
+				new Font(
+						"SansSerif",
+						Font.PLAIN,
+						18));
 
-		topPanel.add(backButton, BorderLayout.WEST);
+		backButton.setCursor(
+				new Cursor(Cursor.HAND_CURSOR));
 
-		// =========================
+		backButton.addActionListener(
+				e -> dispose());
+
+		topPanel.add(
+				backButton,
+				BorderLayout.WEST);
+
+		// =====================================================
 		// CONTENT PANEL
-		// =========================
+		// =====================================================
 		JPanel contentPanel = new JPanel();
+
 		contentPanel.setOpaque(false);
-		contentPanel.setBorder(BorderFactory.createEmptyBorder(0, 35, 25, 35));
-		contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
 
-		JLabel iconLabel = new JLabel("ⓘ");
-		iconLabel.setFont(new Font("SansSerif", Font.BOLD, 70));
-		iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+		contentPanel.setBorder(
+				BorderFactory.createEmptyBorder(
+						0,
+						35,
+						25,
+						35));
 
-		JLabel description = new JLabel(
-				"<html><center>Please enter the required information<br>below to update your password.</center></html>");
+		contentPanel.setLayout(
+				new BoxLayout(
+						contentPanel,
+						BoxLayout.Y_AXIS));
 
-		description.setAlignmentX(Component.CENTER_ALIGNMENT);
-		description.setHorizontalAlignment(SwingConstants.CENTER);
+		JLabel iconLabel =
+				new JLabel("ⓘ");
+
+		iconLabel.setFont(
+				new Font(
+						"SansSerif",
+						Font.BOLD,
+						70));
+
+		iconLabel.setAlignmentX(
+				Component.CENTER_ALIGNMENT);
+
+		JLabel description =
+				new JLabel(
+						"<html><center>"
+						+ "Please enter the required information"
+						+ "<br>below to continue password recovery."
+						+ "</center></html>");
+
+		description.setAlignmentX(
+				Component.CENTER_ALIGNMENT);
+
+		description.setHorizontalAlignment(
+				SwingConstants.CENTER);
+
 		description.setForeground(Color.GRAY);
 
 		contentPanel.add(iconLabel);
-		contentPanel.add(Box.createVerticalStrut(10));
+
+		contentPanel.add(
+				Box.createVerticalStrut(10));
+
 		contentPanel.add(description);
-		contentPanel.add(Box.createVerticalStrut(30));
 
-		// =========================
+		contentPanel.add(
+				Box.createVerticalStrut(30));
+
+		// =====================================================
 		// FIELDS
-		// =========================
-		CustomTextField idField = new CustomTextField("", 20, 15);
-		CustomTextField emailField = new CustomTextField("", 20, 15);
-		CustomPasswordField newPass = new CustomPasswordField(20, 15);
-		CustomPasswordField confirmPass = new CustomPasswordField(20, 15);
+		// =====================================================
+		CustomTextField idField =
+				new CustomTextField(
+						"",
+						20,
+						15);
 
-		contentPanel.add(createField("Enter Student ID *", idField));
-		contentPanel.add(Box.createVerticalStrut(10));
-		contentPanel.add(createField("Enter UMak Email Address *", emailField));
-		contentPanel.add(Box.createVerticalStrut(10));
-		contentPanel.add(createField("Enter New Password *", newPass));
-		contentPanel.add(Box.createVerticalStrut(10));
-		contentPanel.add(createField("Confirm New Password *", confirmPass));
+		CustomTextField emailField =
+				new CustomTextField(
+						"",
+						20,
+						15);
 
-		// =========================
+		CustomComboBox<String> securityQuestionComboBox =
+				new CustomComboBox<>(
+						new String[] {
+								"Select a Security Question",
+								"What was the nickname your family called you as a child?",
+								"What was the name of your first pet?",
+								"What is your mother's complete maiden name?",
+								"What was your favorite childhood food?",
+								"What is the name of the hospital where you were born?",
+								"What was your favorite family tradition during holidays?",
+								"What is your favorite childhood movie?"
+						},
+						5);
+
+		CustomTextArea securityAnswerField =
+				new CustomTextArea();
+
+		securityAnswerField.setLineWrap(true);
+
+		securityAnswerField.setWrapStyleWord(true);
+
+		contentPanel.add(
+				createField(
+						"Enter Student ID *",
+						idField));
+
+		contentPanel.add(
+				Box.createVerticalStrut(10));
+
+		contentPanel.add(
+				createField(
+						"Enter UMak Email Address *",
+						emailField));
+
+		contentPanel.add(
+				Box.createVerticalStrut(10));
+
+		contentPanel.add(
+				createField(
+						"Security Question *",
+						securityQuestionComboBox));
+
+		contentPanel.add(
+				Box.createVerticalStrut(10));
+
+		contentPanel.add(
+				createField(
+						"Security Answer *",
+						securityAnswerField));
+
+		// =====================================================
 		// ERROR LABEL
-		// =========================
-		forgotError = new CustomLabel("");
-		forgotError.setForeground(Color.RED);
-		forgotError.setAlignmentX(Component.CENTER_ALIGNMENT);
+		// =====================================================
+		forgotError =
+				new CustomLabel("");
 
-		contentPanel.add(Box.createVerticalStrut(15));
+		forgotError.setForeground(Color.RED);
+
+		forgotError.setAlignmentX(
+				Component.CENTER_ALIGNMENT);
+
+		contentPanel.add(
+				Box.createVerticalStrut(15));
+
 		contentPanel.add(forgotError);
 
-		// =========================
+		// =====================================================
 		// CONFIRM BUTTON
-		// =========================
-		CustomButton confirmButton = new CustomButton("Confirm", 20);
-		confirmButton.setPreferredSize(new Dimension(300, 45));
-		confirmButton.setMaximumSize(new Dimension(300, 45));
+		// =====================================================
+		CustomButton confirmButton =
+				new CustomButton("Confirm", 20);
+
+		confirmButton.setPreferredSize(
+				new Dimension(300, 45));
 
 		confirmButton.addActionListener(e -> {
 
-			String id = idField.getText().trim();
-			String email = emailField.getText().trim();
-			String newPassStr = String.valueOf(newPass.getPassword()).trim();
-			String confirmPassStr = String.valueOf(confirmPass.getPassword()).trim();
+			String id =
+					idField.getText().trim();
+
+			String email =
+					emailField.getText().trim();
+
+			String answer =
+					securityAnswerField.getText().trim();
 
 			forgotError.setText("");
 
-			if (id.isEmpty() || email.isEmpty()
-					|| newPassStr.isEmpty() || confirmPassStr.isEmpty()) {
+			// =================================================
+			// EMPTY CHECK
+			// =================================================
+			if (id.isEmpty()
+					|| email.isEmpty()
+					|| answer.isEmpty()) {
 
-				forgotError.setText("All fields are required.");
+				forgotError.setText(
+						"All fields are required.");
+
 				return;
 			}
 
+			// =================================================
+			// STUDENT ID CHECK
+			// =================================================
 			if (!id.matches("[AaKk][0-9]{8}")) {
-				forgotError.setText("Invalid Student ID.");
+
+				forgotError.setText(
+						"Invalid Student ID.");
+
 				return;
 			}
 
+			// =================================================
+			// EMAIL CHECK
+			// =================================================
 			if (!email.endsWith("@umak.edu.ph")) {
-				forgotError.setText("Invalid UMak Email Address.");
+
+				forgotError.setText(
+						"Invalid UMak Email Address.");
+
 				return;
 			}
 
-			if (!newPassStr.equals(confirmPassStr)) {
-				forgotError.setText("Password does not match.");
+			// =================================================
+			// SECURITY QUESTION CHECK
+			// =================================================
+			if (securityQuestionComboBox.getSelectedIndex() == 0) {
+
+				forgotError.setText(
+						"Please select a security question.");
+
 				return;
 			}
 
-			SecurityDialog security =
-					new SecurityDialog(authFrame, false);
+			// =================================================
+			// SECURITY ANSWER CHECK
+			// =================================================
+			if (answer.length() < 8) {
 
-			boolean securityPassed = security.isVisible();
+				forgotError.setText(
+						"Security answer must be at least 8 characters.");
 
-			if (!securityPassed) {
-				forgotError.setText("Security verification failed.");
 				return;
 			}
 
-			JOptionPane.showMessageDialog(
-					this,
-					"Password updated successfully!",
-					"Success",
-					JOptionPane.INFORMATION_MESSAGE);
+			if (answer.length() > 100) {
 
-			dispose();
+				forgotError.setText(
+						"Security answer must not exceed 100 characters.");
+
+				return;
+			}
+
+			// =================================================
+			// OPEN SECURITY DIALOG
+			// =================================================
+			SecurityDialog securityDialog =
+					new SecurityDialog(authFrame);
+
+			// =================================================
+			// SUCCESS
+			// =================================================
+			if (securityDialog.isSubmitted()) {
+
+				JOptionPane.showMessageDialog(
+						this,
+						"Password updated successfully!",
+						"Success",
+						JOptionPane.INFORMATION_MESSAGE);
+
+				dispose();
+			}
 		});
 
-		JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+		JPanel buttonPanel =
+				new JPanel(
+						new FlowLayout(
+								FlowLayout.CENTER));
+
 		buttonPanel.setOpaque(false);
+
 		buttonPanel.add(confirmButton);
 
-		contentPanel.add(Box.createVerticalStrut(20));
+		contentPanel.add(
+				Box.createVerticalStrut(20));
+
 		contentPanel.add(buttonPanel);
 
-		// =========================
+		// =====================================================
 		// FINAL LAYOUT
-		// =========================
-		mainPanel.add(topPanel, BorderLayout.NORTH);
-		mainPanel.add(contentPanel, BorderLayout.CENTER);
+		// =====================================================
+		mainPanel.add(
+				topPanel,
+				BorderLayout.NORTH);
+
+		mainPanel.add(
+				contentPanel,
+				BorderLayout.CENTER);
 
 		setContentPane(mainPanel);
 	}
 
-	// =========================
-	// FIELD UI (BOLD LABEL FIXED)
-	// =========================
-	private JPanel createField(String label, JComponent field) {
+	// =========================================================
+	// FIELD UI
+	// =========================================================
+	private JPanel createField(
+			String label,
+			JComponent field) {
 
-		JPanel panel = new JPanel(new BorderLayout(0, 5));
+		JPanel panel =
+				new JPanel(
+						new BorderLayout(0, 5));
+
 		panel.setOpaque(false);
 
-		CustomLabel lbl = new CustomLabel(
-			"<html><b>" + label.replace("*", "<span style='color:red;'>*</span>") + "</b></html>"
-		); // ✅ BOLD + RED ASTERISK
+		CustomLabel lbl =
+				new CustomLabel(
+						"<html><b>"
+						+ label.replace(
+								"*",
+								"<span style='color:red;'>*</span>")
+						+ "</b></html>");
 
 		lbl.setFontStyle(FontStyle.BOLD);
-		lbl.setFontSize(Brand.STANDARD_TEXT_SIZE);
 
-		panel.add(lbl, BorderLayout.NORTH);
-		panel.add(field, BorderLayout.CENTER);
+		lbl.setFontSize(
+				Brand.STANDARD_TEXT_SIZE);
 
-		panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 65));
+		panel.add(
+				lbl,
+				BorderLayout.NORTH);
+
+		panel.add(
+				field,
+				BorderLayout.CENTER);
+
+		panel.setMaximumSize(
+				new Dimension(
+						Integer.MAX_VALUE,
+						90));
 
 		return panel;
 	}
 
+	// =========================================================
+	// SHOW DIALOG
+	// =========================================================
 	public void showDialog() {
+
 		setVisible(true);
 	}
 
-	// =========================
+	// =========================================================
 	// ROUNDED PANEL
-	// =========================
+	// =========================================================
 	class RoundedPanel extends JPanel {
 
+		private static final long serialVersionUID = 1L;
+
 		private int radius;
+
 		private int borderThickness = 1;
 
 		public RoundedPanel(int radius) {
+
 			this.radius = radius;
+
 			setOpaque(false);
 		}
 
 		@Override
 		protected void paintComponent(Graphics g) {
 
-			Graphics2D g2 = (Graphics2D) g.create();
-			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+			Graphics2D g2 =
+					(Graphics2D) g.create();
+
+			g2.setRenderingHint(
+					RenderingHints.KEY_ANTIALIASING,
 					RenderingHints.VALUE_ANTIALIAS_ON);
 
 			g2.setColor(Color.BLACK);
-			g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
+
+			g2.fillRoundRect(
+					0,
+					0,
+					getWidth(),
+					getHeight(),
+					radius,
+					radius);
 
 			g2.setColor(getBackground());
+
 			g2.fillRoundRect(
 					borderThickness,
 					borderThickness,
@@ -228,6 +446,7 @@ public class Forgotpassword extends JDialog {
 			);
 
 			g2.dispose();
+
 			super.paintComponent(g);
 		}
 	}
