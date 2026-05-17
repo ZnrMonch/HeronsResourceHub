@@ -266,9 +266,9 @@ public class AdminTable extends CustomPanel {
         btnAddAction = new CustomButton("Add " + (type == TableType.USERS ? "User" : "Item"), 8);
         btnAddAction.setFontSize(12f);
         btnAddAction.setPadding(6, 14, 6, 14);
-        btnAddAction.setDefaultColor(Color.decode("#007bff"));
+        btnAddAction.setDefaultColor(Color.decode("#0056b3"));
         btnAddAction.setTextColor(Color.WHITE);
-        btnAddAction.setHoverColor(Color.decode("#0056b3"));
+        btnAddAction.setHoverColor(Brand.PRIMARY_COLOR);
         btnAddAction.setEnabled(true);
 
         btnAddAction.addActionListener(new ActionListener() {
@@ -523,8 +523,10 @@ public class AdminTable extends CustomPanel {
         if (choice != JOptionPane.YES_OPTION) return;
 
         String successMsg = entityType + " ID " + id + " restored successfully.";
-        String failureMsg = "Restore failed for " + entityType + " ID " + id
-            + ".\nThe record may not exist in the archive.";
+        String failureMsg = "Restore failed for " + entityType + " ID " + id + ".\n\n"
+        	    + "Possible reasons:\n"
+        	    + "  • The item's original owner is archived (restore the user first)\n"
+        	    + "  • The record may not exist in the archive";
 
         RecordAction action = type == TableType.USERS
             ? RecordAction.RESTORE_USER

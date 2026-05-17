@@ -81,7 +81,7 @@ public class AdminItemsServices {
         int    ownerId  = item.getOwnerId();
         boolean success = itemDB.archiveItem(itemId);
         if (success)
-            logDB.insertLog(ItemLogAction.ITEM_ARCHIVE, ownerId, 0, "\"" + itemName + "\"");
+            logDB.insertLog(ItemLogAction.ITEM_ARCHIVE, ownerId, itemId, "\"" + itemName + "\"");
         return success;
     }
 
@@ -91,6 +91,15 @@ public class AdminItemsServices {
             System.out.println("unarchiveItem() failed: item " + itemId + " not found in archive.");
             return false;
         }
+
+        // Check active users table only — owner must exist there for FK to pass
+        AdminUsers owner = new UsersDatabase().getUserById(item.getOwnerId());
+        if (owner == null || owner.isArchived()) {
+            System.out.println("unarchiveItem() failed: owner_id " + item.getOwnerId()
+                + " is archived or does not exist. Restore the user first.");
+            return false;
+        }
+
         String itemName = item.getItemName();
         int    ownerId  = item.getOwnerId();
         boolean success = itemDB.unarchiveItem(itemId);
@@ -102,7 +111,7 @@ public class AdminItemsServices {
     public boolean permanentDeleteItem(int itemId) {
         boolean success = itemDB.permanentDeleteItem(itemId);
         if (success)
-            logDB.insertLog(ItemLogAction.ITEM_DELETE, 0, 0, "ID " + itemId);
+        	logDB.insertLog(ItemLogAction.ITEM_DELETE, 0, itemId, "ID " + itemId);
         return success;
     }
 

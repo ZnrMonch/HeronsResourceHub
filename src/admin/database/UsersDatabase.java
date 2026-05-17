@@ -136,6 +136,7 @@ public class UsersDatabase extends BaseDatabase {
         String base      = "SELECT " + SELECT_USERS_COLS + " FROM users WHERE user_id = ?";
         String activeSql = hasSoftDeleteColumn() ? base + " AND deleted_at IS NULL" : base;
 
+        // 1. Active users
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(activeSql)) {
             stmt.setInt(1, userId);
@@ -145,6 +146,7 @@ public class UsersDatabase extends BaseDatabase {
             System.err.println("getUserById() active lookup failed: " + e.getMessage());
         }
 
+        // 2. Soft-deleted users (only if column exists)
         if (hasSoftDeleteColumn()) {
             try (Connection conn = getConn();
                  PreparedStatement stmt = conn.prepareStatement(base + " AND deleted_at IS NOT NULL")) {
@@ -155,6 +157,20 @@ public class UsersDatabase extends BaseDatabase {
                 System.err.println("getUserById() soft-delete lookup failed: " + e.getMessage());
             }
         }
+
+        // 3. Archived users
+        String archiveSql = "SELECT " + SELECT_ARCHIVE_COLS
+                + " FROM users_archive WHERE user_id = ? "
+                + "ORDER BY user_archive_id DESC LIMIT 1";
+        try (Connection conn = getConn();
+             PreparedStatement stmt = conn.prepareStatement(archiveSql)) {
+            stmt.setInt(1, userId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) return mapRow(rs, true);
+        } catch (SQLException e) {
+            System.err.println("getUserById() archive lookup failed: " + e.getMessage());
+        }
+
         return null;
     }
 
@@ -337,8 +353,7 @@ public class UsersDatabase extends BaseDatabase {
 
 
         String insertAuditLog =
-            "INSERT INTO users_log (user_id, initiator_firstname, initiator_lastname, action, reason, timestamp) "
-            + "VALUES (NULL, '', '', 'Archive', 'User archived by admin.', NOW())";
+            "INSERT INTO users_log (user_id, initiator_firstname, initiator_lastname, action, reason, timestamp) ";
         try (Connection conn = getConn();
              PreparedStatement ps = conn.prepareStatement(insertAuditLog)) {
             ps.executeUpdate();

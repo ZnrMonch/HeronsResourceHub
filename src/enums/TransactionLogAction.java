@@ -37,4 +37,14 @@ public enum TransactionLogAction {
         }
         return result;
     }
+    
+    public String getFormattedName() {
+        String[] words = this.name().split("_");
+        StringBuilder sb = new StringBuilder();
+        for (String word : words) {
+            if (!sb.isEmpty()) sb.append(" ");
+            sb.append(word.charAt(0)).append(word.substring(1).toLowerCase());
+        }
+        return sb.toString();
+    }
 }
