@@ -1,50 +1,51 @@
 package enums;
 
+/**
+ * Actions recorded in the transaction_log table.
+ * DB column type: enum(
+ *   'Sell','Sell-Relisted','Sell-Withdrawn',
+ *   'Buy',
+ *   'Lend','Lend-Relisted','Lend-Withdrawn',
+ *   'Borrow-Request','Borrow-Approved','Borrow-Declined','Borrow-Return',
+ *   'Trade-Relisted','Trade-Withdrawn','Trade-Initiate',
+ *   'Trade-Request','Trade-Approved','Trade-Declined'
+ * )
+ */
 public enum TransactionLogAction {
-    TRANSACTION_BUY("Item purchased successfully."),
-    TRANSACTION_SELL("Item sold successfully."),
-    TRANSACTION_CANCEL("Transaction cancelled."),
-    TRANSACTION_COMPLETE("Transaction completed successfully."),
-    PAYMENT_COMPLETED("Payment completed successfully."),
-    PAYMENT_FAILED("Payment failed."),
-    TRADE_INITIATE("Trade request initiated."),
-    TRADE_ACCEPT("Trade request accepted."),
-    TRADE_DECLINE("Trade request declined."),
-    TRADE_CANCEL("Trade request cancelled."),
-    TRADE_COMPLETE("Trade completed successfully."),
-    BORROW_REQUEST("Borrow request submitted."),
-    BORROW_APPROVE("Borrow request approved."),
-    BORROW_DECLINE("Borrow request declined."),
-    BORROW_RETURN("Borrowed item returned successfully."),
-    BORROW_CANCEL("Borrow request cancelled."),
-    BORROW_COMPLETE("Borrow transaction completed.");
 
+    SELL("Sell",                   "Item listed for sale"),
+    SELL_RELISTED("Sell-Relisted", "Sale item relisted"),
+    SELL_WITHDRAWN("Sell-Withdrawn","Sale item withdrawn"),
+
+    BUY("Buy", "Item purchased"),
+
+    LEND("Lend",                     "Item listed for lending"),
+    LEND_RELISTED("Lend-Relisted",   "Lend item relisted"),
+    LEND_WITHDRAWN("Lend-Withdrawn", "Lend item withdrawn"),
+
+    BORROW_REQUEST("Borrow-Request",   "Borrow request submitted"),
+    BORROW_APPROVED("Borrow-Approved", "Borrow request approved"),
+    BORROW_DECLINED("Borrow-Declined", "Borrow request declined"),
+    BORROW_RETURN("Borrow-Return",     "Borrowed item returned"),
+
+    TRADE_RELISTED("Trade-Relisted",   "Trade item relisted"),
+    TRADE_WITHDRAWN("Trade-Withdrawn", "Trade item withdrawn"),
+    TRADE_INITIATE("Trade-Initiate",   "Trade initiated"),
+    TRADE_REQUEST("Trade-Request",     "Trade request submitted"),
+    TRADE_APPROVED("Trade-Approved",   "Trade request approved"),
+    TRADE_DECLINED("Trade-Declined",   "Trade request declined");
+
+    private final String dbValue;
     private final String description;
 
-    TransactionLogAction(String description) {
+    TransactionLogAction(String dbValue, String description) {
+        this.dbValue     = dbValue;
         this.description = description;
     }
 
-    public String getDescription() {
-        return description;
-    }
+    /** The exact value stored in the DB enum column. */
+    public String getDbValue() { return dbValue; }
 
-    public String format(String... replacements) {
-        String result = description;
-        String[] keys = { "{user_name}", "{item_name}", "{role}", "{field}" };
-        for (int i = 0; i < replacements.length && i < keys.length; i++) {
-            result = result.replace(keys[i], replacements[i]);
-        }
-        return result;
-    }
-    
-    public String getFormattedName() {
-        String[] words = this.name().split("_");
-        StringBuilder sb = new StringBuilder();
-        for (String word : words) {
-            if (!sb.isEmpty()) sb.append(" ");
-            sb.append(word.charAt(0)).append(word.substring(1).toLowerCase());
-        }
-        return sb.toString();
-    }
+    /** Human-readable log description. */
+    public String getDescription() { return description; }
 }

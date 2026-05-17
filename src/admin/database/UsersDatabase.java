@@ -5,6 +5,7 @@ import database.DatabaseManager;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import utils.HashUtil;
 
 public class UsersDatabase extends BaseDatabase {
 
@@ -353,13 +354,13 @@ public class UsersDatabase extends BaseDatabase {
 
 
         String insertAuditLog =
-            "INSERT INTO users_log (user_id, initiator_firstname, initiator_lastname, action, reason, timestamp) ";
-        try (Connection conn = getConn();
-             PreparedStatement ps = conn.prepareStatement(insertAuditLog)) {
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            System.out.println("archiveUser() audit log skipped (non-fatal): " + e.getMessage());
-        }
+                "INSERT INTO users_log (user_id, initiator_firstname, initiator_lastname, action, reason, timestamp) ";
+            try (Connection conn = getConn();
+                 PreparedStatement ps = conn.prepareStatement(insertAuditLog)) {
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                System.out.println("archiveUser() audit log skipped (non-fatal): " + e.getMessage());
+            }
 
         return true;
     }

@@ -1,26 +1,30 @@
 package enums;
 
+/**
+ * Actions recorded in the reputation_log table.
+ * DB column type: enum('Earned','Deducted')
+ */
 public enum ReputationLogAction {
-    REPUTATION_INCREASE("User reputation increased."),
-    REPUTATION_DECREASE("User reputation decreased."),
-    REPUTATION_UPDATE("User reputation updated.");
 
+    REPUTATION_EARNED("Earned",    "Karma points earned"),
+    REPUTATION_DEDUCTED("Deducted","Karma points deducted"),
+
+    // Legacy aliases — kept so existing call sites compile without changes
+    /** @deprecated use REPUTATION_EARNED */
+    @Deprecated
+    REPUTATION_UPDATE("Earned", "Karma points updated");
+
+    private final String dbValue;
     private final String description;
 
-    ReputationLogAction(String description) {
+    ReputationLogAction(String dbValue, String description) {
+        this.dbValue     = dbValue;
         this.description = description;
     }
 
-    public String getDescription() {
-        return description;
-    }
+    /** The exact value stored in the DB enum column. */
+    public String getDbValue() { return dbValue; }
 
-    public String format(String... replacements) {
-        String result = description;
-        String[] keys = { "{user_name}", "{item_name}", "{role}", "{field}" };
-        for (int i = 0; i < replacements.length && i < keys.length; i++) {
-            result = result.replace(keys[i], replacements[i]);
-        }
-        return result;
-    }
+    /** Human-readable log description. */
+    public String getDescription() { return description; }
 }

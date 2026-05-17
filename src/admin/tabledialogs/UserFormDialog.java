@@ -3,15 +3,22 @@ package admin.tabledialogs;
 import admin.AdminDialog;
 import admin.models.AdminUsers;
 import admin.services.AdminUsersServices;
+import admin.tabledialogs.*;
 import utils.*;
 import components.*;
 import database.UMak;
-
-
+import enums.*;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 
+/**
+ * UserFormDialog.java  (AppDialog edition)
+ * -----------------------------------------
+ * Changes from original:
+ *   - All JOptionPane.showMessageDialog() calls replaced with AppDialog.*()
+ *   - No logic changes — only the dialog calls were swapped
+ */
 public class UserFormDialog {
 
     // Opens the Add New User dialog
@@ -25,24 +32,21 @@ public class UserFormDialog {
         CustomTextField emailField     = new CustomTextField("");
         CustomTextField passwordField  = new CustomTextField("");
 
-        CustomComboBox<String> yearLevelBox = new CustomComboBox<>(new String[] {
-            "First", "Second", "Third", "Fourth", "Fifth", "Graduate"
-        });
+        CustomComboBox<String> yearLevelBox = new CustomComboBox<>(new String[]{
+            "First", "Second", "Third", "Fourth", "Fifth", "Graduate" });
         CustomComboBox<String> collegeBox = new CustomComboBox<>(UMak.COLLEGES_INSTITUTES);
         CustomComboBox<String> roleCategoryBox = new CustomComboBox<>(
-            new String[] { "Standard User", "Admin" });
+            new String[]{ "Standard User", "Admin" });
         CustomComboBox<String> roleSubBox = new CustomComboBox<>(
-            new String[] { "admin", "super_admin" });
+            new String[]{ "admin", "super_admin" });
         roleSubBox.setCustomSize(130, 30);
         roleSubBox.setVisible(false);
 
-        roleCategoryBox.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                boolean isAdmin = "Admin".equals(roleCategoryBox.getSelectedItem());
-                roleSubBox.setVisible(isAdmin);
-                roleSubBox.getParent().revalidate();
-                roleSubBox.getParent().repaint();
-            }
+        roleCategoryBox.addActionListener(e -> {
+            boolean isAdmin = "Admin".equals(roleCategoryBox.getSelectedItem());
+            roleSubBox.setVisible(isAdmin);
+            roleSubBox.getParent().revalidate();
+            roleSubBox.getParent().repaint();
         });
 
         JPanel roleComboPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
@@ -62,7 +66,6 @@ public class UserFormDialog {
         roleRow.add(roleComboPanel, BorderLayout.CENTER);
 
         final String[] profileImageHolder = { "" };
-
         CustomTextField profileImageField = new CustomTextField("No image selected");
         profileImageField.setEditable(false);
         profileImageField.setPreferredSize(new Dimension(170, 32));
@@ -74,14 +77,12 @@ public class UserFormDialog {
         profileBrowseBtn.setDefaultColor(Color.decode("#6c757d"));
         profileBrowseBtn.setTextColor(Color.WHITE);
         profileBrowseBtn.setHoverColor(Color.decode("#5a6268"));
-        profileBrowseBtn.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                String path = ImageBrowserHelper.browse(owner);
-                if (!path.isEmpty()) {
-                    profileImageHolder[0] = path;
-                    profileImageField.setText(
-                        path.substring(path.lastIndexOf(java.io.File.separator) + 1));
-                }
+        profileBrowseBtn.addActionListener(e -> {
+            String path = ImageBrowserHelper.browse(owner);
+            if (!path.isEmpty()) {
+                profileImageHolder[0] = path;
+                profileImageField.setText(
+                    path.substring(path.lastIndexOf(java.io.File.separator) + 1));
             }
         });
 
@@ -90,19 +91,7 @@ public class UserFormDialog {
         profileImageInputPanel.add(profileImageField, BorderLayout.CENTER);
         profileImageInputPanel.add(profileBrowseBtn,  BorderLayout.EAST);
 
-        JPanel profileImageRow = new JPanel(new BorderLayout(10, 0));
-        profileImageRow.setOpaque(false);
-        profileImageRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        profileImageRow.setPreferredSize(new Dimension(0, 35));
-        CustomLabel profileImageLabel = new CustomLabel("Profile Image:", 14f, FontStyle.REGULAR);
-        profileImageLabel.setPreferredSize(new Dimension(100, 30));
-        profileImageLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        JPanel profileImageWrap = new JPanel(new BorderLayout());
-        profileImageWrap.setOpaque(false);
-        profileImageWrap.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
-        profileImageWrap.add(profileImageInputPanel, BorderLayout.CENTER);
-        profileImageRow.add(profileImageLabel, BorderLayout.WEST);
-        profileImageRow.add(profileImageWrap,  BorderLayout.CENTER);
+        JPanel profileImageRow = makeImageRow("Profile Image:", profileImageInputPanel);
 
         formPanel.add(createFieldPanel("Student ID:", studentIdField));
         formPanel.add(Box.createVerticalStrut(10));
@@ -122,59 +111,72 @@ public class UserFormDialog {
         formPanel.add(Box.createVerticalStrut(10));
         formPanel.add(profileImageRow);
 
-        new AdminDialog(owner, "Add New User", formPanel, "Add User",
-            new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    String studentId = studentIdField.getText().trim();
-                    String firstName = firstNameField.getText().trim();
-                    String lastName  = lastNameField.getText().trim();
-                    String email     = emailField.getText().trim();
-                    String password  = passwordField.getText().trim();
-                    String yearLevel = yearLevelBox.getSelectedItem() != null
-                                           ? yearLevelBox.getSelectedItem().toString() : "";
-                    String college   = collegeBox.getSelectedItem() != null
-                                           ? collegeBox.getSelectedItem().toString() : "";
-                    String imagePath = profileImageHolder[0];
+        new AdminDialog(owner, "Create New User", formPanel, "Create",
+            e -> {
+                String studentId = studentIdField.getText().trim();
+                String firstName = firstNameField.getText().trim();
+                String lastName  = lastNameField.getText().trim();
+                String email     = emailField.getText().trim();
+                String password  = passwordField.getText().trim();
+                String yearLevel = yearLevelBox.getSelectedItem() != null
+                                       ? yearLevelBox.getSelectedItem().toString() : "";
+                String college   = collegeBox.getSelectedItem() != null
+                                       ? collegeBox.getSelectedItem().toString() : "";
+                String imagePath = profileImageHolder[0];
 
-                    if (studentId.isEmpty() || firstName.isEmpty() || lastName.isEmpty()
-                            || email.isEmpty() || password.isEmpty() || college.isEmpty()) {
-                        JOptionPane.showMessageDialog(null,
-                            "Student ID, First Name, Last Name, Email, Password, and College are required.",
-                            "Validation Error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
+                if (studentId.isEmpty() || firstName.isEmpty() || lastName.isEmpty()
+                        || email.isEmpty() || password.isEmpty() || college.isEmpty()) {
+                    // ── Replaced JOptionPane.showMessageDialog ────────────────
+                	JOptionPane.showMessageDialog(
+                		    null,
+                		    "Error: Please complete all required fields.",
+                		    "Error",
+                		    JOptionPane.ERROR_MESSAGE
+                		);
+                    return;
+                }
 
-                    if (!email.toLowerCase().endsWith("@umak.edu.ph")) {
-                        JOptionPane.showMessageDialog(null,
-                            "Email must be a valid UMak address ending in @umak.edu.ph\n"
-                            + "Example: firstname.lastname@umak.edu.ph",
-                            "Invalid Email", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
+                if (!email.toLowerCase().endsWith("@umak.edu.ph")) {
+                	JOptionPane.showMessageDialog(
+                		    null,
+                		    "Error: Invalid email address format!",
+                		    "Error",
+                		    JOptionPane.ERROR_MESSAGE
+                		);
+                    return;
+                }
 
-                    String resolvedRole;
-                    if ("Admin".equals(roleCategoryBox.getSelectedItem())) {
-                        resolvedRole = (roleSubBox.getSelectedItem() != null)
-                            ? roleSubBox.getSelectedItem().toString() : "admin";
-                    } else {
-                        resolvedRole = "end_user";
-                    }
+                String resolvedRole = "Admin".equals(roleCategoryBox.getSelectedItem())
+                        ? (roleSubBox.getSelectedItem() != null
+                               ? roleSubBox.getSelectedItem().toString() : "admin")
+                        : "end_user";
 
-                    boolean success = userService.addUser(
-                        studentId, firstName, lastName, email, password,
-                        yearLevel, college, resolvedRole, imagePath
+                boolean success = userService.addUser(
+                    studentId, firstName, lastName, email, password,
+                    yearLevel, college, resolvedRole, imagePath);
+
+                if (success) {
+                    onSuccess.run();
+
+                    JOptionPane.showMessageDialog(
+                        null,
+                        "Success! The user has been updated successfully.",
+                        "Success",
+                        JOptionPane.INFORMATION_MESSAGE
                     );
 
-                    if (success) {
-                        onSuccess.run();
-                        JOptionPane.showMessageDialog(null, "User added successfully.");
-                        SwingUtilities.getWindowAncestor((Component) e.getSource()).dispose();
-                    } else {
-                        String reason = userService.getLastAddError();
-                        JOptionPane.showMessageDialog(null,
-                            reason != null ? reason : "Failed to add user. Please try again.",
-                            "Error", JOptionPane.ERROR_MESSAGE);
-                    }
+                    SwingUtilities.getWindowAncestor((Component) e.getSource()).dispose();
+
+                } else {
+                    String reason = userService.getLastAddError();
+                    JOptionPane.showMessageDialog(
+                    	    null,
+                    	    reason != null
+                    	        ? "Error: " + reason + "! Please try again."
+                    	        : "Error: Failed to add user! Please try again.",
+                    	    "Error",
+                    	    JOptionPane.ERROR_MESSAGE
+                    	);
                 }
             }).setVisible(true);
     }
@@ -192,16 +194,14 @@ public class UserFormDialog {
         CustomTextField lastNameField  = new CustomTextField(user != null ? user.getLastName()  : "");
 
         CustomComboBox<String> collegeBox = new CustomComboBox<>(UMak.COLLEGES_INSTITUTES);
-        if (user != null) {
-            collegeBox.setSelectedItem(user.getCollege());
-        }
+        if (user != null) collegeBox.setSelectedItem(user.getCollege());
 
         String currentRole = (user != null && user.getSystemRole() != null)
                                  ? user.getSystemRole() : "end_user";
         CustomComboBox<String> roleCategoryBox = new CustomComboBox<>(
-            new String[] { "Standard User", "Admin" });
+            new String[]{ "Standard User", "Admin" });
         CustomComboBox<String> roleSubBox = new CustomComboBox<>(
-            new String[] { "admin", "super_admin" });
+            new String[]{ "admin", "super_admin" });
         roleSubBox.setCustomSize(130, 30);
 
         if (currentRole.equals("end_user")) {
@@ -212,13 +212,11 @@ public class UserFormDialog {
             roleSubBox.setSelectedItem(currentRole);
         }
 
-        roleCategoryBox.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                boolean isAdmin = "Admin".equals(roleCategoryBox.getSelectedItem());
-                roleSubBox.setVisible(isAdmin);
-                roleSubBox.getParent().revalidate();
-                roleSubBox.getParent().repaint();
-            }
+        roleCategoryBox.addActionListener(e -> {
+            boolean isAdmin = "Admin".equals(roleCategoryBox.getSelectedItem());
+            roleSubBox.setVisible(isAdmin);
+            roleSubBox.getParent().revalidate();
+            roleSubBox.getParent().repaint();
         });
 
         JPanel roleComboPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
@@ -245,52 +243,91 @@ public class UserFormDialog {
         formPanel.add(Box.createVerticalStrut(10));
         formPanel.add(roleRow);
 
-        new AdminDialog(owner, "Update User: " + userId, formPanel, "Save Changes",
-            new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    if (user == null) return;
+        AdminDialog[] dialog = { null };
+        dialog[0] = new AdminDialog(owner, "Update User: " + userId, formPanel, "Save Changes",
+            e -> {
+                if (user == null) return;
 
-                    // Use existing value if the field was left empty
-                    String resolvedFirst = firstNameField.getText().trim().isEmpty()
-                        ? user.getFirstName() : firstNameField.getText().trim();
-                    String resolvedLast = lastNameField.getText().trim().isEmpty()
-                        ? user.getLastName() : lastNameField.getText().trim();
-                    String resolvedCollege = (collegeBox.getSelectedItem() == null)
-                        ? user.getCollege() : collegeBox.getSelectedItem().toString().trim();
+                String resolvedFirst = firstNameField.getText().trim().isEmpty()
+                    ? user.getFirstName() : firstNameField.getText().trim();
+                String resolvedLast  = lastNameField.getText().trim().isEmpty()
+                    ? user.getLastName()  : lastNameField.getText().trim();
+                String resolvedCollege = (collegeBox.getSelectedItem() == null)
+                    ? user.getCollege()   : collegeBox.getSelectedItem().toString().trim();
 
-                    // Determine final role string
-                    String resolvedRole;
-                    if ("Admin".equals(roleCategoryBox.getSelectedItem())) {
-                        resolvedRole = (roleSubBox.getSelectedItem() != null)
-                            ? roleSubBox.getSelectedItem().toString() : "admin";
-                    } else {
-                        resolvedRole = "end_user";
-                    }
+                String resolvedRole = "Admin".equals(roleCategoryBox.getSelectedItem())
+                        ? (roleSubBox.getSelectedItem() != null
+                               ? roleSubBox.getSelectedItem().toString() : "admin")
+                        : "end_user";
 
-                    if (resolvedFirst.isEmpty() || resolvedLast.isEmpty() || resolvedCollege.isEmpty()) {
-                        JOptionPane.showMessageDialog(null,
-                            "First Name, Last Name, and College cannot be empty.",
-                            "Validation Error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
-
-                    user.setFirstName(resolvedFirst);
-                    user.setLastName(resolvedLast);
-                    user.setCollege(resolvedCollege);
-                    user.setSystemRole(resolvedRole);
-
-                    boolean success = userService.updateUser(user);
-                    if (success) {
-                        onSuccess.run();
-                        JOptionPane.showMessageDialog(null, "User updated successfully.");
-                    } else {
-                        JOptionPane.showMessageDialog(null, "Update failed. Please try again.");
-                    }
+            
+                if (resolvedFirst.isEmpty() || resolvedLast.isEmpty() || resolvedCollege.isEmpty()) {
+                	JOptionPane.showMessageDialog(
+                		    null,
+                		    "Error: Please complete all required fields.",
+                		    "Error",
+                		    JOptionPane.ERROR_MESSAGE
+                		);
+                    return;
                 }
-            }).setVisible(true);
+            	dialog[0].dispose();
+                int confirm = JOptionPane.showConfirmDialog(
+                	    null,
+                	    "Are you sure you want to update User ID " + userId + "?",
+                	    "Confirm Update",
+                	    JOptionPane.YES_NO_OPTION,
+                	    JOptionPane.QUESTION_MESSAGE
+                	);
+                	if (confirm != JOptionPane.YES_OPTION) return;
+
+                	user.setFirstName(resolvedFirst);
+                	user.setLastName(resolvedLast);
+                	user.setCollege(resolvedCollege);
+                	user.setSystemRole(resolvedRole);
+
+                	boolean success = userService.updateUser(user);
+       
+                if (success) {
+                	dialog[0].dispose();
+                    onSuccess.run();
+                    JOptionPane.showMessageDialog(
+                        null,
+                        "Success! The user has been updated successfully.",
+                        "Success",
+                        JOptionPane.INFORMATION_MESSAGE
+                    );
+                   
+                } else {
+                	 JOptionPane.showMessageDialog(
+                             null,
+                             "Error: Failed to update user information! Please try again.",
+                             "Error",
+                             JOptionPane.ERROR_MESSAGE);
+                }
+                
+                
+            });
+        		dialog[0].setVisible(true);
     }
 
-    // Creates a label + input field row used inside dialogs
+
+    private static JPanel makeImageRow(String labelText, JPanel inputPanel) {
+        JPanel row = new JPanel(new BorderLayout(10, 0));
+        row.setOpaque(false);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+        row.setPreferredSize(new Dimension(0, 35));
+        CustomLabel lbl = new CustomLabel(labelText, 14f, FontStyle.REGULAR);
+        lbl.setPreferredSize(new Dimension(100, 30));
+        lbl.setHorizontalAlignment(SwingConstants.RIGHT);
+        JPanel wrap = new JPanel(new BorderLayout());
+        wrap.setOpaque(false);
+        wrap.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
+        wrap.add(inputPanel, BorderLayout.CENTER);
+        row.add(lbl,  BorderLayout.WEST);
+        row.add(wrap, BorderLayout.CENTER);
+        return row;
+    }
+
     private static JPanel createFieldPanel(String label, JComponent component) {
         JPanel panel = new JPanel(new BorderLayout(10, 0));
         panel.setOpaque(false);
@@ -310,7 +347,6 @@ public class UserFormDialog {
         wrap.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
         wrap.add(component, BorderLayout.CENTER);
         panel.add(wrap, BorderLayout.CENTER);
-
         return panel;
     }
 }

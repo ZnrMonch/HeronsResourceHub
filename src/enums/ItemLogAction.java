@@ -1,37 +1,46 @@
 package enums;
 
+/**
+ * Actions recorded in the items_log table.
+ * DB column type: enum('Create','Update','Archive','Retrieve','Delete')
+ */
 public enum ItemLogAction {
-    ITEM_CREATE("New item created."),
-    ITEM_UPDATE("Item details updated."),
-    ITEM_DELETE("Item deleted."),
-    ITEM_ARCHIVE("Item archived by admin."),
-    ITEM_UNARCHIVE("Item unarchived by admin."),
-    ITEM_RESTORE("Item restored from archive."),
-    ITEM_LIST("Item listed by user."),
-    ITEM_UNLIST("Item removed from listing."),
-    ITEM_APPROVE("Item approved by admin."),
-    ITEM_REJECT("Item rejected by admin."),
-    ITEM_UPLOAD_IMAGE("Item image uploaded."),
-    ITEM_DELETE_IMAGE("Item image deleted."),
-    ITEM_MARK_AVAILABLE("Item marked as available."),
-    ITEM_MARK_UNAVAILABLE("Item marked as unavailable.");
 
+    // Maps to DB value "Create"
+    ITEM_CREATE("Create", "Item listed"),
+    ITEM_LIST("Create",   "Item listed"),
+
+    // Maps to DB value "Update"
+    ITEM_UPDATE("Update",           "Item details updated"),
+    ITEM_MARK_AVAILABLE("Update",   "Item marked available"),
+    ITEM_MARK_UNAVAILABLE("Update", "Item marked unavailable"),
+    ITEM_APPROVE("Update",          "Item approved"),
+    ITEM_REJECT("Update",           "Item rejected"),
+    ITEM_UPLOAD_IMAGE("Update",     "Item image uploaded"),
+    ITEM_DELETE_IMAGE("Update",     "Item image removed"),
+    ITEM_UNLIST("Update",           "Item unlisted"),
+
+    // Maps to DB value "Archive"
+    ITEM_ARCHIVE("Archive", "Item archived"),
+
+    // Maps to DB value "Retrieve"
+    ITEM_UNARCHIVE("Retrieve", "Item restored from archive"),
+    ITEM_RESTORE("Retrieve",   "Item restored from archive"),
+
+    // Maps to DB value "Delete"
+    ITEM_DELETE("Delete", "Item permanently deleted");
+
+    private final String dbValue;
     private final String description;
 
-    ItemLogAction(String description) {
+    ItemLogAction(String dbValue, String description) {
+        this.dbValue     = dbValue;
         this.description = description;
     }
 
-    public String getDescription() {
-        return description;
-    }
+    /** The exact value stored in the DB enum column. */
+    public String getDbValue() { return dbValue; }
 
-    public String format(String... replacements) {
-        String result = description;
-        String[] keys = { "{user_name}", "{item_name}", "{role}", "{field}" };
-        for (int i = 0; i < replacements.length && i < keys.length; i++) {
-            result = result.replace(keys[i], replacements[i]);
-        }
-        return result;
-    }
+    /** Human-readable log description. */
+    public String getDescription() { return description; }
 }

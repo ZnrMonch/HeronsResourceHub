@@ -92,14 +92,6 @@ public class AdminItemsServices {
             return false;
         }
 
-        // Check active users table only — owner must exist there for FK to pass
-        AdminUsers owner = new UsersDatabase().getUserById(item.getOwnerId());
-        if (owner == null || owner.isArchived()) {
-            System.out.println("unarchiveItem() failed: owner_id " + item.getOwnerId()
-                + " is archived or does not exist. Restore the user first.");
-            return false;
-        }
-
         String itemName = item.getItemName();
         int    ownerId  = item.getOwnerId();
         boolean success = itemDB.unarchiveItem(itemId);
@@ -116,16 +108,17 @@ public class AdminItemsServices {
     }
 
     private Object[][] buildTableData(List<AdminItems> items) {
-        Object[][] data = new Object[items.size()][7];
+        Object[][] data = new Object[items.size()][8];
         for (int i = 0; i < items.size(); i++) {
             AdminItems item = items.get(i);
-            data[i][0] = item.getItemId();
-            data[i][1] = item.getItemName();
-            data[i][2] = item.getItemCondition();
-            data[i][3] = item.getCategory();
-            data[i][4] = item.getItemQuantity();
-            data[i][5] = item.getPrice();
-            data[i][6] = item.getAvailabilityStatus();
+            data[i][0] = Boolean.FALSE;
+            data[i][1] = item.getItemId();
+            data[i][2] = item.getItemName();
+            data[i][3] = item.getItemCondition();
+            data[i][4] = item.getCategory();
+            data[i][5] = item.getItemQuantity();
+            data[i][6] = item.getPrice();
+            data[i][7] = item.getAvailabilityStatus();
         }
         return data;
     }

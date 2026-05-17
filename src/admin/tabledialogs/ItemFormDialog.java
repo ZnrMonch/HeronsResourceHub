@@ -93,7 +93,7 @@ public class ItemFormDialog {
         formPanel.add(Box.createVerticalStrut(10));
         formPanel.add(imageRow);
 
-        new AdminDialog(owner, "Add New Item", formPanel, "Add Item",
+        new AdminDialog(owner, "Create New Item", formPanel, "Create Item",
             new ActionListener() {
                 public void actionPerformed(ActionEvent e) {
                     String name      = nameField.getText().trim();
@@ -110,7 +110,7 @@ public class ItemFormDialog {
 
                     if (name.isEmpty() || category.isEmpty()) {
                         JOptionPane.showMessageDialog(null,
-                            "Item Name and Category are required.",
+                            "Error: Please complete all required fields.",
                             "Validation Error", JOptionPane.ERROR_MESSAGE);
                         return;
                     }
@@ -118,7 +118,7 @@ public class ItemFormDialog {
                     if (imagePath.isEmpty()) {
                         JOptionPane.showMessageDialog(null,
                             "Please select an image for the item.",
-                            "Validation Error", JOptionPane.ERROR_MESSAGE);
+                            "Error", JOptionPane.ERROR_MESSAGE);
                         return;
                     }
 
@@ -205,9 +205,10 @@ public class ItemFormDialog {
         formPanel.add(Box.createVerticalStrut(10));
         formPanel.add(createFieldPanel("Action:",    actionBox));
 
-        new AdminDialog(owner, "Update Item: " + itemId, formPanel, "Save Changes",
-            new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
+        AdminDialog[] dialog = { null };
+        dialog[0]  = new AdminDialog(owner, "Update Item: " + itemId, formPanel, "Save Changes",
+        	    new ActionListener() {
+        	        public void actionPerformed(ActionEvent e) {
                     if (item == null) return;
 
                     String resolvedName = nameField.getText().trim().isEmpty()
@@ -249,7 +250,16 @@ public class ItemFormDialog {
                             "Validation Error", JOptionPane.ERROR_MESSAGE);
                         return;
                     }
-
+                	dialog[0].dispose();
+                    int confirm = JOptionPane.showConfirmDialog(
+                    	    null,
+                    	    "Are you sure you want to update Item ID " + itemId + "?",
+                    	    "Confirm Update",
+                    	    JOptionPane.YES_NO_OPTION,
+                    	    JOptionPane.QUESTION_MESSAGE
+                    	);
+                    	if (confirm != JOptionPane.YES_OPTION) return;
+                    	
                     item.setItemName(resolvedName);
                     item.setCategory(resolvedCat);
                     item.setItemCondition(resolvedCond);
@@ -259,14 +269,26 @@ public class ItemFormDialog {
                     item.setAction(resolvedAction);
 
                     boolean success = itemService.updateItem(item);
+                    
                     if (success) {
                         onSuccess.run();
-                        JOptionPane.showMessageDialog(null, "Item updated successfully.");
+                        dialog[0].dispose();
+                        JOptionPane.showMessageDialog(
+                            null,
+                            "Success! The user has been updated successfully.",
+                            "Success",
+                            JOptionPane.INFORMATION_MESSAGE
+                        );
+                      
                     } else {
+                    	 dialog[0].dispose();
                         JOptionPane.showMessageDialog(null, "Update failed. Please try again.");
                     }
-                }
-            }).setVisible(true);
+        	        }
+        	  
+            }); 
+        dialog[0].setVisible(true);
+            
     }
 
     // Creates a label + input field row used inside dialogs
