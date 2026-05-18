@@ -33,7 +33,15 @@ public class ItemCard extends CustomPanel {
 		}
 		
 		CustomPanel imgPanel = new CustomPanel() {
-			private Image imgId = IconLoader.loadIcon(image) != null ? IconLoader.loadIcon(image).getImage() : IconLoader.loadIcon("/resources/images/umak_img.jpg").getImage();
+			private Image imgId = getSafeImage(image);
+			
+			private Image getSafeImage(String path) {
+				ImageIcon icon = IconLoader.loadIcon(path);
+				if (icon != null && icon.getImage() != null) return icon.getImage();
+				ImageIcon fallback = IconLoader.loadIcon("/resources/images/umak_img.jpg");
+				return (fallback != null && fallback.getImage() != null) ? fallback.getImage() : null;
+			}
+
 			@Override
 			protected void paintComponent(Graphics g) {
 				super.paintComponent(g);
@@ -100,7 +108,6 @@ public class ItemCard extends CustomPanel {
 		if (View.GRID.equals(view)) {
 			setLayout(new BorderLayout(0, 10));
 			imgPanel.setPreferredSize(new Dimension(200, 150));
-			
 			imgPanel.setLayout(new FlowLayout(FlowLayout.RIGHT, 10, 10));
 			
 			CustomPanel categoryBadge = new CustomPanel();

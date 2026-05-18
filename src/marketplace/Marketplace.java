@@ -19,6 +19,7 @@ public class Marketplace extends CustomTabbedPane {
     public UserRecord createUser() {
         UserRecord dummyUser = new UserRecord();
         
+        dummyUser.userId = 3; 
         dummyUser.systemRole = "end_user";
         dummyUser.studentId = "K12360080";
         dummyUser.umakEmailAddress = "renzjan.moncinilla@umak.edu.ph";

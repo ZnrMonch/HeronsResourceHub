@@ -191,7 +191,13 @@ public class SplitRequestPanel extends CustomPanel {
 		itemWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
 		
 		String imagePath = (item.itemImage != null && !item.itemImage.isEmpty()) ? item.itemImage : "/resources/images/umak_img.jpg";
-		JLabel imgLabel = new JLabel(IconLoader.loadAndScaleIcon(imagePath, 350, 350));
+		
+		ImageIcon itemIcon = IconLoader.loadAndScaleIcon(imagePath, 350, 350);
+		if (itemIcon == null) {
+			itemIcon = IconLoader.loadAndScaleIcon("/resources/images/umak_img.jpg", 350, 350);
+		}
+		
+		JLabel imgLabel = new JLabel(itemIcon);
 		imgLabel.setPreferredSize(new Dimension(350, 350));
 		itemWrapper.add(imgLabel, BorderLayout.WEST); 
 		
