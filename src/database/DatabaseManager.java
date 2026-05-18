@@ -1,7 +1,7 @@
 package database;
 
 public class DatabaseManager {
-	private static final String DB_URL = "jdbc:mysql://localhost:3306/infoman_cpg";
+	private static final String DB_URL = "jdbc:mysql://localhost:3306/dbnorm2";
 	private static final String USER = "root";
 	private static final String PASSWORD = "";
 	

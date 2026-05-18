@@ -1,18 +1,35 @@
 package marketplace;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Window;
 import javax.swing.*;
-
+import components.*;
+import database.UserRecord;
 import enums.MarketplaceTabMode;
 
-public class MarketplaceTabView extends BaseBrowsePanel {
+public class MarketplaceTabView extends CustomPanel {
     private static final long serialVersionUID = 1L;
 
-    public MarketplaceTabView() {
-        super("Search in Marketplace...", "Sell Item", MarketplaceTabMode.MARKETPLACE);
-    }
+    public MarketplaceTabView(UserRecord user) {
+        setLayout(new BorderLayout());
+        setBackground(Color.WHITE);
 
-    @Override
-    protected void onActionClicked() {
-        new ItemForm((JFrame) SwingUtilities.getWindowAncestor(this), "Sell an Item");
+        CustomTabbedPane subTabs = new CustomTabbedPane();
+        
+        subTabs.addTab("Marketplace", new BaseBrowsePanel(user, "Search in Marketplace...", null, MarketplaceTabMode.MARKETPLACE) {
+            @Override
+            protected void onActionClicked() {
+            }
+        });
+        
+        subTabs.addTab("Selling Center", new BaseBrowsePanel(user, "Search in Selling Center...", "Sell an Item", MarketplaceTabMode.MARKETPLACE_WITHDRAWN) {
+            @Override
+            protected void onActionClicked() {
+                new ItemForm((Window) SwingUtilities.getWindowAncestor(this), "Sell an Item", null);
+            }
+        });
+
+        add(subTabs, BorderLayout.CENTER);
     }
 }

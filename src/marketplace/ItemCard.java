@@ -7,6 +7,8 @@ import components.*;
 import enums.View;
 import utils.*;
 import database.*;
+import enums.Category;
+import enums.Condition;
 
 public class ItemCard extends CustomPanel {
 	private static final long serialVersionUID = 1L;
@@ -17,7 +19,7 @@ public class ItemCard extends CustomPanel {
 	private CustomLabel quantityLabel = new CustomLabel("Stock: 1", Brand.STANDARD_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY);
 	private CustomLabel priceLabel = new CustomLabel("", Brand.HEADER3_TEXT_SIZE, FontStyle.BOLD, Brand.PRIMARY_COLOR);
 	private CustomLabel categoryLabel = new CustomLabel("Category", Brand.STANDARD_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY);
-	private CustomLabel conditionLabel = new CustomLabel("Condition", Brand.STANDARD_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY);
+	private CustomLabel conditionLabel = new CustomLabel("Condition", Brand.STANDARD_TEXT_SIZE, FontStyle.BOLD, Color.GRAY);
 	private CustomLabel initiatorLabel = new CustomLabel("N/A", Brand.STANDARD_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY);
 	
 	public ItemCard(View view, String actionText, ItemRecord record, boolean showPrice, ItemActionListener onAction) {
@@ -26,8 +28,8 @@ public class ItemCard extends CustomPanel {
 		setPadding(10);
 		setRadius(20);
 		
-		if (record != null && record.itemsImage != null && !record.itemsImage.isEmpty()) {
-			this.image = record.itemsImage;
+		if (record != null && record.itemImage != null && !record.itemImage.isEmpty()) {
+			this.image = record.itemImage;
 		}
 		
 		CustomPanel imgPanel = new CustomPanel() {
@@ -57,6 +59,9 @@ public class ItemCard extends CustomPanel {
 			}
 		});
 		
+		Color categoryColor = Color.GRAY;
+		Color conditionColor = Color.GRAY;
+
 		if (record != null) {
 			nameLabel.setText(record.itemName);
 			descriptionLabel.setText(record.description);
@@ -64,6 +69,27 @@ public class ItemCard extends CustomPanel {
 			categoryLabel.setText(record.category != null ? record.category : "");
 			conditionLabel.setText(record.condition != null ? record.condition : "");
 			
+			if (record.category != null) {
+				try {
+					Category catEnum = Category.valueOf(record.category.toUpperCase().replace(" ", "_"));
+					categoryColor = Brand.getCategoryColor(catEnum);
+				} catch (IllegalArgumentException e) {
+					categoryColor = Color.GRAY;
+				}
+			}
+
+			if (record.condition != null) {
+				try {
+					Condition condEnum = Condition.valueOf(record.condition.toUpperCase().replace(" ", "_"));
+					conditionColor = Brand.getConditionColor(condEnum);
+				} catch (IllegalArgumentException e) {
+					conditionColor = Color.GRAY;
+				}
+			}
+
+			categoryLabel.setForeground(categoryColor);
+			conditionLabel.setForeground(conditionColor);
+
 			if (record.initiatorFirstName != null && record.initiatorLastName != null) {
 				initiatorLabel.setText(record.initiatorFirstName + " " + record.initiatorLastName);
 			} else {
@@ -78,12 +104,12 @@ public class ItemCard extends CustomPanel {
 			imgPanel.setLayout(new FlowLayout(FlowLayout.RIGHT, 10, 10));
 			
 			CustomPanel categoryBadge = new CustomPanel();
-			categoryBadge.setBackground(Color.WHITE);
+			categoryBadge.setBackground(categoryColor);
 			categoryBadge.setRadius(15);
 			categoryBadge.setLayout(new FlowLayout(FlowLayout.CENTER, 8, 4));
 			
 			String catText = (record != null && record.category != null) ? record.category : "Category";
-			CustomLabel topRightImgLabel = new CustomLabel(catText, Brand.STANDARD_TEXT_SIZE, FontStyle.BOLD);
+			CustomLabel topRightImgLabel = new CustomLabel(catText, Brand.STANDARD_TEXT_SIZE, FontStyle.BOLD, Color.WHITE);
 			categoryBadge.add(topRightImgLabel);
 			
 			imgPanel.add(categoryBadge);
@@ -91,8 +117,18 @@ public class ItemCard extends CustomPanel {
 			CustomPanel contentPanel = new CustomPanel(new BorderLayout());
 			CustomPanel topWrapper = new CustomPanel();
 			topWrapper.setLayout(new BoxLayout(topWrapper, BoxLayout.Y_AXIS));
+	
+			nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 			topWrapper.add(nameLabel);
-			topWrapper.add(initiatorLabel);
+			
+			CustomPanel infoWrapper = new CustomPanel();
+			infoWrapper.setLayout(new BoxLayout(infoWrapper, BoxLayout.X_AXIS));
+			infoWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
+			infoWrapper.add(initiatorLabel);
+			infoWrapper.add(Box.createHorizontalGlue());
+			infoWrapper.add(conditionLabel);
+			
+			topWrapper.add(infoWrapper);
 			
 			CustomPanel bottomWrapper = new CustomPanel();
 			bottomWrapper.setLayout(new BoxLayout(bottomWrapper, BoxLayout.X_AXIS));

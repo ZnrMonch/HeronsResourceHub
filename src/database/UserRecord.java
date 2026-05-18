@@ -1,6 +1,9 @@
 package database;
 
+import java.sql.Timestamp;
+
 public class UserRecord {
+	public int userId;
 	public String systemRole;
 	public String studentId;
 	public String umakEmailAddress;
@@ -18,4 +21,6 @@ public class UserRecord {
 	public Long mayaNum;
 	public String mastercardNum;
 	public String visaNum;
+	public boolean usersIsArchived;
+	public Timestamp usersArchivedAt;
 }

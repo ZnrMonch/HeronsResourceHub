@@ -13,12 +13,10 @@ import enums.View;
 import utils.*;
 import database.*;
 
-// Custom Interface to replace Consumer<Boolean>
 interface ViewStateListener {
 	void onViewStateChanged(boolean isItemView);
 }
 
-// Custom Interface to replace Consumer<ItemRecord>
 interface ItemActionListener {
 	void onItemAction(ItemRecord record);
 }
@@ -28,10 +26,20 @@ public class ItemPanel extends CustomPanel {
 	private View view = View.GRID;
 	private MarketplaceTabMode tabMode = MarketplaceTabMode.MARKETPLACE;
 	private CustomButton backButton;
+	
+	private UserRecord user;
 
 	private final List<ItemRecord> marketplaceItems = new ArrayList<>();
+	private final List<ItemRecord> marketplaceWithdrawnItems = new ArrayList<>();
+	
 	private final List<ItemRecord> sharingItems = new ArrayList<>();
-	private final List<ItemRecord> tradingItems = new ArrayList<>();
+	private final List<ItemRecord> sharingWithdrawnItems = new ArrayList<>();
+	private final List<ItemRecord> sharingApprovalItems = new ArrayList<>();
+	private final List<ItemRecord> sharingReturnItems = new ArrayList<>();
+	
+	private final List<ItemRecord> tradeItems = new ArrayList<>();
+	private final List<ItemRecord> tradeWithdrawnItems = new ArrayList<>();
+	private final List<ItemRecord> tradeApprovalItems = new ArrayList<>();
 
 	private int currentPage = 0;
 	private static final int GRID_COLUMNS = 4;
@@ -48,18 +56,25 @@ public class ItemPanel extends CustomPanel {
 	private CustomButton checkoutButton;
 	private CustomButton primaryActionButton;
 	private CustomButton secondaryActionButton;
-	private ViewStateListener itemViewStateListener; // Using custom interface
+	private ViewStateListener itemViewStateListener; 
 	private boolean checkoutView = false;
 	
 	private final String DB_URL = DatabaseManager.getURL();
 	private final String USER = DatabaseManager.getUser();
 	private final String PASSWORD = DatabaseManager.getPassword();
 	
-	public ItemPanel() {
-		this(MarketplaceTabMode.MARKETPLACE);
+	private String currentSearchTarget = "All";
+	private String currentSearchText = "";
+	private String currentCategoryFilter = "All Categories";
+	private String currentConditionFilter = "All Conditions";
+	private String currentPriceFilter = "All Prices";
+
+	public ItemPanel(UserRecord user) {
+		this(user, MarketplaceTabMode.MARKETPLACE);
 	}
 
-	public ItemPanel(MarketplaceTabMode tabMode) {
+	public ItemPanel(UserRecord user, MarketplaceTabMode tabMode) {
+		this.user = user;
 		setBackground(Color.WHITE);
 		setPadding(20);
 		setLayout(new BorderLayout(20, 20));
@@ -68,6 +83,16 @@ public class ItemPanel extends CustomPanel {
 		}
 
 		fetchItemData();
+		restoreView();
+	}
+
+	public void applyFilters(String target, String search, String category, String condition, String price) {
+		this.currentSearchTarget = target == null ? "All" : target;
+		this.currentSearchText = search == null ? "" : search.trim().toLowerCase();
+		this.currentCategoryFilter = category == null ? "All Categories" : category;
+		this.currentConditionFilter = condition == null ? "All Conditions" : condition;
+		this.currentPriceFilter = price == null ? "All Prices" : price;
+		this.currentPage = 0;
 		restoreView();
 	}
 
@@ -81,7 +106,7 @@ public class ItemPanel extends CustomPanel {
 		}
 		initNav();
 		if (itemViewStateListener != null) {
-			itemViewStateListener.onViewStateChanged(false); // Call interface method
+			itemViewStateListener.onViewStateChanged(false); 
 		}
 		revalidate();
 		repaint();
@@ -89,54 +114,121 @@ public class ItemPanel extends CustomPanel {
 	
 	private void fetchItemData() {
 		marketplaceItems.clear();
+		marketplaceWithdrawnItems.clear();
 		sharingItems.clear();
-		tradingItems.clear();
+		sharingWithdrawnItems.clear();
+		sharingApprovalItems.clear();
+		sharingReturnItems.clear();
+		tradeItems.clear();
+		tradeWithdrawnItems.clear();
+		tradeApprovalItems.clear();
 
 		try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASSWORD);
 				Statement stmt = conn.createStatement();
-				ResultSet rs = stmt.executeQuery("SELECT * FROM items")) {
+				ResultSet rs = stmt.executeQuery("SELECT i.*, u.first_name AS initiator_firstname, u.last_name AS initiator_lastname FROM items i LEFT JOIN users u ON i.owner_id = u.user_id")) {
 
 			while (rs.next()) {
 				ItemRecord item = new ItemRecord();
 				item.itemId = rs.getInt("item_id");
 				item.ownerId = rs.getInt("owner_id");
-				item.initiatorFirstName = rs.getString("initiator_firstname");
-				item.initiatorLastName = rs.getString("initiator_lastname");
 				item.itemName = rs.getString("item_name");
 				item.itemQuantity = rs.getInt("item_quantity");
 				item.description = rs.getString("description");
-				item.itemsImage = rs.getString("items_image");
+				
+				item.itemImage = rs.getString("item_image");
+				if (item.itemImage == null || item.itemImage.trim().isEmpty() || item.itemImage.contains("axolotl.jpg")) {
+					item.itemImage = "/resources/images/umak_img.jpg";
+				}
+				
 				item.category = rs.getString("category");
 				item.condition = rs.getString("condition");
-				item.price = rs.getInt("price"); // Assuming int for simplicity, or getDouble
+				item.price = rs.getInt("price");
 				item.availabilityStatus = rs.getString("availability_status");
 				item.maximumBorrowDays = rs.getInt("maximum_borrow_days");
 				item.desiredItem = rs.getString("desired_item");
 				item.dateListed = rs.getTimestamp("date_listed");
 				item.pickupArea = rs.getString("pickup_area");
 				item.pickupTime = rs.getString("pickup_time");
-				item.pickupDays = rs.getString("pickup_days"); // Fetches the SET string
+				item.pickupDays = rs.getString("pickup_days");
 				item.action = rs.getString("action");
+				item.itemsIsArchived = rs.getBoolean("items_is_archived");
+				item.itemsArchivedAt = rs.getTimestamp("items_archived_at");
+				item.initiatorFirstName = rs.getString("initiator_firstname");
+				item.initiatorLastName = rs.getString("initiator_lastname");
 
 				String normalizedAction = item.action == null ? "" : item.action.trim().toLowerCase();
-				if ("sharing".equals(normalizedAction)) {
-					sharingItems.add(item);
-				} else if ("barter-trading".equals(normalizedAction) || "barter trading".equals(normalizedAction)) {
-					tradingItems.add(item);
-				} else {
-					marketplaceItems.add(item);
+				
+				if (normalizedAction.startsWith("sharing")) {
+					item.price = 0;
+				}
+				
+				switch (normalizedAction) {
+					case "marketplace":
+						marketplaceItems.add(item);
+						break;
+					case "marketplace_withdrawn":
+						marketplaceWithdrawnItems.add(item);
+						break;
+					case "sharing":
+						sharingItems.add(item);
+						break;
+					case "sharing_withdrawn":
+						sharingWithdrawnItems.add(item);
+						break;
+					case "sharing_approval":
+						sharingApprovalItems.add(item);
+						break;
+					case "sharing_return":
+						sharingReturnItems.add(item);
+						break;
+					case "trade":
+						tradeItems.add(item);
+						break;
+					case "trade_withdrawn":
+						tradeWithdrawnItems.add(item);
+						break;
+					case "trade_approval":
+						tradeApprovalItems.add(item);
+						break;
+					default:
+						break;
 				}
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 	}
+	
+	private void updateItemActionInDB(int itemId, String newAction) {
+		try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASSWORD);
+			 PreparedStatement pstmt = conn.prepareStatement("UPDATE items SET action = ? WHERE item_id = ?")) {
+			pstmt.setString(1, newAction);
+			pstmt.setInt(2, itemId);
+			pstmt.executeUpdate();
+		} catch (SQLException ex) {
+			ex.printStackTrace();
+			JOptionPane.showMessageDialog(this, "Database Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+		}
+	}
 
-	private String getPrimaryActionText() {
+	private String getPrimaryActionText(ItemRecord record) {
+		if (tabMode == MarketplaceTabMode.MARKETPLACE_WITHDRAWN || 
+			tabMode == MarketplaceTabMode.SHARING_WITHDRAWN || 
+			tabMode == MarketplaceTabMode.TRADE_WITHDRAWN) {
+			
+			String action = record.action != null ? record.action.trim().toLowerCase() : "";
+			
+			if (action.endsWith("_approval") || action.endsWith("_return")) {
+				return "Pending Processing";
+			} else {
+				return "Manage Item";
+			}
+		}
+
 		switch (tabMode) {
-		case SHARING: return "Borrow Item";
-		case TRADING: return "Trade Item";
-		default: return "Buy Item";
+			case SHARING: return "Borrow Item";
+			case TRADE: return "Trade Item";
+			default: return "Buy Item";
 		}
 	}
 
@@ -162,12 +254,107 @@ public class ItemPanel extends CustomPanel {
 		}
 	}
 
-	private List<ItemRecord> getItemsForCurrentTab() {
-		switch (tabMode) {
-		case SHARING: return sharingItems;
-		case TRADING: return tradingItems;
-		default: return marketplaceItems;
+	private List<ItemRecord> filterByUser(List<ItemRecord> list) {
+		List<ItemRecord> filtered = new ArrayList<>();
+		for (ItemRecord item : list) {
+			if (user != null && item.ownerId == user.userId) {
+				filtered.add(item);
+			}
 		}
+		return filtered;
+	}
+
+	private List<ItemRecord> getItemsForCurrentTab() {
+		List<ItemRecord> combined = new ArrayList<>();
+		
+		switch (tabMode) {
+		case SHARING: 
+			combined.addAll(sharingItems);
+			break;
+		case TRADE: 
+			combined.addAll(tradeItems);
+			break;
+		case MARKETPLACE:
+			combined.addAll(marketplaceItems);
+			break;
+		case MARKETPLACE_WITHDRAWN:
+			combined.addAll(marketplaceItems);
+			combined.addAll(marketplaceWithdrawnItems);
+			combined = filterByUser(combined);
+			break;
+		case SHARING_WITHDRAWN:
+			combined.addAll(sharingItems);
+			combined.addAll(sharingWithdrawnItems);
+			combined.addAll(sharingApprovalItems);
+			combined.addAll(sharingReturnItems);
+			combined = filterByUser(combined);
+			break;
+		case TRADE_WITHDRAWN:
+			combined.addAll(tradeItems);
+			combined.addAll(tradeWithdrawnItems);
+			combined.addAll(tradeApprovalItems);
+			combined = filterByUser(combined);
+			break;
+		default: 
+			return new ArrayList<>();
+		}
+		
+		List<ItemRecord> filteredList = new ArrayList<>();
+		for (ItemRecord item : combined) {
+			boolean matchSearch = true;
+			boolean matchCategory = true;
+			boolean matchCondition = true;
+			boolean matchPrice = true;
+			
+			if (!currentSearchText.isEmpty()) {
+				String name = item.itemName != null ? item.itemName.toLowerCase() : "";
+				String fName = item.initiatorFirstName != null ? item.initiatorFirstName.toLowerCase() : "";
+				String lName = item.initiatorLastName != null ? item.initiatorLastName.toLowerCase() : "";
+				
+				if ("Item Name".equals(currentSearchTarget)) {
+					if (!name.contains(currentSearchText)) matchSearch = false;
+				} else if ("Initiator Name".equals(currentSearchTarget)) {
+					if (!fName.contains(currentSearchText) && !lName.contains(currentSearchText)) matchSearch = false;
+				} else {
+					if (!name.contains(currentSearchText) && !fName.contains(currentSearchText) && !lName.contains(currentSearchText)) {
+						matchSearch = false;
+					}
+				}
+			}
+			
+			if (!"All Categories".equals(currentCategoryFilter)) {
+				String itemCat = item.category != null ? item.category.replace("_", " ") : "";
+				if (!currentCategoryFilter.equalsIgnoreCase(itemCat)) {
+					matchCategory = false;
+				}
+			}
+			
+			if (!"All Conditions".equals(currentConditionFilter)) {
+				String itemCond = item.condition != null ? item.condition.replace("_", " ") : "";
+				if (!currentConditionFilter.equalsIgnoreCase(itemCond)) {
+					matchCondition = false;
+				}
+			}
+
+			if (!"All Prices".equals(currentPriceFilter)) {
+				double p = item.price;
+				if ("Free".equals(currentPriceFilter) && p != 0) {
+					matchPrice = false;
+				} else if ("Under P500".equals(currentPriceFilter) && (p <= 0 || p >= 500)) {
+					matchPrice = false;
+				} else if ("P500 - P1000".equals(currentPriceFilter) && (p < 500 || p > 1000)) {
+					matchPrice = false;
+				} else if ("Over P1000".equals(currentPriceFilter) && p <= 1000) {
+					matchPrice = false;
+				}
+			}
+			
+			if (matchSearch && matchCategory && matchCondition && matchPrice) {
+				filteredList.add(item);
+			}
+		}
+		
+		return filteredList;
 	}
 
 	private void addEmptyState(CustomPanel parent) {
@@ -186,7 +373,7 @@ public class ItemPanel extends CustomPanel {
 		removeAll();
 		viewItem();
 		if (itemViewStateListener != null) {
-			itemViewStateListener.onViewStateChanged(true); // Call interface method
+			itemViewStateListener.onViewStateChanged(true); 
 		}
 		revalidate();
 		repaint();
@@ -197,7 +384,7 @@ public class ItemPanel extends CustomPanel {
 		wrapper.setLayout(new GridLayout(GRID_ROWS, GRID_COLUMNS, 10, 10));
 
 		List<ItemRecord> items = getItemsForCurrentTab();
-		boolean showPrice = MarketplaceTabMode.MARKETPLACE.equals(tabMode);
+		boolean showPrice = (tabMode == MarketplaceTabMode.MARKETPLACE || tabMode == MarketplaceTabMode.MARKETPLACE_WITHDRAWN);
 		
 		if (items.isEmpty()) {
 			addEmptyState(wrapper);
@@ -210,7 +397,6 @@ public class ItemPanel extends CustomPanel {
 			int endExclusive = Math.min(start + GRID_PAGE_SIZE, items.size());
 			int added = 0;
 			
-			// Use an anonymous class for our custom interface listener
 			ItemActionListener listener = new ItemActionListener() {
 				@Override
 				public void onItemAction(ItemRecord record) {
@@ -219,7 +405,7 @@ public class ItemPanel extends CustomPanel {
 			};
 
 			for (int i = start; i < endExclusive; i++) {
-				ItemCard card = new ItemCard(View.GRID, getPrimaryActionText(), items.get(i), showPrice, listener);
+				ItemCard card = new ItemCard(View.GRID, getPrimaryActionText(items.get(i)), items.get(i), showPrice, listener);
 				wrapper.add(card);
 				added++;
 			}
@@ -235,7 +421,7 @@ public class ItemPanel extends CustomPanel {
 		wrapper.setPadding(10, 20);
 
 		List<ItemRecord> items = getItemsForCurrentTab();
-		boolean showPrice = MarketplaceTabMode.MARKETPLACE.equals(tabMode);
+		boolean showPrice = (tabMode == MarketplaceTabMode.MARKETPLACE || tabMode == MarketplaceTabMode.MARKETPLACE_WITHDRAWN);
 		
 		if (items.isEmpty()) {
 			addEmptyState(wrapper);
@@ -255,7 +441,7 @@ public class ItemPanel extends CustomPanel {
 			};
 
 			for (int i = start; i < endExclusive; i++) {
-				ItemCard card = new ItemCard(View.LIST, getPrimaryActionText(), items.get(i), showPrice, listener);
+				ItemCard card = new ItemCard(View.LIST, getPrimaryActionText(items.get(i)), items.get(i), showPrice, listener);
 				card.setPreferredSize(new Dimension(0, 100));
 				card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
 				wrapper.add(card);
@@ -275,7 +461,6 @@ public class ItemPanel extends CustomPanel {
 	private void initNav() {
 		CustomPanel navWrapper = new CustomPanel(new BorderLayout());
 		
-		// Calculate item range for the label
 		List<ItemRecord> items = getItemsForCurrentTab();
 		int totalItems = items.size();
 		int pageSize = View.GRID.equals(view) ? GRID_PAGE_SIZE : LIST_PAGE_SIZE;
@@ -311,6 +496,7 @@ public class ItemPanel extends CustomPanel {
 		navWrapper.add(wrapper, BorderLayout.EAST);
 		add(navWrapper, BorderLayout.SOUTH);
 	}
+	
 	private int getLastPageIndex() {
 		List<ItemRecord> items = getItemsForCurrentTab();
 		return items.isEmpty() ? 0 : Math.max(0, (items.size() - 1) / (View.GRID.equals(view) ? GRID_PAGE_SIZE : LIST_PAGE_SIZE));
@@ -327,37 +513,47 @@ public class ItemPanel extends CustomPanel {
 	
 	private void viewItem() {
 		CustomPanel wrapper = new CustomPanel(new BorderLayout(30, 20));
-		CustomPanel header = new CustomPanel(new BorderLayout());
-		backButton = new CustomButton(IconLoader.loadAndScaleIcon("/resources/icons/arrow-left.png", 40, 40), 0);
-		backButton.setTransparent();
+		CustomPanel header = new CustomPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
 		
-		if (checkoutView) {
-			backButton.setToolTipText("Return to Item Information");
-		} else {
-			String rawTab = tabMode.toString();
-			backButton.setToolTipText("Return to " + rawTab.substring(0, 1).toUpperCase() + rawTab.substring(1).toLowerCase());
-		}
-		
-		backButton.addActionListener(e -> {
+		java.awt.event.ActionListener backAction = e -> {
 			if (checkoutView) {
 				checkoutView = false;
 				refreshItemView();
 			} else {
 				restoreView();
 			}
-		});
+		};
 		
-		header.add(backButton, BorderLayout.WEST);
+		backButton = new CustomButton(IconLoader.loadAndScaleIcon("/resources/icons/arrow-left.png", 40, 40), 0);
+		backButton.setTransparent();
+		backButton.addActionListener(backAction);
+		
+		CustomButton backLabelButton = new CustomButton("Back", 0);
+		backLabelButton.setTransparent();
+		if (FontLib.POPPINS_BOLD != null) {
+			backLabelButton.setFont(FontLib.POPPINS_BOLD.deriveFont(Brand.HEADER4_TEXT_SIZE));
+		} else {
+			backLabelButton.setFont(new Font("SansSerif", Font.BOLD, (int) Brand.HEADER4_TEXT_SIZE));
+		}
+		backLabelButton.addActionListener(backAction);
+		
+		header.add(backButton);
+		header.add(backLabelButton);
+		
 		wrapper.add(header, BorderLayout.NORTH);
 		
 		CustomPanel westWrapper = new CustomPanel();
 		
-		// Map dynamic image path if it exists
-		String imagePath = (selectedItem != null && selectedItem.itemsImage != null && !selectedItem.itemsImage.isEmpty()) 
-							? selectedItem.itemsImage 
+		String imagePath = (selectedItem != null && selectedItem.itemImage != null && !selectedItem.itemImage.trim().isEmpty() && !selectedItem.itemImage.contains("axolotl.jpg")) 
+							? selectedItem.itemImage 
 							: "/resources/images/umak_img.jpg";
 							
-		JLabel imgLabel = new JLabel(IconLoader.loadAndScaleIcon(imagePath, 400, 500)); 
+		ImageIcon loadedIcon = IconLoader.loadAndScaleIcon(imagePath, 400, 500);
+		if (loadedIcon == null || loadedIcon.getImage() == null) {
+			loadedIcon = IconLoader.loadAndScaleIcon("/resources/images/umak_img.jpg", 400, 500);
+		}
+		
+		JLabel imgLabel = new JLabel(loadedIcon); 
 		imgLabel.setPreferredSize(new Dimension(400, 500));
 		imgLabel.setMaximumSize(new Dimension(400, 500));
 		imgLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -403,7 +599,6 @@ public class ItemPanel extends CustomPanel {
 		priceLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		priceLabel.setForeground(Brand.PRIMARY_COLOR);
 
-		// Format Initiator Name
 		String fullName = "by Someone";
 		if (selectedItem != null && selectedItem.initiatorFirstName != null && selectedItem.initiatorLastName != null) {
 			fullName = "by " + selectedItem.initiatorFirstName.toUpperCase() + " " + selectedItem.initiatorLastName.toUpperCase();
@@ -411,7 +606,6 @@ public class ItemPanel extends CustomPanel {
 		CustomLabel initiatorLabel = new CustomLabel(fullName, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR);
 		initiatorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		
-		// Clean up pickup days formatting (convert "Monday,Tuesday" to "Monday, Tuesday")
 		String displayDays = pickupDays.replace(",", ", ");
 		
 		CustomPanel locationWrapper = new CustomPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
@@ -427,7 +621,13 @@ public class ItemPanel extends CustomPanel {
 		quantityWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
 
 		SpinnerNumberModel spinnerModel = (SpinnerNumberModel) quantitySpinner.getModel();
-		spinnerModel.setMaximum(Math.max(1, stock));
+		
+		int maxLimit = Math.max(1, stock);
+		if (tabMode == MarketplaceTabMode.SHARING) {
+			maxLimit = Math.min(3, Math.max(1, stock));
+		}
+		
+		spinnerModel.setMaximum(maxLimit);
 		spinnerModel.setMinimum(1);
 		spinnerModel.setValue(1);
 		
@@ -436,6 +636,10 @@ public class ItemPanel extends CustomPanel {
 		
 		quantityWrapper.add(quantitySpinner);
 		quantityWrapper.add(new CustomLabel("Stock: " + stock, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY));
+		
+		if (tabMode == MarketplaceTabMode.SHARING) {
+			quantityWrapper.add(new CustomLabel(" (Max limit of 3 items per borrow)", Brand.STANDARD_TEXT_SIZE, FontStyle.ITALIC, Brand.RED));
+		}
 
 		CustomPanel actionRow = buildTabActionRow();
 		
@@ -452,8 +656,7 @@ public class ItemPanel extends CustomPanel {
 		topContent.add(itemInfoWrapper);
 		topContent.add(Box.createVerticalStrut(10));
 		
-		// Hide price for Trading/Sharing views
-		if (MarketplaceTabMode.MARKETPLACE.equals(tabMode)) {
+		if (tabMode == MarketplaceTabMode.MARKETPLACE || tabMode == MarketplaceTabMode.MARKETPLACE_WITHDRAWN) {
 			topContent.add(priceLabel);
 			topContent.add(Box.createVerticalStrut(15));
 		}
@@ -479,6 +682,52 @@ public class ItemPanel extends CustomPanel {
 
 		paymentMethodComboBox = null;
 		checkoutButton = null;
+
+		if (tabMode == MarketplaceTabMode.MARKETPLACE_WITHDRAWN || 
+			tabMode == MarketplaceTabMode.SHARING_WITHDRAWN || 
+			tabMode == MarketplaceTabMode.TRADE_WITHDRAWN) {
+			
+			String currentAction = selectedItem.action != null ? selectedItem.action.trim() : "";
+			boolean isWithdrawn = currentAction.toLowerCase().endsWith("_withdrawn");
+			boolean pendingProcessing = currentAction.toLowerCase().endsWith("_approval") || currentAction.toLowerCase().endsWith("_return");
+			
+			if (pendingProcessing) {
+				CustomButton toggleStatusBtn = new CustomButton("Pending Processing", 10);
+				toggleStatusBtn.setPadding(20, 5);
+				toggleStatusBtn.setDefaultColor(Color.DARK_GRAY);
+				toggleStatusBtn.setHoverColor(Color.DARK_GRAY.darker());
+				toggleStatusBtn.setEnabled(false);
+				row.add(toggleStatusBtn);
+			} else {
+				CustomButton toggleStatusBtn = new CustomButton(isWithdrawn ? "Add to Listing" : "Remove from Listing", 10);
+				toggleStatusBtn.setPadding(20, 5);
+				toggleStatusBtn.setDefaultColor(Brand.PRIMARY_COLOR);
+				toggleStatusBtn.setHoverColor(Brand.PRIMARY_COLOR.darker());
+				toggleStatusBtn.addActionListener(e -> {
+					String newAction = isWithdrawn ? currentAction.replace("_Withdrawn", "").replace("_withdrawn", "") : currentAction + "_Withdrawn";
+					updateItemActionInDB(selectedItem.itemId, newAction);
+					JOptionPane.showMessageDialog(this, "Item status successfully updated.", "Success", JOptionPane.INFORMATION_MESSAGE);
+					fetchItemData();
+					restoreView();
+				});
+				row.add(toggleStatusBtn);
+				
+				row.add(Box.createHorizontalStrut(10));
+				
+				CustomButton updateItemBtn = new CustomButton("Update Item", 10);
+				updateItemBtn.setPadding(20, 5);
+				updateItemBtn.setDefaultColor(Brand.GREEN);
+				updateItemBtn.setHoverColor(Brand.GREEN.darker());
+				updateItemBtn.addActionListener(e -> {
+					Window parentWindow = SwingUtilities.getWindowAncestor(this);
+					new ItemForm(parentWindow, "Update Item", selectedItem);
+					fetchItemData();
+					restoreView();
+				});
+				row.add(updateItemBtn);
+			}
+			return row;
+		}
 
 		switch (tabMode) {
 		case MARKETPLACE: 
@@ -509,14 +758,26 @@ public class ItemPanel extends CustomPanel {
 			primaryActionButton.setDefaultColor(Brand.PRIMARY_COLOR);
 			primaryActionButton.setHoverColor(Brand.PRIMARY_COLOR.darker());
 			primaryActionButton.setPadding(20, 5);
+			primaryActionButton.addActionListener(e -> {
+				updateItemActionInDB(selectedItem.itemId, "Sharing_Approval");
+				JOptionPane.showMessageDialog(this, "Borrow Request sent to the owner!", "Success", JOptionPane.INFORMATION_MESSAGE);
+				fetchItemData();
+				restoreView();
+			});
 			row.add(primaryActionButton);
 			break;
-		case TRADING: 
+		case TRADE: 
 			primaryActionButton = new CustomButton("Propose Trade", 10);
 			primaryActionButton.setDefaultColor(Brand.PRIMARY_COLOR);
 			primaryActionButton.setHoverColor(Brand.PRIMARY_COLOR.darker());
 			primaryActionButton.setPadding(20, 5);
-
+			primaryActionButton.addActionListener(e -> {
+				updateItemActionInDB(selectedItem.itemId, "Trade_Approval");
+				JOptionPane.showMessageDialog(this, "Trade Proposal sent to the owner!", "Success", JOptionPane.INFORMATION_MESSAGE);
+				fetchItemData();
+				restoreView();
+			});
+			
 			secondaryActionButton = new CustomButton("View Offers", 10);
 			secondaryActionButton.setDefaultColor(Color.DARK_GRAY);
 			secondaryActionButton.setHoverColor(Color.DARK_GRAY.darker());
@@ -525,6 +786,8 @@ public class ItemPanel extends CustomPanel {
 			row.add(primaryActionButton);
 			row.add(Box.createHorizontalStrut(10));
 			row.add(secondaryActionButton);
+			break;
+		default:
 			break;
 		}
 		return row;
@@ -562,41 +825,119 @@ public class ItemPanel extends CustomPanel {
 			details.setLayout(new BoxLayout(details, BoxLayout.Y_AXIS));
 			details.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-			details.add(new CustomLabel("Quantity: " + getSelectedQuantity(), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+			CustomPanel pricePanel = new CustomPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+			pricePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+			pricePanel.add(new CustomLabel("Unit Price: ", Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD));
+			pricePanel.add(new CustomLabel(unitPrice > 0 ? ("P" + String.format("%.0f", unitPrice)) : "Free", Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+			details.add(pricePanel);
 			details.add(Box.createVerticalStrut(5));
+			
+			CustomPanel qtyPanel = new CustomPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+			qtyPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+			qtyPanel.add(new CustomLabel("Quantity: ", Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD));
+			qtyPanel.add(new CustomLabel(String.valueOf(getSelectedQuantity()), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+			details.add(qtyPanel);
+			details.add(Box.createVerticalStrut(5));
+			
 			String payment = getSelectedPaymentMethod();
-			details.add(new CustomLabel("Payment Method: " + (payment.isBlank() ? "(not selected)" : payment), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
-			details.add(Box.createVerticalStrut(10));
+			CustomPanel paymentPanel = new CustomPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+			paymentPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+			paymentPanel.add(new CustomLabel("Payment Method: ", Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD));
+			paymentPanel.add(new CustomLabel(payment.isBlank() ? "(not selected)" : payment, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+			details.add(paymentPanel);
+			details.add(Box.createVerticalStrut(50));
 			
-			String pickupDays = selectedItem != null && selectedItem.pickupDays != null ? selectedItem.pickupDays.replace(",", ", ") : "";
+			String formattedDays = "";
+			if (selectedItem != null && selectedItem.pickupDays != null) {
+				String days = selectedItem.pickupDays.replace(" ", "");
+				if (days.equalsIgnoreCase("Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday")) {
+					formattedDays = "Everyday";
+				} else if (days.equalsIgnoreCase("Monday,Tuesday,Wednesday,Thursday,Friday")) {
+					formattedDays = "Every Weekdays";
+				} else if (days.equalsIgnoreCase("Saturday,Sunday")) {
+					formattedDays = "Every Weekends";
+				} else {
+					formattedDays = "Every " + days.replace(",", ", ");
+				}
+			}
 
-			details.add(new CustomLabel("Pickup Location: " + (selectedItem != null && selectedItem.pickupArea != null ? selectedItem.pickupArea : ""), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
-			details.add(Box.createVerticalStrut(5));
-			details.add(new CustomLabel("Pickup Days: " + pickupDays, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
-			details.add(Box.createVerticalStrut(5));
-			details.add(new CustomLabel("Pickup Time: " + (selectedItem != null && selectedItem.pickupTime != null ? selectedItem.pickupTime : ""), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
-			details.add(Box.createVerticalStrut(15));
+			String area = (selectedItem != null && selectedItem.pickupArea != null) ? selectedItem.pickupArea : "";
+			String time = (selectedItem != null && selectedItem.pickupTime != null) ? selectedItem.pickupTime : "";
 
-			details.add(new CustomLabel("Unit Price: " + (unitPrice > 0 ? ("P" + String.format("%.0f", unitPrice)) : "Free"), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
-			details.add(Box.createVerticalStrut(5));
-			details.add(new CustomLabel("Total: " + (total > 0 ? ("P" + String.format("%.0f", total)) : "Free"), Brand.HEADER3_TEXT_SIZE, FontStyle.BOLD));
+			CustomPanel summaryWrapper = new CustomPanel(new BorderLayout());
+			summaryWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
 			
+			CustomPanel leftInfoPanel = new CustomPanel();
+			leftInfoPanel.setLayout(new BoxLayout(leftInfoPanel, BoxLayout.Y_AXIS));
+			leftInfoPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+			
+			String initiatorName = selectedItem != null ? (selectedItem.initiatorFirstName + " " + selectedItem.initiatorLastName) : "Unknown";
+			leftInfoPanel.add(new CustomLabel(initiatorName, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+			
+			CustomPanel claimPanel = new CustomPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+			claimPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+			claimPanel.add(new CustomLabel("Claim at ", Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+			claimPanel.add(new CustomLabel(area, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Brand.GREEN));
+			claimPanel.add(new CustomLabel(" by ", Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+			claimPanel.add(new CustomLabel(formattedDays, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Brand.GREEN));
+			claimPanel.add(new CustomLabel(" at ", Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+			claimPanel.add(new CustomLabel(time, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Brand.GREEN));
+			
+			leftInfoPanel.add(claimPanel);
+			
+			CustomPanel rightInfoPanel = new CustomPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+			rightInfoPanel.add(new CustomLabel("Total: " + (total > 0 ? ("P" + String.format("%.0f", total)) : "Free"), Brand.HEADER3_TEXT_SIZE, FontStyle.BOLD));
+			
+			summaryWrapper.add(leftInfoPanel, BorderLayout.CENTER);
+			summaryWrapper.add(rightInfoPanel, BorderLayout.EAST);
+
+			details.add(summaryWrapper);
 			details.add(Box.createVerticalStrut(20));
 			
 			CustomButton payButton = new CustomButton(total > 0 ? "Pay P" + String.format("%.0f", total) : "Confirm Order", 10);
 			payButton.setDefaultColor(Brand.GREEN);
 			payButton.setHoverColor(Brand.GREEN.darker());
-			payButton.setPadding(15, 20, 15, 20);
+			payButton.setPadding(20, 5);
 			payButton.addActionListener(e -> {
+				
+				if (!payment.equalsIgnoreCase("Cash")) {
+					String refNo = JOptionPane.showInputDialog(this, "Enter Payment Reference Number for " + payment + ":", "Payment Reference", JOptionPane.PLAIN_MESSAGE);
+					
+					if (refNo == null || refNo.trim().isEmpty()) {
+						JOptionPane.showMessageDialog(this, "Payment Reference is required for online/bank payments to proceed.", "Required", JOptionPane.ERROR_MESSAGE);
+						return; 
+					}
+				}
+				
 				Object[] options = {"Proceed", "Cancel"};
 				int choice = JOptionPane.showOptionDialog(this, "Are you sure you want to finalize this transaction?", "Confirm Payment", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
 				if (choice == JOptionPane.YES_OPTION) {
-					JOptionPane.showMessageDialog(this, "Transaction completed successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+					int quantityToBuy = getSelectedQuantity();
+					try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASSWORD);
+						 PreparedStatement pstmt = conn.prepareStatement("UPDATE items SET item_quantity = item_quantity - ? WHERE item_id = ?")) {
+						pstmt.setInt(1, quantityToBuy);
+						pstmt.setInt(2, selectedItem.itemId);
+						pstmt.executeUpdate();
+						
+						try (PreparedStatement archiveStmt = conn.prepareStatement("UPDATE items SET items_is_archived = 1 WHERE item_id = ? AND item_quantity <= 0")) {
+							archiveStmt.setInt(1, selectedItem.itemId);
+							archiveStmt.executeUpdate();
+						}
+					} catch (SQLException ex) {
+						ex.printStackTrace();
+					}
+
+					JOptionPane.showMessageDialog(this, "Transaction completed successfully!\nPlease meet the seller at the designated time and location.", "Success", JOptionPane.INFORMATION_MESSAGE);
+					fetchItemData();
 					restoreView();
 				}
 			});
 			
-			details.add(payButton);
+			CustomPanel buttonWrapper = new CustomPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+			buttonWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
+			buttonWrapper.add(payButton);
+			
+			details.add(buttonWrapper);
 			topContent.add(details);
 		}
 		

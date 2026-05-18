@@ -1,7 +1,5 @@
 package pages;
 
-
-
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -15,29 +13,23 @@ import javax.swing.border.EmptyBorder;
 import components.*;
 import utils.*;
 
-
-
 public class ChangePasswordDialog extends JDialog {
 
-private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1L;
 
+	private String storedPassword;
 
-private String storedPassword;
+	public ChangePasswordDialog(Window parent, String storedPassword, Consumer<String> onSuccess) {
 
+		super(parent, "Change Password", ModalityType.APPLICATION_MODAL);
 
-
-public ChangePasswordDialog(Window parent, String storedPassword, Consumer<String> onSuccess) {
-
-super(parent, "Change Password", ModalityType.APPLICATION_MODAL);
-
-this.storedPassword = storedPassword;
-
+		this.storedPassword = storedPassword;
 
 // Use default JDialog settings (decorated with OS title bar)
 
-setResizable(false);
+		setResizable(false);
 
-	setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+		setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 
 		Container cp = getContentPane();
 		cp.setLayout(new BorderLayout(10, 10));
@@ -59,7 +51,8 @@ setResizable(false);
 		center.add(Box.createVerticalStrut(10));
 
 		JLabel errorLabel = new JLabel(" ");
-		if (FontLib.POPPINS_REGULAR != null) errorLabel.setFont(FontLib.POPPINS_REGULAR.deriveFont(Brand.STANDARD_TEXT_SIZE));
+		if (FontLib.POPPINS_REGULAR != null)
+			errorLabel.setFont(FontLib.POPPINS_REGULAR.deriveFont(Brand.STANDARD_TEXT_SIZE));
 		errorLabel.setForeground(Color.RED);
 		errorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		center.add(errorLabel);
@@ -86,9 +79,12 @@ setResizable(false);
 			String n = new String(newField.getPassword());
 			String c = new String(confField.getPassword());
 
-			if (cur == null) cur = "";
-			if (n == null) n = "";
-			if (c == null) c = "";
+			if (cur == null)
+				cur = "";
+			if (n == null)
+				n = "";
+			if (c == null)
+				c = "";
 
 			if ((this.storedPassword != null && !this.storedPassword.isEmpty()) && cur.isEmpty()) {
 				errorLabel.setText("Current password is required.");
@@ -132,7 +128,8 @@ setResizable(false);
 		JPanel panel = new JPanel(new BorderLayout(0, 5));
 		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-		// Use shared CustomLabel (Poppins + Brand sizes) and a separate red asterisk label
+		// Use shared CustomLabel (Poppins + Brand sizes) and a separate red asterisk
+		// label
 		CustomLabel label = new CustomLabel(labelText, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR);
 		JLabel star = new JLabel("*");
 		star.setForeground(Color.RED);
@@ -145,7 +142,8 @@ setResizable(false);
 		panel.add(labelRow, BorderLayout.NORTH);
 
 		field.setBorder(new EmptyBorder(6, 10, 6, 10));
-		if (FontLib.POPPINS_REGULAR != null) field.setFont(FontLib.POPPINS_REGULAR.deriveFont(Brand.STANDARD_TEXT_SIZE));
+		if (FontLib.POPPINS_REGULAR != null)
+			field.setFont(FontLib.POPPINS_REGULAR.deriveFont(Brand.STANDARD_TEXT_SIZE));
 		panel.add(field, BorderLayout.CENTER);
 		return panel;
 	}
@@ -160,13 +158,31 @@ setResizable(false);
 			super(columns);
 			setOpaque(false);
 			setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
-			if (FontLib.POPPINS_REGULAR != null) setFont(FontLib.POPPINS_REGULAR.deriveFont(Brand.STANDARD_TEXT_SIZE));
+			if (FontLib.POPPINS_REGULAR != null)
+				setFont(FontLib.POPPINS_REGULAR.deriveFont(Brand.STANDARD_TEXT_SIZE));
 
 			addMouseListener(new MouseAdapter() {
-				@Override public void mouseEntered(MouseEvent e) { isHovered = true; repaint(); }
-				@Override public void mouseExited(MouseEvent e) { isHovered = false; repaint(); }
+				@Override
+				public void mouseEntered(MouseEvent e) {
+					isHovered = true;
+					repaint();
+				}
+
+				@Override
+				public void mouseExited(MouseEvent e) {
+					isHovered = false;
+					repaint();
+				}
 			});
-			addFocusListener(new java.awt.event.FocusAdapter() { public void focusGained(java.awt.event.FocusEvent e) { repaint(); } public void focusLost(java.awt.event.FocusEvent e) { repaint(); } });
+			addFocusListener(new java.awt.event.FocusAdapter() {
+				public void focusGained(java.awt.event.FocusEvent e) {
+					repaint();
+				}
+
+				public void focusLost(java.awt.event.FocusEvent e) {
+					repaint();
+				}
+			});
 		}
 
 		@Override

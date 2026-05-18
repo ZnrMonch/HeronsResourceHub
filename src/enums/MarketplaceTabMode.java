@@ -1,12 +1,13 @@
 package enums;
 
-import marketplace.ItemPanel;
-
-/**
- * Determines what kind of flow/actions the {@link ItemPanel} should present.
- */
 public enum MarketplaceTabMode {
 	MARKETPLACE,
+	MARKETPLACE_WITHDRAWN,
 	SHARING,
-	TRADING
+	SHARING_WITHDRAWN,
+	SHARING_APPROVAL,
+	SHARING_RETURN,
+	TRADE,
+	TRADE_WITHDRAWN,
+	TRADE_APPROVAL
 }

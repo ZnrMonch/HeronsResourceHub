@@ -3,7 +3,7 @@ package enums;
 public enum Category {
 	TEXTBOOKS,
 	ELECTRONICS,
-	EQUIPMENTS,
+	EQUIPMENT,
 	SUPPLIES,
 	CONSUMABLE_GOODS,
 	OTHERS
