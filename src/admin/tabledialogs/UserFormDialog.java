@@ -40,7 +40,6 @@ public class UserFormDialog {
             roleSubBox.getParent().repaint();
         });
 
-        // ── Role row (manually built to hold two combo boxes) ─────────────────
         JPanel roleComboPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         roleComboPanel.setOpaque(false);
         roleComboPanel.setPreferredSize(new Dimension(240, 32)); // STEP 3
@@ -51,7 +50,7 @@ public class UserFormDialog {
 
         JPanel roleRow = buildManualRow("System Role:", roleComboPanel); // STEP 2
 
-        // ── Profile image row ─────────────────────────────────────────────────
+      
         final String[] profileImageHolder = { "" };
         CustomTextField profileImageField = new CustomTextField("No image selected");
         profileImageField.setEditable(false);
@@ -80,7 +79,7 @@ public class UserFormDialog {
 
         JPanel profileImageRow = makeImageRow("Profile Image:", profileImageInputPanel); // STEP 2
 
-        // ── Form fields ───────────────────────────────────────────────────────
+    
         formPanel.add(createFieldPanel("Student ID:",  studentIdField));
         formPanel.add(Box.createVerticalStrut(10));
         formPanel.add(createFieldPanel("First Name:",  firstNameField));
@@ -258,12 +257,7 @@ public class UserFormDialog {
         dialog[0].setVisible(true);
     }
 
-    // ── Shared helpers ────────────────────────────────────────────────────────
 
-    /**
-     * Standard field row: 120px RIGHT-aligned label + input field.
-     * STEP 1 + STEP 3
-     */
     private static JPanel createFieldPanel(String label, JComponent component) {
         JPanel panel = new JPanel(new BorderLayout(10, 0));
         panel.setOpaque(false);
@@ -271,12 +265,12 @@ public class UserFormDialog {
         panel.setPreferredSize(new Dimension(0, 35));
 
         CustomLabel lbl = new CustomLabel(label, 14f, FontStyle.REGULAR);
-        lbl.setPreferredSize(new Dimension(120, 30));           // STEP 1: 100 → 120
-        lbl.setHorizontalAlignment(SwingConstants.RIGHT);       // STEP 1: RIGHT
+        lbl.setPreferredSize(new Dimension(120, 30));          
+        lbl.setHorizontalAlignment(SwingConstants.RIGHT);      
 
         panel.add(lbl, BorderLayout.WEST);
 
-        component.setPreferredSize(new Dimension(240, 32));     // STEP 3: consistent width
+        component.setPreferredSize(new Dimension(240, 32));    
         component.setMinimumSize(new Dimension(240, 32));
 
         JPanel wrap = new JPanel(new BorderLayout());
@@ -287,11 +281,7 @@ public class UserFormDialog {
         return panel;
     }
 
-    /**
-     * Manual row builder for non-standard inputs (role combo pair, image row).
-     * Uses the same 120px RIGHT-aligned label so fields line up with createFieldPanel rows.
-     * STEP 2
-     */
+   
     private static JPanel buildManualRow(String labelText, JComponent inputComponent) {
         JPanel row = new JPanel(new BorderLayout(10, 0));
         row.setOpaque(false);
@@ -312,10 +302,7 @@ public class UserFormDialog {
         return row;
     }
 
-    /**
-     * Image row — delegates to buildManualRow for consistent alignment.
-     * STEP 2
-     */
+   
     private static JPanel makeImageRow(String labelText, JPanel inputPanel) {
         return buildManualRow(labelText, inputPanel);
     }

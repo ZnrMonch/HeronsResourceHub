@@ -10,29 +10,14 @@ import utils.SessionManager;
 
 import java.util.List;
 
-/**
- * AdminUsersServices.java  (RBAC edition)
- * ----------------------------------------
- * Service layer for user management.
- *
- * RBAC changes:
- *   Every write method (add, update, archive, unarchive, permanentDelete)
- *   starts with  Permission.require(...)  so the database is never touched
- *   by an ADMIN, even if a button somehow appears on screen.
- *
- *   Read methods (getTotalUsers, get*ForTable, search*, getUserById) are
- *   NOT guarded — both roles can read.
- */
 public class AdminUsersServices {
 
     private final UsersDatabase usersDB = new UsersDatabase();
     private final LogsDatabase  logDB   = new LogsDatabase();
 
-    // Holds the human-readable reason for the last failed addUser() call
-    // so the UI can show a specific error instead of a generic one.
     private String lastAddError = null;
 
-    // ── READ — available to ADMIN and SUPER_ADMIN ─────────────────────────────
+   
 
     public int getTotalUsers() {
         return usersDB.countActiveUsers();
@@ -62,22 +47,16 @@ public class AdminUsersServices {
         return lastAddError;
     }
 
-    // ── WRITE — SUPER_ADMIN only (Permission.require guards these) ────────────
 
-    /**
-     * Creates a new user account.
-     * Blocked for ADMIN — they cannot create users.
-     */
     public boolean addUser(String studentId, String firstName, String lastName,
             String email, String password, String yearLevel,
             String college, String role, String profileImagePath) {
 
-        // ── Backend guard ─────────────────────────────────────────────────────
+
         Permission.require(Permission.canCreate(), "create users");
 
         lastAddError = null;
 
-        // Duplicate check
         String dup = usersDB.checkDuplicateUser(studentId, email);
         if ("student_id".equals(dup)) {
             lastAddError = "A user with student ID \"" + studentId + "\" already exists.";
@@ -103,10 +82,7 @@ public class AdminUsersServices {
         return false;
     }
 
-    /**
-     * Updates an existing user's profile fields.
-     * Blocked for ADMIN.
-     */
+ 
     public boolean updateUser(AdminUsers user) {
         Permission.require(Permission.canUpdate(), "update users");
 
@@ -118,10 +94,6 @@ public class AdminUsersServices {
         return success;
     }
 
-    /**
-     * Archives (soft-deletes) a user and their items.
-     * Blocked for ADMIN.
-     */
     	public boolean archiveUser(int userId) {
     	    Permission.require(Permission.canDelete(), "archive users");
 
@@ -142,10 +114,6 @@ public class AdminUsersServices {
         return success;
     }
 
-    /**
-     * Restores a user from the archive.
-     * Blocked for ADMIN.
-     */
     public boolean unarchiveUser(int userId) {
         Permission.require(Permission.canUpdate(), "restore users");
 
@@ -157,10 +125,7 @@ public class AdminUsersServices {
         return success;
     }
 
-    /**
-     * Permanently deletes a user from the archive table.
-     * Blocked for ADMIN.
-     */
+
     public boolean permanentDeleteUser(int userId) {
         Permission.require(Permission.canDelete(), "permanently delete users");
 

@@ -22,7 +22,7 @@ public class CustomTable extends JTable {
 
     private TableModel externalModel = null;
 
-    // Checkbox column — set once, re-applied after every setModel()
+
     private TableCellRenderer checkboxRenderer = null;
     private TableCellEditor   checkboxEditor   = null;
     private TableCellRenderer checkboxHeader   = null;
@@ -120,9 +120,9 @@ public class CustomTable extends JTable {
         DefaultTableModel newModel = new DefaultTableModel(pageData, columnNames) {
             @Override
             public boolean isCellEditable(int row, int col) {
-                // Delegate to external model if provided, else use editableColumns
+
                 if (externalModel != null) {
-                    // column 0 editable if external model says so for any row
+    
                     return externalModel.isCellEditable(0, col);
                 }
                 return editableColumns.contains(col);
@@ -130,7 +130,7 @@ public class CustomTable extends JTable {
 
             @Override
             public Class<?> getColumnClass(int col) {
-                // Delegate to external model so Boolean renders as checkbox
+               
                 if (externalModel != null)
                     return externalModel.getColumnClass(col);
                 return String.class;
@@ -154,7 +154,7 @@ public class CustomTable extends JTable {
         applyColumnWidths();
         applyColumnAlignments();
         
-     // Re-apply checkbox renderer/editor/header after every setModel()
+ 
         if (checkboxCol >= 0 && checkboxCol < getColumnCount()) {
             TableColumn chk = getColumnModel().getColumn(checkboxCol);
             if (checkboxRenderer != null) chk.setCellRenderer(checkboxRenderer);

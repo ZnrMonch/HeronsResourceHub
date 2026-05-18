@@ -82,31 +82,12 @@ public class UsersDatabase extends BaseDatabase {
         return new ArrayList<>();
     }
 
-    /**
-     * Searches active users by a single column, or across ALL searchable columns
-     * when filter equals "All".
-     *
-     * <p>When filter is "All" the WHERE clause uses OR across every relevant
-     * column so the keyword is matched anywhere in the row:
-     * <pre>
-     *   WHERE (
-     *     CAST(user_id AS CHAR) LIKE ? OR
-     *     student_id            LIKE ? OR
-     *     first_name            LIKE ? OR
-     *     last_name             LIKE ? OR
-     *     college               LIKE ? OR
-     *     year_level            LIKE ? OR
-     *     system_role           LIKE ? OR
-     *     contact_num           LIKE ?
-     *   )
-     * </pre>
-     */
+   
     public List<AdminUsers> searchUsers(String filter, String keyword) {
         List<AdminUsers> list = new ArrayList<>();
         String activeWhere = hasSoftDeleteColumn() ? " AND deleted_at IS NULL" : "";
 
         if ("All".equals(filter)) {
-            // Multi-column OR search across all user-visible columns
             String sql = "SELECT " + SELECT_USERS_COLS
                     + " FROM users WHERE ("
                     + "  CAST(user_id AS CHAR) LIKE ? OR"
@@ -121,7 +102,6 @@ public class UsersDatabase extends BaseDatabase {
             try (Connection conn = getConn();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 String like = "%" + keyword + "%";
-                // Eight columns → eight identical bind values
                 for (int i = 1; i <= 8; i++) stmt.setString(i, like);
                 ResultSet rs = stmt.executeQuery();
                 while (rs.next()) list.add(mapRow(rs, false));
@@ -131,7 +111,7 @@ public class UsersDatabase extends BaseDatabase {
             return list;
         }
 
-        // Single-column search (original behaviour)
+       
         String column = resolveUserColumn(filter);
         String sql = "SELECT " + SELECT_USERS_COLS
                    + " FROM users WHERE " + column + " LIKE ?" + activeWhere;
@@ -146,14 +126,6 @@ public class UsersDatabase extends BaseDatabase {
         return list;
     }
 
-    /**
-     * Searches archived users by a single column, or across ALL searchable
-     * archive columns when filter equals "All".
-     *
-     * <p>The archive table uses "contact" instead of "contact_num" for the
-     * phone column; both paths include the contact column so phone numbers
-     * are always matched when filter is "All".
-     */
     public List<AdminUsers> searchArchivedUsers(String filter, String keyword) {
         List<AdminUsers> list = new ArrayList<>();
 
@@ -174,7 +146,7 @@ public class UsersDatabase extends BaseDatabase {
                 try (Connection conn = getConn();
                      PreparedStatement stmt = conn.prepareStatement(sql)) {
                     String like = "%" + keyword + "%";
-                    // Eight columns → eight identical bind values
+                 
                     for (int i = 1; i <= 8; i++) stmt.setString(i, like);
                     ResultSet rs = stmt.executeQuery();
                     while (rs.next()) list.add(mapRow(rs, true));
@@ -184,8 +156,7 @@ public class UsersDatabase extends BaseDatabase {
                 }
             }
 
-            // ── Archive table path ────────────────────────────────────────────
-            // Uses "contact" (not "contact_num") as the phone column name.
+          
             if (archiveTableExists()) {
                 String sql = "SELECT " + SELECT_ARCHIVE_COLS
                         + " FROM users_archive WHERE ("
@@ -212,7 +183,7 @@ public class UsersDatabase extends BaseDatabase {
             return list;
         }
 
-        // ── Single-column search (original behaviour) ─────────────────────────
+     
         String column = resolveUserColumn(filter);
 
         if (hasSoftDeleteColumn()) {
@@ -249,7 +220,7 @@ public class UsersDatabase extends BaseDatabase {
         String base      = "SELECT " + SELECT_USERS_COLS + " FROM users WHERE user_id = ?";
         String activeSql = hasSoftDeleteColumn() ? base + " AND deleted_at IS NULL" : base;
 
-        // 1. Active users
+       
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(activeSql)) {
             stmt.setInt(1, userId);
@@ -259,7 +230,7 @@ public class UsersDatabase extends BaseDatabase {
             System.err.println("getUserById() active lookup failed: " + e.getMessage());
         }
 
-        // 2. Soft-deleted users (only if column exists)
+      
         if (hasSoftDeleteColumn()) {
             try (Connection conn = getConn();
                  PreparedStatement stmt = conn.prepareStatement(base + " AND deleted_at IS NOT NULL")) {
@@ -271,7 +242,7 @@ public class UsersDatabase extends BaseDatabase {
             }
         }
 
-        // 3. Archived users
+     
         String archiveSql = "SELECT " + SELECT_ARCHIVE_COLS
                 + " FROM users_archive WHERE user_id = ? "
                 + "ORDER BY user_archive_id DESC LIMIT 1";
@@ -323,7 +294,7 @@ public class UsersDatabase extends BaseDatabase {
         return null;
     }
 
-    // Returns the new user_id on success, -1 on failure
+   
     public int insertUser(String studentId, String firstName, String lastName,
             String email, String password, String yearLevel,
             String college, String role, String profileImagePath) {

@@ -56,24 +56,6 @@ public class ItemDatabase extends BaseDatabase {
         return list;
     }
 
-    /**
-     * Searches active items by a single column, or across ALL searchable columns
-     * when filter equals "All".
-     *
-     * <p>When filter is "All" the WHERE clause uses OR across every relevant
-     * column so the keyword is matched anywhere in the row:
-     * <pre>
-     *   WHERE (
-     *     CAST(item_id       AS CHAR) LIKE ? OR
-     *     item_name                   LIKE ? OR
-     *     `condition`                 LIKE ? OR
-     *     category                    LIKE ? OR
-     *     CAST(item_quantity AS CHAR) LIKE ? OR
-     *     CAST(price         AS CHAR) LIKE ? OR
-     *     availability_status         LIKE ?
-     *   )
-     * </pre>
-     */
     public List<AdminItems> searchItems(String filter, String keyword) {
         List<AdminItems> list = new ArrayList<>();
 
@@ -93,7 +75,7 @@ public class ItemDatabase extends BaseDatabase {
             try (Connection conn = getConn();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 String like = "%" + keyword + "%";
-                // Seven columns → seven identical bind values
+               
                 for (int i = 1; i <= 7; i++) stmt.setString(i, like);
                 ResultSet rs = stmt.executeQuery();
                 while (rs.next()) list.add(mapRow(rs, false));
@@ -103,7 +85,7 @@ public class ItemDatabase extends BaseDatabase {
             return list;
         }
 
-        // Single-column search (original behaviour)
+
         String column;
         switch (filter) {
             case "ID":        column = "item_id";             break;
@@ -130,14 +112,6 @@ public class ItemDatabase extends BaseDatabase {
         return list;
     }
 
-    /**
-     * Searches archived items by a single column, or across ALL searchable columns
-     * when filter equals "All".
-     *
-     * <p>The archive query joins items_archive with itself to keep only the most
-     * recent snapshot per item_id, then applies the same OR expression used in
-     * searchItems() for "All".
-     */
     public List<AdminItems> searchArchivedItems(String filter, String keyword) {
         List<AdminItems> list = new ArrayList<>();
 
@@ -177,7 +151,7 @@ public class ItemDatabase extends BaseDatabase {
             return list;
         }
 
-        // Single-column search (original behaviour)
+
         String column;
         switch (filter) {
             case "ID":        column = "item_id";       break;

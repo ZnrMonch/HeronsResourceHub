@@ -97,7 +97,7 @@ public class CustomCheckBox extends JComponent
 
     @Override public Dimension getPreferredSize() { return new Dimension(20, 20); }
 
-    // ── TableCellRenderer ─────────────────────────────────────────────────────
+ 
 
     @Override
     public Component getTableCellRendererComponent(JTable table, Object value,
@@ -109,7 +109,7 @@ public class CustomCheckBox extends JComponent
         return this;
     }
 
-    // ── TableCellEditor ───────────────────────────────────────────────────────
+
 
     @Override
     public Component getTableCellEditorComponent(JTable table, Object value,

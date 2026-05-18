@@ -15,8 +15,8 @@ public class DateFilterPanel extends JPanel {
 
     private static final long serialVersionUID = 1L;
 
-    private String rangeStartDate = null;   // renamed from activeDateFrom
-    private String rangeEndDate   = null;   // renamed from activeDateTo
+    private String rangeStartDate = null;  
+    private String rangeEndDate   = null;   
 
     private CustomComboBox<String> yearBox;
     private CustomComboBox<String> monthBox;
@@ -33,8 +33,7 @@ public class DateFilterPanel extends JPanel {
         buildDateFilterPanel();
     }
 
-    // Returns the active date range: [dateFrom, dateTo], either from the
-    // range dialog or from the year/month/day dropdowns (dialog takes priority)
+  
     public String[] getEffectiveDateRange() {
         if (rangeStartDate != null && rangeEndDate != null) {
             return new String[] { rangeStartDate, rangeEndDate };
@@ -75,7 +74,7 @@ public class DateFilterPanel extends JPanel {
         }
     }
 
-    // Builds and adds all date filter UI components into this panel
+   
     private void buildDateFilterPanel() {
         int currentYear = Calendar.getInstance().get(Calendar.YEAR);
         String[] years = new String[currentYear - 2019 + 2];
@@ -167,7 +166,7 @@ public class DateFilterPanel extends JPanel {
         add(btnClearDates);
     }
 
-    // Builds the day dropdown options from "All Days" up to maxDay
+   
     private String[] buildDayOptions(int maxDay) {
         String[] days = new String[maxDay + 1];
         days[0] = "All Days";
@@ -177,7 +176,6 @@ public class DateFilterPanel extends JPanel {
         return days;
     }
 
-    // Refreshes the day dropdown when the selected month changes
     private void updateDayCombo(int maxDay) {
         String previousSelection = (String) dayBox.getSelectedItem();
         dayBox.removeAllItems();
@@ -199,7 +197,6 @@ public class DateFilterPanel extends JPanel {
         }
     }
 
-    // Returns how many days are in the given month and year
     private int getDaysInMonth(String yearStr, String monthStr) {
         try {
             int year  = Integer.parseInt(yearStr);
@@ -210,7 +207,7 @@ public class DateFilterPanel extends JPanel {
         }
     }
 
-    // Converts a month name like "Jan" to its number like 1
+
     private int monthNameToNumber(String name) {
         String[] names = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
                            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
@@ -222,7 +219,6 @@ public class DateFilterPanel extends JPanel {
         return 1;
     }
 
-    // Opens the date range dialog where the user picks From and To dates
     private void openDateRangeDialog() {
         Window owner = SwingUtilities.getWindowAncestor(this);
         JDialog dialog = new JDialog(owner, "Select Date Range", Dialog.ModalityType.APPLICATION_MODAL);
@@ -305,7 +301,6 @@ public class DateFilterPanel extends JPanel {
         dialog.setVisible(true);
     }
 
-    // Creates a label + spinner row for the date range dialog
     private JPanel createSpinnerRow(String label, JSpinner spinner) {
         JPanel row = new JPanel(new BorderLayout(12, 0));
         row.setOpaque(false);
@@ -317,7 +312,6 @@ public class DateFilterPanel extends JPanel {
         return row;
     }
 
-    // Updates the Date Range button label to show the selected range (or default text)
     private void updateDateRangeButtonLabel() {
         if (btnDateRange == null) return;
         if (rangeStartDate != null && rangeEndDate != null) {
@@ -328,7 +322,6 @@ public class DateFilterPanel extends JPanel {
         btnDateRange.repaint();
     }
 
-    // Resets all date filters: dropdowns and the date range dialog values
     private void clearAllDateFilters() {
         rangeStartDate = null;
         rangeEndDate   = null;
@@ -345,7 +338,6 @@ public class DateFilterPanel extends JPanel {
         loadTableDataCallback.run();
     }
 
-    // Creates a small styled button
     private CustomButton makeButton(String text, Color defaultColor, Color hoverColor) {
         CustomButton btn = new CustomButton(text, 8);
         btn.setFontSize(12f);

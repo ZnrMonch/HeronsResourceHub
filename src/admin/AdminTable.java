@@ -11,25 +11,7 @@ import utils.*;
 import admin.services.*;
 import enums.*;
 
-/**
- * AdminTable.java  (RBAC + AppDialog edition)
- * --------------------------------------------
- * Changes from the original:
- *
- *  1. Role-based visibility  — action buttons are shown/hidden based on
- *     Permission.canCreate() / canUpdate() / canDelete().
- *
- *  2. Backend guard          — service calls are wrapped with
- *     Permission.require() so even if a button somehow appears, the
- *     database layer rejects the call.
- *
- *  3. AppDialog              — every JOptionPane replaced with the new
- *     AppDialog helper for consistent styling.
- *
- *  4. "All" filter           — "All" is now the first option in every
- *     filter dropdown so users get a full cross-column search by default.
- */
-public class AdminTable extends CustomPanel implements ActionListener {
+public class AdminTable extends CustomPanel {
     private static final long serialVersionUID = 1L;
 
     private final TableType type;
@@ -56,8 +38,7 @@ public class AdminTable extends CustomPanel implements ActionListener {
     private final AdminItemsServices itemService = new AdminItemsServices();
     private final AdminLogsServices  logService  = new AdminLogsServices();
 
-    // ── Constructors ──────────────────────────────────────────────────────────
-
+ 
     public AdminTable(TableType type) {
         this(type, LogType.NONE);
     }
@@ -74,8 +55,6 @@ public class AdminTable extends CustomPanel implements ActionListener {
             logsRefreshTimer.start();
         }
     }
-
-    // ── Header ────────────────────────────────────────────────────────────────
 
     private CustomPanel initHeader() {
         CustomPanel header = new CustomPanel();
@@ -134,12 +113,7 @@ public class AdminTable extends CustomPanel implements ActionListener {
         return header;
     }
 
-    /**
-     * Returns the filter-dropdown options for the current table type.
-     * "All" is always the first entry so the combo box defaults to a
-     * full cross-column search without the user having to change anything.
-     */
-    private String[] getFilterOptions() {
+      private String[] getFilterOptions() {
         if (type == TableType.USERS) {
             return new String[]{ "All", "ID", "Student ID", "First Name",
                                  "Last Name", "College", "Year Level", "System Role" };
@@ -164,9 +138,7 @@ public class AdminTable extends CustomPanel implements ActionListener {
         return btn;
     }
 
-    // ── Table initialisation ──────────────────────────────────────────────────
-
-    private CustomPanel initTable() {
+      private CustomPanel initTable() {
         CustomPanel tableWrapper = new CustomPanel();
         tableWrapper.setLayout(new BorderLayout());
 
@@ -232,7 +204,7 @@ public class AdminTable extends CustomPanel implements ActionListener {
         table.getTableHeader().setReorderingAllowed(false);
         table.getTableHeader().setBorder(BorderFactory.createEmptyBorder());
 
-        // ── Action buttons — visibility controlled by Permission ──────────────
+    
         if (type != TableType.LOGS) {
             btnUpdateOrRetrieve = new CustomButton("Update Data", 8);
             btnArchiveOrDelete  = new CustomButton("Archive Data", 8);
@@ -254,7 +226,7 @@ public class AdminTable extends CustomPanel implements ActionListener {
                 if (!e.getValueIsAdjusting()) updateActionUI();
             });
 
-            // ── Checkbox column renderer + editor ─────────────────────────────
+       
             chkHeader.setHeader(true);
             table.setCheckboxColumn(0, chkRenderer, chkEditor,
                     (tbl, val, sel, foc, row, col) -> {
@@ -319,7 +291,7 @@ public class AdminTable extends CustomPanel implements ActionListener {
             bottomPanel.add(selectedCountLabel, BorderLayout.WEST);
         }
 
-        // ── RBAC: build the actions panel only when the user has any write access
+  
         if (type != TableType.LOGS) {
             CustomPanel actionsPanel = new CustomPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
             if (Permission.canCreate()) actionsPanel.add(btnAddAction);
@@ -377,8 +349,7 @@ public class AdminTable extends CustomPanel implements ActionListener {
         }
     }
 
-    // ── Data loading ──────────────────────────────────────────────────────────
-
+  
     private void loadTableData() {
         if (table == null) return;
 
@@ -418,7 +389,7 @@ public class AdminTable extends CustomPanel implements ActionListener {
         }
     }
 
-    // ── Button UI state ───────────────────────────────────────────────────────
+   
 
     private void updateActionUI() {
         if (btnUpdateOrRetrieve == null || btnArchiveOrDelete == null) return;
@@ -475,8 +446,6 @@ public class AdminTable extends CustomPanel implements ActionListener {
         }
         selectedCountLabel.setText("Selected: 0");
     }
-
-    // ── Action handlers — each starts with a Permission.require() guard ───────
 
     private void handleAdd() {
         Permission.require(Permission.canCreate(), "create records");
@@ -672,7 +641,6 @@ public class AdminTable extends CustomPanel implements ActionListener {
         worker.execute();
     }
 
-    // ── ArchiveTask inner class ───────────────────────────────────────────────
 
     private class ArchiveTask {
         private final int          id;
@@ -702,8 +670,5 @@ public class AdminTable extends CustomPanel implements ActionListener {
         return Integer.parseInt(table.getModel().getValueAt(modelRow, idCol).toString());
     }
 
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        // TODO Auto-generated method stub
-    }
+
 }

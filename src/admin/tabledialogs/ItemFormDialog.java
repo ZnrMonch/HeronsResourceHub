@@ -31,7 +31,6 @@ public class ItemFormDialog {
         CustomComboBox<String> actionBox = new CustomComboBox<>(
             new String[]{ "Sharing", "Marketplace", "Barter-Trading" });
 
-        // ── Image row ─────────────────────────────────────────────────────────
         final String[] imagePathHolder = { "" };
         CustomTextField imageField = new CustomTextField("No image selected");
         imageField.setEditable(false);
@@ -60,7 +59,6 @@ public class ItemFormDialog {
 
         JPanel imageRow = buildManualRow("Image:", imageInputPanel); // STEP 2
 
-        // ── Form fields ───────────────────────────────────────────────────────
         formPanel.add(createFieldPanel("Item Name:",   nameField));
         formPanel.add(Box.createVerticalStrut(10));
         formPanel.add(createFieldPanel("Category:",    categoryBox));
@@ -263,12 +261,7 @@ public class ItemFormDialog {
         dialog[0].setVisible(true);
     }
 
-    // ── Shared helpers ────────────────────────────────────────────────────────
 
-    /**
-     * Standard field row: 120px RIGHT-aligned label + input field.
-     * STEP 1 + STEP 3
-     */
     private static JPanel createFieldPanel(String label, JComponent component) {
         JPanel panel = new JPanel(new BorderLayout(10, 0));
         panel.setOpaque(false);
@@ -292,11 +285,6 @@ public class ItemFormDialog {
         return panel;
     }
 
-    /**
-     * Manual row builder for non-standard inputs (image row).
-     * Uses the same 120px RIGHT-aligned label so fields line up with createFieldPanel rows.
-     * STEP 2
-     */
     private static JPanel buildManualRow(String labelText, JComponent inputComponent) {
         JPanel row = new JPanel(new BorderLayout(10, 0));
         row.setOpaque(false);

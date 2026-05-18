@@ -1,16 +1,5 @@
 package enums;
 
-/**
- * Actions recorded in the transaction_log table.
- * DB column type: enum(
- *   'Sell','Sell-Relisted','Sell-Withdrawn',
- *   'Buy',
- *   'Lend','Lend-Relisted','Lend-Withdrawn',
- *   'Borrow-Request','Borrow-Approved','Borrow-Declined','Borrow-Return',
- *   'Trade-Relisted','Trade-Withdrawn','Trade-Initiate',
- *   'Trade-Request','Trade-Approved','Trade-Declined'
- * )
- */
 public enum TransactionLogAction {
 
     SELL("Sell",                   "Item listed for sale"),
@@ -43,9 +32,9 @@ public enum TransactionLogAction {
         this.description = description;
     }
 
-    /** The exact value stored in the DB enum column. */
+    
     public String getDbValue() { return dbValue; }
 
-    /** Human-readable log description. */
+
     public String getDescription() { return description; }
 }
