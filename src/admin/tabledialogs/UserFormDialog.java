@@ -3,7 +3,6 @@ package admin.tabledialogs;
 import admin.AdminDialog;
 import admin.models.AdminUsers;
 import admin.services.AdminUsersServices;
-import admin.tabledialogs.*;
 import utils.*;
 import components.*;
 import database.UMak;
@@ -12,16 +11,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 
-/**
- * UserFormDialog.java  (AppDialog edition)
- * -----------------------------------------
- * Changes from original:
- *   - All JOptionPane.showMessageDialog() calls replaced with AppDialog.*()
- *   - No logic changes — only the dialog calls were swapped
- */
 public class UserFormDialog {
 
-    // Opens the Add New User dialog
     public static void showAdd(Window owner, AdminUsersServices userService, Runnable onSuccess) {
         CustomPanel formPanel = new CustomPanel();
         formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
@@ -39,7 +30,7 @@ public class UserFormDialog {
             new String[]{ "Standard User", "Admin" });
         CustomComboBox<String> roleSubBox = new CustomComboBox<>(
             new String[]{ "admin", "super_admin" });
-        roleSubBox.setCustomSize(130, 30);
+        roleSubBox.setCustomSize(110, 32);
         roleSubBox.setVisible(false);
 
         roleCategoryBox.addActionListener(e -> {
@@ -49,27 +40,23 @@ public class UserFormDialog {
             roleSubBox.getParent().repaint();
         });
 
+        // ── Role row (manually built to hold two combo boxes) ─────────────────
         JPanel roleComboPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         roleComboPanel.setOpaque(false);
-        roleCategoryBox.setPreferredSize(new Dimension(140, 32));
-        roleSubBox.setPreferredSize(new Dimension(130, 32));
+        roleComboPanel.setPreferredSize(new Dimension(240, 32)); // STEP 3
+        roleCategoryBox.setPreferredSize(new Dimension(120, 32));
+        roleSubBox.setPreferredSize(new Dimension(110, 32));
         roleComboPanel.add(roleCategoryBox);
         roleComboPanel.add(roleSubBox);
 
-        JPanel roleRow = new JPanel(new BorderLayout(10, 0));
-        roleRow.setOpaque(false);
-        roleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        CustomLabel roleLabel = new CustomLabel("System Role:", 14f, FontStyle.REGULAR);
-        roleLabel.setPreferredSize(new Dimension(100, 30));
-        roleLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        roleRow.add(roleLabel,      BorderLayout.WEST);
-        roleRow.add(roleComboPanel, BorderLayout.CENTER);
+        JPanel roleRow = buildManualRow("System Role:", roleComboPanel); // STEP 2
 
+        // ── Profile image row ─────────────────────────────────────────────────
         final String[] profileImageHolder = { "" };
         CustomTextField profileImageField = new CustomTextField("No image selected");
         profileImageField.setEditable(false);
-        profileImageField.setPreferredSize(new Dimension(170, 32));
-        profileImageField.setMinimumSize(new Dimension(170, 32));
+        profileImageField.setPreferredSize(new Dimension(150, 32));
+        profileImageField.setMinimumSize(new Dimension(150, 32));
 
         CustomButton profileBrowseBtn = new CustomButton("Browse", 6);
         profileBrowseBtn.setFontSize(11f);
@@ -91,21 +78,22 @@ public class UserFormDialog {
         profileImageInputPanel.add(profileImageField, BorderLayout.CENTER);
         profileImageInputPanel.add(profileBrowseBtn,  BorderLayout.EAST);
 
-        JPanel profileImageRow = makeImageRow("Profile Image:", profileImageInputPanel);
+        JPanel profileImageRow = makeImageRow("Profile Image:", profileImageInputPanel); // STEP 2
 
-        formPanel.add(createFieldPanel("Student ID:", studentIdField));
+        // ── Form fields ───────────────────────────────────────────────────────
+        formPanel.add(createFieldPanel("Student ID:",  studentIdField));
         formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("First Name:", firstNameField));
+        formPanel.add(createFieldPanel("First Name:",  firstNameField));
         formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Last Name:",  lastNameField));
+        formPanel.add(createFieldPanel("Last Name:",   lastNameField));
         formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Email:",      emailField));
+        formPanel.add(createFieldPanel("Email:",       emailField));
         formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Password:",   passwordField));
+        formPanel.add(createFieldPanel("Password:",    passwordField));
         formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("Year Level:", yearLevelBox));
+        formPanel.add(createFieldPanel("Year Level:",  yearLevelBox));
         formPanel.add(Box.createVerticalStrut(10));
-        formPanel.add(createFieldPanel("College:",    collegeBox));
+        formPanel.add(createFieldPanel("College:",     collegeBox));
         formPanel.add(Box.createVerticalStrut(10));
         formPanel.add(roleRow);
         formPanel.add(Box.createVerticalStrut(10));
@@ -126,23 +114,16 @@ public class UserFormDialog {
 
                 if (studentId.isEmpty() || firstName.isEmpty() || lastName.isEmpty()
                         || email.isEmpty() || password.isEmpty() || college.isEmpty()) {
-                    // ── Replaced JOptionPane.showMessageDialog ────────────────
-                	JOptionPane.showMessageDialog(
-                		    null,
-                		    "Error: Please complete all required fields.",
-                		    "Error",
-                		    JOptionPane.ERROR_MESSAGE
-                		);
+                    JOptionPane.showMessageDialog(null,
+                        "Error: Please complete all required fields.",
+                        "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
                 if (!email.toLowerCase().endsWith("@umak.edu.ph")) {
-                	JOptionPane.showMessageDialog(
-                		    null,
-                		    "Error: Invalid email address format!",
-                		    "Error",
-                		    JOptionPane.ERROR_MESSAGE
-                		);
+                    JOptionPane.showMessageDialog(null,
+                        "Error: Invalid email address format!",
+                        "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
@@ -157,31 +138,21 @@ public class UserFormDialog {
 
                 if (success) {
                     onSuccess.run();
-
-                    JOptionPane.showMessageDialog(
-                        null,
-                        "Success! The user has been updated successfully.",
-                        "Success",
-                        JOptionPane.INFORMATION_MESSAGE
-                    );
-
+                    JOptionPane.showMessageDialog(null,
+                        "Success! The user has been added successfully.",
+                        "Success", JOptionPane.INFORMATION_MESSAGE);
                     SwingUtilities.getWindowAncestor((Component) e.getSource()).dispose();
-
                 } else {
                     String reason = userService.getLastAddError();
-                    JOptionPane.showMessageDialog(
-                    	    null,
-                    	    reason != null
-                    	        ? "Error: " + reason + "! Please try again."
-                    	        : "Error: Failed to add user! Please try again.",
-                    	    "Error",
-                    	    JOptionPane.ERROR_MESSAGE
-                    	);
+                    JOptionPane.showMessageDialog(null,
+                        reason != null
+                            ? "Error: " + reason + "! Please try again."
+                            : "Error: Failed to add user! Please try again.",
+                        "Error", JOptionPane.ERROR_MESSAGE);
                 }
             }).setVisible(true);
     }
 
-    // Opens the Update User dialog pre-filled with existing data
     public static void showUpdate(Window owner, int userId,
             AdminUsersServices userService, Runnable onSuccess) {
 
@@ -202,7 +173,7 @@ public class UserFormDialog {
             new String[]{ "Standard User", "Admin" });
         CustomComboBox<String> roleSubBox = new CustomComboBox<>(
             new String[]{ "admin", "super_admin" });
-        roleSubBox.setCustomSize(130, 30);
+        roleSubBox.setCustomSize(110, 32);
 
         if (currentRole.equals("end_user")) {
             roleCategoryBox.setSelectedItem("Standard User");
@@ -221,19 +192,13 @@ public class UserFormDialog {
 
         JPanel roleComboPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         roleComboPanel.setOpaque(false);
-        roleCategoryBox.setPreferredSize(new Dimension(140, 32));
-        roleSubBox.setPreferredSize(new Dimension(130, 32));
+        roleComboPanel.setPreferredSize(new Dimension(240, 32)); // STEP 3
+        roleCategoryBox.setPreferredSize(new Dimension(120, 32));
+        roleSubBox.setPreferredSize(new Dimension(110, 32));
         roleComboPanel.add(roleCategoryBox);
         roleComboPanel.add(roleSubBox);
 
-        JPanel roleRow = new JPanel(new BorderLayout(10, 0));
-        roleRow.setOpaque(false);
-        roleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        CustomLabel roleLabel = new CustomLabel("System Role:", 14f, FontStyle.REGULAR);
-        roleLabel.setPreferredSize(new Dimension(100, 30));
-        roleLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        roleRow.add(roleLabel,      BorderLayout.WEST);
-        roleRow.add(roleComboPanel, BorderLayout.CENTER);
+        JPanel roleRow = buildManualRow("System Role:", roleComboPanel); // STEP 2
 
         formPanel.add(createFieldPanel("First Name:", firstNameField));
         formPanel.add(Box.createVerticalStrut(10));
@@ -254,80 +219,51 @@ public class UserFormDialog {
                     ? user.getLastName()  : lastNameField.getText().trim();
                 String resolvedCollege = (collegeBox.getSelectedItem() == null)
                     ? user.getCollege()   : collegeBox.getSelectedItem().toString().trim();
-
                 String resolvedRole = "Admin".equals(roleCategoryBox.getSelectedItem())
                         ? (roleSubBox.getSelectedItem() != null
                                ? roleSubBox.getSelectedItem().toString() : "admin")
                         : "end_user";
 
-            
                 if (resolvedFirst.isEmpty() || resolvedLast.isEmpty() || resolvedCollege.isEmpty()) {
-                	JOptionPane.showMessageDialog(
-                		    null,
-                		    "Error: Please complete all required fields.",
-                		    "Error",
-                		    JOptionPane.ERROR_MESSAGE
-                		);
+                    JOptionPane.showMessageDialog(null,
+                        "Error: Please complete all required fields.",
+                        "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
-            	dialog[0].dispose();
-                int confirm = JOptionPane.showConfirmDialog(
-                	    null,
-                	    "Are you sure you want to update User ID " + userId + "?",
-                	    "Confirm Update",
-                	    JOptionPane.YES_NO_OPTION,
-                	    JOptionPane.QUESTION_MESSAGE
-                	);
-                	if (confirm != JOptionPane.YES_OPTION) return;
 
-                	user.setFirstName(resolvedFirst);
-                	user.setLastName(resolvedLast);
-                	user.setCollege(resolvedCollege);
-                	user.setSystemRole(resolvedRole);
+                dialog[0].dispose();
+                int confirm = JOptionPane.showConfirmDialog(null,
+                    "Are you sure you want to update User ID " + userId + "?",
+                    "Confirm Update", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+                if (confirm != JOptionPane.YES_OPTION) return;
 
-                	boolean success = userService.updateUser(user);
-       
+                user.setFirstName(resolvedFirst);
+                user.setLastName(resolvedLast);
+                user.setCollege(resolvedCollege);
+                user.setSystemRole(resolvedRole);
+
+                boolean success = userService.updateUser(user);
+
                 if (success) {
-                	dialog[0].dispose();
                     onSuccess.run();
-                    JOptionPane.showMessageDialog(
-                        null,
+                    JOptionPane.showMessageDialog(null,
                         "Success! The user has been updated successfully.",
-                        "Success",
-                        JOptionPane.INFORMATION_MESSAGE
-                    );
-                   
+                        "Success", JOptionPane.INFORMATION_MESSAGE);
                 } else {
-                	 JOptionPane.showMessageDialog(
-                             null,
-                             "Error: Failed to update user information! Please try again.",
-                             "Error",
-                             JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(null,
+                        "Error: Failed to update user information! Please try again.",
+                        "Error", JOptionPane.ERROR_MESSAGE);
                 }
-                
-                
             });
-        		dialog[0].setVisible(true);
+        dialog[0].setVisible(true);
     }
 
+    // ── Shared helpers ────────────────────────────────────────────────────────
 
-    private static JPanel makeImageRow(String labelText, JPanel inputPanel) {
-        JPanel row = new JPanel(new BorderLayout(10, 0));
-        row.setOpaque(false);
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        row.setPreferredSize(new Dimension(0, 35));
-        CustomLabel lbl = new CustomLabel(labelText, 14f, FontStyle.REGULAR);
-        lbl.setPreferredSize(new Dimension(100, 30));
-        lbl.setHorizontalAlignment(SwingConstants.RIGHT);
-        JPanel wrap = new JPanel(new BorderLayout());
-        wrap.setOpaque(false);
-        wrap.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
-        wrap.add(inputPanel, BorderLayout.CENTER);
-        row.add(lbl,  BorderLayout.WEST);
-        row.add(wrap, BorderLayout.CENTER);
-        return row;
-    }
-
+    /**
+     * Standard field row: 120px RIGHT-aligned label + input field.
+     * STEP 1 + STEP 3
+     */
     private static JPanel createFieldPanel(String label, JComponent component) {
         JPanel panel = new JPanel(new BorderLayout(10, 0));
         panel.setOpaque(false);
@@ -335,12 +271,13 @@ public class UserFormDialog {
         panel.setPreferredSize(new Dimension(0, 35));
 
         CustomLabel lbl = new CustomLabel(label, 14f, FontStyle.REGULAR);
-        lbl.setPreferredSize(new Dimension(100, 30));
-        lbl.setHorizontalAlignment(SwingConstants.RIGHT);
+        lbl.setPreferredSize(new Dimension(120, 30));           // STEP 1: 100 → 120
+        lbl.setHorizontalAlignment(SwingConstants.RIGHT);       // STEP 1: RIGHT
+
         panel.add(lbl, BorderLayout.WEST);
 
-        component.setPreferredSize(new Dimension(250, 32));
-        component.setMinimumSize(new Dimension(250, 32));
+        component.setPreferredSize(new Dimension(240, 32));     // STEP 3: consistent width
+        component.setMinimumSize(new Dimension(240, 32));
 
         JPanel wrap = new JPanel(new BorderLayout());
         wrap.setOpaque(false);
@@ -348,5 +285,38 @@ public class UserFormDialog {
         wrap.add(component, BorderLayout.CENTER);
         panel.add(wrap, BorderLayout.CENTER);
         return panel;
+    }
+
+    /**
+     * Manual row builder for non-standard inputs (role combo pair, image row).
+     * Uses the same 120px RIGHT-aligned label so fields line up with createFieldPanel rows.
+     * STEP 2
+     */
+    private static JPanel buildManualRow(String labelText, JComponent inputComponent) {
+        JPanel row = new JPanel(new BorderLayout(10, 0));
+        row.setOpaque(false);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+        row.setPreferredSize(new Dimension(0, 35));
+
+        CustomLabel lbl = new CustomLabel(labelText, 14f, FontStyle.REGULAR);
+        lbl.setPreferredSize(new Dimension(120, 30));           // STEP 2: matches createFieldPanel
+        lbl.setHorizontalAlignment(SwingConstants.RIGHT);
+
+        row.add(lbl, BorderLayout.WEST);
+
+        JPanel wrap = new JPanel(new BorderLayout());
+        wrap.setOpaque(false);
+        wrap.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
+        wrap.add(inputComponent, BorderLayout.CENTER);
+        row.add(wrap, BorderLayout.CENTER);
+        return row;
+    }
+
+    /**
+     * Image row — delegates to buildManualRow for consistent alignment.
+     * STEP 2
+     */
+    private static JPanel makeImageRow(String labelText, JPanel inputPanel) {
+        return buildManualRow(labelText, inputPanel);
     }
 }

@@ -26,7 +26,7 @@ import enums.*;
  *  3. AppDialog              — every JOptionPane replaced with the new
  *     AppDialog helper for consistent styling.
  */
-public class AdminTable extends CustomPanel {
+public class AdminTable extends CustomPanel implements ActionListener {
     private static final long serialVersionUID = 1L;
 
     private final TableType type;
@@ -39,8 +39,13 @@ public class AdminTable extends CustomPanel {
     private CustomButton      btnArchiveOrDelete;
     private CustomSearchField searchField;
     private CustomComboBox<String> filterBox;
-    private JCheckBox         archiveMode = new JCheckBox("Archive Mode");
-
+    private JCheckBox         archiveMode        = new JCheckBox("Archive Mode");
+    private JCheckBox         selectAllBox       = new JCheckBox();
+    private CustomLabel       selectedCountLabel  = new CustomLabel("Selected: 0", 12f, FontStyle.REGULAR);
+    private final CustomCheckBox chkRenderer     = new CustomCheckBox();
+    private final CustomCheckBox chkEditor       = new CustomCheckBox();
+    private final CustomCheckBox chkHeader       = new CustomCheckBox();
+    
     private javax.swing.Timer logsRefreshTimer;
     private DateFilterPanel   dateFilterPanel;
 
@@ -71,7 +76,7 @@ public class AdminTable extends CustomPanel {
 
     private CustomPanel initHeader() {
         CustomPanel header = new CustomPanel();
-        header.setPadding(20, 15);
+        header.setPadding(10, 15);
         header.setLayout(new BoxLayout(header, BoxLayout.X_AXIS));
 
         String title;
@@ -81,8 +86,8 @@ public class AdminTable extends CustomPanel {
             case LOGS:  title = "Logs Management"; break;
             default:    title = "Management";      break;
         }
-
         header.add(new CustomLabel(title, 18f, FontStyle.BOLD));
+     
         header.add(Box.createHorizontalGlue());
 
         searchField = new CustomSearchField("Search...", 20, 10);
@@ -123,8 +128,10 @@ public class AdminTable extends CustomPanel {
             header.add(dateFilterPanel);
         }
 
+
         return header;
     }
+    
 
     private String[] getFilterOptions() {
         if (type == TableType.USERS) {
@@ -158,7 +165,28 @@ public class AdminTable extends CustomPanel {
         tableWrapper.setLayout(new BorderLayout());
 
         Object[] columnNames = getColumnNames();
-        table = new CustomTable(new Object[0][columnNames.length], columnNames);
+      
+        javax.swing.table.DefaultTableModel initModel = new javax.swing.table.DefaultTableModel(
+                new Object[0][columnNames.length], columnNames) {
+            @Override
+            public Class<?> getColumnClass(int col) {
+                if ((type == TableType.USERS || type == TableType.ITEMS) && col == 0)
+                    return Boolean.class;
+                return Object.class;
+            }
+            @Override
+            public boolean isCellEditable(int row, int col) {
+                return (type != TableType.LOGS && col == 0);
+            }
+        };
+        table = new CustomTable(initModel) {
+            @Override
+            public Class<?> getColumnClass(int col) {
+                if (type == TableType.LOGS) return Object.class;
+                if (col == 0 && type != TableType.LOGS) return Boolean.class;
+                return Object.class;
+            }
+        };
 
         table.setRowSelectionAllowed(true);
         table.setColumnSelectionAllowed(false);
@@ -200,6 +228,7 @@ public class AdminTable extends CustomPanel {
 
         // ── Action buttons — visibility controlled by Permission ──────────────
         // SUPER_ADMIN sees everything. ADMIN sees nothing in this panel.
+     // ── Action buttons — visibility controlled by Permission ──────────────
         if (type != TableType.LOGS) {
             btnUpdateOrRetrieve = new CustomButton("Update Data", 8);
             btnArchiveOrDelete  = new CustomButton("Archive Data", 8);
@@ -219,6 +248,35 @@ public class AdminTable extends CustomPanel {
             });
             table.getSelectionModel().addListSelectionListener(e -> {
                 if (!e.getValueIsAdjusting()) updateActionUI();
+            });
+
+            // ── Checkbox column renderer + editor ─────────────────────────────
+         // ── Checkbox column — register once, CustomTable re-applies after every page/reload
+            chkHeader.setHeader(true);
+            table.setCheckboxColumn(0, chkRenderer, chkEditor,
+                    (tbl, val, sel, foc, row, col) -> {
+                        chkHeader.setChecked(selectAllBox.isSelected());
+                        return chkHeader;
+                    });
+            
+            chkEditor.addCellEditorListener(new javax.swing.event.CellEditorListener() {
+                public void editingStopped(javax.swing.event.ChangeEvent e) {
+                    SwingUtilities.invokeLater(AdminTable.this::updateSelectedCount);
+                }
+                public void editingCanceled(javax.swing.event.ChangeEvent e) {}
+            });
+
+            table.getTableHeader().addMouseListener(new MouseAdapter() {
+                public void mouseClicked(MouseEvent e) {
+                    int col = table.getTableHeader().columnAtPoint(e.getPoint());
+                    if (col != 0) return;
+                    selectAllBox.setSelected(!selectAllBox.isSelected());
+                    boolean checked = selectAllBox.isSelected();
+                    for (int r = 0; r < table.getModel().getRowCount(); r++)
+                        table.getModel().setValueAt(checked, r, 0);
+                    table.repaint();
+                    updateSelectedCount();
+                }
             });
         }
 
@@ -246,30 +304,27 @@ public class AdminTable extends CustomPanel {
         scrollWrapper.setBorder(BorderFactory.createLineBorder(Brand.COLOR_BORDER, 1, true));
         scrollWrapper.add(scrollPane, BorderLayout.CENTER);
 
-        tableWrapper.setBorder(BorderFactory.createEmptyBorder(0, 15, 15, 15));
+        tableWrapper.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 15));
 
         CustomPanel bottomPanel = new CustomPanel(new BorderLayout());
         bottomPanel.add(table.createPaginationPanel(), BorderLayout.CENTER);
 
+        if (type != TableType.LOGS) {
+            selectedCountLabel.setForeground(Color.GRAY);
+            if (FontLib.POPPINS_REGULAR != null)
+                selectedCountLabel.setFont(FontLib.POPPINS_REGULAR.deriveFont(11f));
+            bottomPanel.add(selectedCountLabel, BorderLayout.WEST);
+        }
+
         // ── RBAC: build the actions panel only when the user has any write access
         if (type != TableType.LOGS) {
             CustomPanel actionsPanel = new CustomPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
-
-            // Only SUPER_ADMIN can create
-            if (Permission.canCreate()) {
-                actionsPanel.add(btnAddAction);
-            }
-            // Only SUPER_ADMIN can update or archive/delete
-            if (Permission.canUpdate()) {
-                actionsPanel.add(btnUpdateOrRetrieve);
-            }
-            if (Permission.canDelete()) {
-                actionsPanel.add(btnArchiveOrDelete);
-            }
-
-            // Always add the panel — it may be empty for ADMIN (clean read-only view)
+            if (Permission.canCreate()) actionsPanel.add(btnAddAction);
+            if (Permission.canUpdate()) actionsPanel.add(btnUpdateOrRetrieve);
+            if (Permission.canDelete()) actionsPanel.add(btnArchiveOrDelete);
             bottomPanel.add(actionsPanel, BorderLayout.EAST);
         }
+    
 
         tableWrapper.add(scrollWrapper, BorderLayout.CENTER);
         tableWrapper.add(bottomPanel,   BorderLayout.SOUTH);
@@ -278,46 +333,56 @@ public class AdminTable extends CustomPanel {
 
     private Object[] getColumnNames() {
         if (type == TableType.USERS) {
-            return new Object[]{ "ID","Student ID","First Name","Last Name","College","Year",
+            return new Object[]{ "","ID","Student ID","First Name","Last Name","College","Year",
                                  "Karma Points","Contact Number","Gcash Number","Maya Number",
                                  "Mastercard Card","Visa Number","System Role" };
         } else if (type == TableType.ITEMS) {
-            return new Object[]{ "ID","Item Name","Condition","Category","Stock","Price","Status" };
+            return new Object[]{ "","ID","Item Name","Condition","Category","Stock","Price","Status" };
         } else {
             return new Object[]{ "ID","User ID","Log Type","Description","Date" };
         }
     }
 
     private void applyColumnWidths() {
-        table.setColumnWidth(0, 55);
-        table.setColumnAlignment(0, SwingConstants.LEFT);
-
         if (type == TableType.USERS) {
-            table.setColumnWidth(0,  40);  table.setColumnWidth(1,  90);
-            table.setColumnWidth(4,  70);  table.setColumnWidth(5,  70);
-            table.setColumnWidth(6,  110); table.setColumnWidth(7,  130);
-            table.setColumnWidth(8,  120); table.setColumnWidth(9,  120);
-            table.setColumnWidth(10, 140); table.setColumnWidth(11, 120);
-            table.setColumnWidth(12, 110);
+            table.setColumnWidth(0,  36);  // checkbox
+            table.setColumnWidth(1,  40);  // ID
+            table.setColumnWidth(2,  90);  // Student ID
+            table.setColumnWidth(5,  70);  // College
+            table.setColumnWidth(6,  70);  // Year
+            table.setColumnWidth(7,  110); // Karma
+            table.setColumnWidth(8,  130); // Contact
+            table.setColumnWidth(9,  120); // GCash
+            table.setColumnWidth(10, 120); // Maya
+            table.setColumnWidth(11, 140); // Mastercard
+            table.setColumnWidth(12, 120); // Visa
+            table.setColumnWidth(13, 110); // Role
         } else if (type == TableType.ITEMS) {
-            table.setColumnWidth(2, 110); table.setColumnWidth(3, 140);
-            table.setColumnWidth(4, 75);  table.setColumnWidth(5, 80);
-            table.setColumnWidth(6, 115);
+            table.setColumnWidth(0, 36);   // checkbox
+            table.setColumnWidth(1, 55);   // ID
+            table.setColumnWidth(3, 110);  // Condition
+            table.setColumnWidth(4, 140);  // Category
+            table.setColumnWidth(5, 75);   // Stock
+            table.setColumnWidth(6, 80);   // Price
+            table.setColumnWidth(7, 115);  // Status
         } else {
+            table.setColumnWidth(0, 55);
+            table.setColumnAlignment(0, SwingConstants.LEFT);
             table.setColumnWidth(1, 90);  table.setColumnWidth(2, 150);
             table.setColumnWidth(4, 160);
             TableColumn descCol = table.getColumnModel().getColumn(3);
             descCol.setPreferredWidth(260); descCol.setMinWidth(150);
         }
     }
-
     // ── Data loading ──────────────────────────────────────────────────────────
+
+
 
     private void loadTableData() {
         if (table == null) return;
 
-        String  keyword  = searchField != null ? searchField.getText().trim() : "";
-        String  filter   = filterBox   != null ? (String) filterBox.getSelectedItem() : "";
+        String  keyword   = searchField != null ? searchField.getText().trim() : "";
+        String  filter    = filterBox   != null ? (String) filterBox.getSelectedItem() : "";
         boolean searching = !keyword.isEmpty();
         boolean archived  = archiveMode.isSelected();
         Object[][] data;
@@ -335,21 +400,25 @@ public class AdminTable extends CustomPanel {
             else                        data = itemService.getActiveItemsForTable();
 
         } else {
-            String[] range   = dateFilterPanel != null
+            String[] range  = dateFilterPanel != null
                     ? dateFilterPanel.getEffectiveDateRange() : new String[]{null, null};
-            String dateFrom  = range[0];
-            String dateTo    = range[1];
+            String dateFrom = range[0];
+            String dateTo   = range[1];
 
-            if      (logType == LogType.USER_LOGS)         data = logService.getUserLogsFiltered(filter, keyword, dateFrom, dateTo);
-            else if (logType == LogType.ITEM_LOGS)         data = logService.getItemLogsFiltered(filter, keyword, dateFrom, dateTo);
-            else if (logType == LogType.TRANSACTION_LOGS)  data = logService.getTransactionLogsFiltered(filter, keyword, dateFrom, dateTo);
-            else if (logType == LogType.REPUTATION_LOGS)   data = logService.getReputationLogsFiltered(filter, keyword, dateFrom, dateTo);
-            else                                           data = new Object[0][5];
+            if      (logType == LogType.USER_LOGS)        data = logService.getUserLogsFiltered(filter, keyword, dateFrom, dateTo);
+            else if (logType == LogType.ITEM_LOGS)        data = logService.getItemLogsFiltered(filter, keyword, dateFrom, dateTo);
+            else if (logType == LogType.TRANSACTION_LOGS) data = logService.getTransactionLogsFiltered(filter, keyword, dateFrom, dateTo);
+            else if (logType == LogType.REPUTATION_LOGS)  data = logService.getReputationLogsFiltered(filter, keyword, dateFrom, dateTo);
+            else                                          data = new Object[0][5];
         }
-
         table.setFullData(data, getColumnNames());
-    }
-
+        if (type != TableType.LOGS) {
+            resetCheckboxState();
+        }
+        }
+    
+        
+    
     // ── Button UI state ───────────────────────────────────────────────────────
 
     /**
@@ -361,9 +430,8 @@ public class AdminTable extends CustomPanel {
     private void updateActionUI() {
         if (btnUpdateOrRetrieve == null || btnArchiveOrDelete == null) return;
 
-        boolean hasSelection = table != null && table.getSelectedRow() != -1;
-        btnUpdateOrRetrieve.setEnabled(hasSelection);
-        btnArchiveOrDelete.setEnabled(hasSelection);
+        btnUpdateOrRetrieve.setEnabled(true);
+        btnArchiveOrDelete.setEnabled(true);
 
         if (archiveMode.isSelected()) {
             applyButtonStyle(btnUpdateOrRetrieve, "Retrieve Data", "#ffc107");
@@ -372,17 +440,50 @@ public class AdminTable extends CustomPanel {
         } else {
             applyButtonStyle(btnUpdateOrRetrieve, "Update Data",  "#28a745");
             applyButtonStyle(btnArchiveOrDelete,  "Archive Data", "#ffc107");
-            // Only show Add button if user has create permission
             if (btnAddAction != null) btnAddAction.setVisible(Permission.canCreate());
         }
     }
-
     private void applyButtonStyle(CustomButton btn, String text, String hexColor) {
         btn.setText(text);
         btn.setDefaultColor(Color.decode(hexColor));
         btn.setHoverColor(btn.getBackground().darker());
     }
 
+    
+    private void updateSelectedCount() {
+        int count = 0;
+        for (int r = 0; r < table.getModel().getRowCount(); r++) {
+            Object val = table.getModel().getValueAt(r, 0);
+            if (Boolean.TRUE.equals(val)) count++;
+        }
+        selectedCountLabel.setText("Selected: " + count);
+        updateActionUI();
+    }
+
+    private java.util.List<Integer> getCheckedIds() {
+        java.util.List<Integer> ids = new java.util.ArrayList<>();
+        for (int r = 0; r < table.getModel().getRowCount(); r++) {
+            Object val = table.getModel().getValueAt(r, 0);
+            if (Boolean.TRUE.equals(val)) {
+                ids.add(Integer.parseInt(table.getModel().getValueAt(r, 1).toString()));
+            }
+        }
+        // Fallback: single-click row selection
+        if (ids.isEmpty() && table.getSelectedRow() != -1) {
+            ids.add(getSelectedId(table.getSelectedRow()));
+        }
+        return ids;
+    }
+    
+    private void resetCheckboxState() {
+        selectAllBox.setSelected(false);
+        for (int r = 0; r < table.getModel().getRowCount(); r++) {
+            table.getModel().setValueAt(false, r, 0);
+        }
+        selectedCountLabel.setText("Selected: 0");
+    }
+    
+    
     // ── Action handlers — each starts with a Permission.require() guard ───────
 
     private void handleAdd() {
@@ -400,10 +501,21 @@ public class AdminTable extends CustomPanel {
     private void handleUpdate() {
         Permission.require(Permission.canUpdate(), "update records");
 
-        int row = table.getSelectedRow();
-        if (row == -1) return;
-        int id = getSelectedId(row);
+        java.util.List<Integer> ids = getCheckedIds();
+        if (ids.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select at least one row.", "No Selection",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        if (ids.size() > 1) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select only one row to update.", "Multiple Rows Selected",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
+        int id = ids.get(0);
         Window owner = SwingUtilities.getWindowAncestor(this);
         if (type == TableType.USERS) {
             UserFormDialog.showUpdate(owner, id, userService, () -> loadTableData());
@@ -415,125 +527,110 @@ public class AdminTable extends CustomPanel {
     private void handleArchive() {
         Permission.require(Permission.canDelete(), "archive records");
 
-        int row = table.getSelectedRow();
-        if (row == -1) {
-        	JOptionPane.showMessageDialog(
-        		    this,
-        		    "Error: No row selected! Please select a row before proceeding.",
-        		    "Error",
-        		    JOptionPane.WARNING_MESSAGE
-        		);
+        java.util.List<Integer> ids = getCheckedIds();
+        if (ids.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select at least one row.", "No Selection",
+                    JOptionPane.WARNING_MESSAGE);
             return;
-        }
-        int id = getSelectedId(row);
-
-        // Prevent admins from archiving themselves
-        if (type == TableType.USERS) {
-            int currentUserId = SessionManager.get().getCurrentUserId();
-            if (id == currentUserId) {
-            	JOptionPane.showMessageDialog(
-            		    this,
-            		    "Error: Action not allowed! You cannot archive your own account.",
-            		    "Error",
-            		    JOptionPane.ERROR_MESSAGE
-            		);
-                return;
-            }
         }
 
         String entityType = type == TableType.USERS ? "user" : "item";
 
-        int confirm = JOptionPane.showConfirmDialog(
-        	    this,
-        	    "Are you sure you want to archive " + entityType + " ID " + id + "?",
-        	    "Confirm Archive",
-        	    JOptionPane.YES_NO_OPTION,
-        	    JOptionPane.WARNING_MESSAGE
-        	);
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to archive " + ids.size() + " " + entityType
+                        + (ids.size() > 1 ? "s" : "") + "?",
+                "Confirm Archive", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (confirm != JOptionPane.YES_OPTION) return;
 
-        	if (confirm != JOptionPane.YES_OPTION) {
-        	    return;
-        	}
+        int succeeded = 0, failed = 0;
+        int currentUserId = SessionManager.get().getCurrentUserId();
 
-        String successMsg = entityType + " ID " + id + " archived successfully.";
-        String failureMsg = entityType + " ID " + id + " could not be archived.\n\n"
-                + "Possible reasons:\n"
-                + "• Account has admin or super_admin role\n"
-                + "• Database error or FK constraint\n"
-                + "• Archive table not found";
+        for (int id : ids) {
+            if (type == TableType.USERS && id == currentUserId) { failed++; continue; }
+            boolean ok = type == TableType.USERS
+                    ? userService.archiveUser(id) : itemService.archiveItem(id);
+            if (ok) succeeded++; else failed++;
+        }
 
-        RecordAction action = type == TableType.USERS
-                ? RecordAction.ARCHIVE_USER : RecordAction.ARCHIVE_ITEM;
-        runAsync(new ArchiveTask(id, action), successMsg, failureMsg,
-                type == TableType.USERS);
+        loadTableData();
+        resetCheckboxState();
+        JOptionPane.showMessageDialog(this,
+                succeeded + " " + entityType + (succeeded != 1 ? "s" : "")
+                        + " archived successfully. " + failed + " failed.",
+                succeeded > 0 ? "Archive Complete" : "Archive Failed",
+                failed > 0 ? JOptionPane.WARNING_MESSAGE : JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void handleRetrieve() {
         Permission.require(Permission.canUpdate(), "restore records");
 
-        int row = table.getSelectedRow();
-        if (row == -1) return;
-        int id = getSelectedId(row);
+        java.util.List<Integer> ids = getCheckedIds();
+        if (ids.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select at least one row.", "No Selection",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
         String entityType = type == TableType.USERS ? "user" : "item";
 
-        int confirm = JOptionPane.showConfirmDialog(
-        	    this,
-        	    "Are you sure you want to restore " + entityType + " ID " + id + "?",
-        	    "Confirm Restore",
-        	    JOptionPane.YES_NO_OPTION,
-        	    JOptionPane.QUESTION_MESSAGE
-        	);
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to restore " + ids.size() + " " + entityType
+                        + (ids.size() > 1 ? "s" : "") + "?",
+                "Confirm Restore", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (confirm != JOptionPane.YES_OPTION) return;
 
-        	if (confirm != JOptionPane.YES_OPTION) {
-        	    return;
-        	}
+        int succeeded = 0, failed = 0;
+        for (int id : ids) {
+            boolean ok = type == TableType.USERS
+                    ? userService.unarchiveUser(id) : itemService.unarchiveItem(id);
+            if (ok) succeeded++; else failed++;
+        }
 
-        String successMsg = entityType + " ID " + id + " restored successfully.";
-        String failureMsg = entityType + " ID " + id + " could not be restored.\n\n"
-                + "Possible reasons:\n"
-                + "• The item's original owner is still archived\n"
-                + "• The record was not found in the archive";
-
-        RecordAction action = type == TableType.USERS
-                ? RecordAction.RESTORE_USER : RecordAction.RESTORE_ITEM;
-        runAsync(new ArchiveTask(id, action), successMsg, failureMsg);
+        loadTableData();
+        resetCheckboxState();
+        JOptionPane.showMessageDialog(this,
+                succeeded + " " + entityType + (succeeded != 1 ? "s" : "")
+                        + " restored successfully. " + failed + " failed.",
+                succeeded > 0 ? "Restore Complete" : "Restore Failed",
+                failed > 0 ? JOptionPane.WARNING_MESSAGE : JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void handleDelete() {
         Permission.require(Permission.canDelete(), "permanently delete records");
 
-        int row = table.getSelectedRow();
-        if (row == -1) return;
-        int id = getSelectedId(row);
+        java.util.List<Integer> ids = getCheckedIds();
+        if (ids.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select at least one row.", "No Selection",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
         String entityType = type == TableType.USERS ? "user" : "item";
 
-        // ── Replaced JOptionPane — uses the dedicated delete confirmation dialog
-        int confirm = JOptionPane.showConfirmDialog(
-        	    this,
-        	    "Are you sure you want to permanently delete " + entityType + " ID " + id,
-        	    "Confirm Deletion",
-        	    JOptionPane.YES_NO_OPTION,
-        	    JOptionPane.WARNING_MESSAGE
-        	);
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to permanently delete " + ids.size() + " " + entityType
+                        + (ids.size() > 1 ? "s" : "") + "?",
+                "Confirm Deletion", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (confirm != JOptionPane.YES_OPTION) return;
 
-        	if (confirm != JOptionPane.YES_OPTION) {
-        	    return;
-        	}
+        int succeeded = 0, failed = 0;
+        for (int id : ids) {
+            boolean ok = type == TableType.USERS
+                    ? userService.permanentDeleteUser(id) : itemService.permanentDeleteItem(id);
+            if (ok) succeeded++; else failed++;
+        }
 
-        	String successMsg =
-        		    "Success! " + entityType + " ID " + id + " has been permanently deleted.";
-
-        		String failureMsg =
-        		    "Error: Failed to permanently delete " + entityType + " ID " + id + "! Please try again.";
-
-        RecordAction action = type == TableType.USERS
-                ? RecordAction.DELETE_USER : RecordAction.DELETE_ITEM;
-        runAsync(new ArchiveTask(id, action), successMsg, failureMsg);
+        loadTableData();
+        resetCheckboxState();
+        JOptionPane.showMessageDialog(this,
+                succeeded + " " + entityType + (succeeded != 1 ? "s" : "")
+                        + " permanently deleted. " + failed + " failed.",
+                succeeded > 0 ? "Delete Complete" : "Delete Failed",
+                failed > 0 ? JOptionPane.WARNING_MESSAGE : JOptionPane.INFORMATION_MESSAGE);
     }
-
-   
 
     private void runAsync(ArchiveTask task, String successMsg, String failureMsg) {
         runAsync(task, successMsg, failureMsg, false);
@@ -611,6 +708,13 @@ public class AdminTable extends CustomPanel {
 
     private int getSelectedId(int viewRow) {
         int modelRow = table.convertRowIndexToModel(viewRow);
-        return Integer.parseInt(table.getModel().getValueAt(modelRow, 0).toString());
+        int idCol = (type == TableType.USERS || type == TableType.ITEMS) ? 1 : 0;
+        return Integer.parseInt(table.getModel().getValueAt(modelRow, idCol).toString());
     }
+
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
 }

@@ -27,8 +27,7 @@ public class AdminDialog extends JDialog {
         headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         mainPanel.add(headerPanel, BorderLayout.NORTH);
 
-        // Content — scroll pane wraps whatever panel is passed in
-        // Do NOT override the panel's preferred size; let it size naturally
+        // Content
         if (contentPanel != null) {
             JScrollPane scrollPane = new JScrollPane(contentPanel);
             scrollPane.setBorder(BorderFactory.createEmptyBorder());
@@ -37,7 +36,6 @@ public class AdminDialog extends JDialog {
             scrollPane.getVerticalScrollBar().setUnitIncrement(12);
             mainPanel.add(scrollPane, BorderLayout.CENTER);
         }
-
         add(mainPanel, BorderLayout.CENTER);
 
         // Footer buttons
@@ -55,44 +53,31 @@ public class AdminDialog extends JDialog {
         submitBtn.setTextColor(Color.WHITE);
         submitBtn.setPadding(5, 15, 5, 15);
         submitBtn.addActionListener(e -> {
-            if (onSubmit != null) {
-                // Let the caller's ActionListener decide whether to close.
-                // The listener should call disposeDialog() on this instance
-                // when it's ready, or we only close if no exception/validation fires.
-                onSubmit.actionPerformed(e);
-                // Do NOT call dispose() here — validation inside onSubmit
-                // shows JOptionPane errors and must keep the dialog open.
-            }
+            if (onSubmit != null) onSubmit.actionPerformed(e);
         });
 
         bottomPanel.add(cancelBtn);
         bottomPanel.add(submitBtn);
         add(bottomPanel, BorderLayout.SOUTH);
 
-        // Size the dialog to fit its content, capped so it never exceeds the screen
         pack();
         capToScreen();
     }
 
-    // Call this from the onSubmit listener when you want to close after success
+    @Override
     public void dispose() {
         super.dispose();
     }
 
-    // Caps dialog size to 90% of screen dimensions so it never goes off-screen
     private void capToScreen() {
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
         int maxW = (int) (screen.width  * 0.90);
         int maxH = (int) (screen.height * 0.85);
-
         int w = Math.min(getWidth(),  maxW);
         int h = Math.min(getHeight(), maxH);
-
-        // Enforce a sensible minimum so tiny dialogs don't look broken
-        w = Math.max(w, 480);
+        w = Math.max(w, 520); // STEP 4: 480 → 520
         h = Math.max(h, 300);
-
         setSize(w, h);
-        setLocationRelativeTo(getOwner()); // re-center after resize
+        setLocationRelativeTo(getOwner());
     }
 }
