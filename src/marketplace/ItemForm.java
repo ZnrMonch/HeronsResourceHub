@@ -1,8 +1,10 @@
 package marketplace;
 
 import java.awt.*;
+import java.io.File;
 import java.sql.*;
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import components.*;
 import utils.*;
 import enums.Category;
@@ -11,329 +13,277 @@ import database.ItemRecord;
 import database.DatabaseManager;
 
 public class ItemForm extends JDialog {
-	private static final long serialVersionUID = 1L;
-	
-	private CustomTextField itemNameField;
-	private CustomTextField imagePathField; // New Field
-	private CustomTextArea descriptionField;
-	private CustomComboBox<String> categoryField;
-	private CustomComboBox<String> conditionField;
-	private CustomSpinner quantityField; // New Field
-	private CustomComboBox<String> availabilityField; // New Field
-	private CustomTextField pickupLocationField;
-	
-	private CustomPanel pickupDateField;
-	private JCheckBox[] pickupDayBoxes;
-	
-	private CustomSpinner pickupTimeField;
-	
-	private CustomTextField priceField;
-	private CustomSpinner maximumBorrowDaysField;
-	private CustomTextField desiredItemField;
-	
-	private ItemRecord currentItem;
-	private final String DB_URL = DatabaseManager.getURL();
-	private final String USER = DatabaseManager.getUser();
-	private final String PASSWORD = DatabaseManager.getPassword();
-	
-	public ItemForm(Window parent, String title, ItemRecord itemToUpdate) {
-		super(parent, title, Dialog.ModalityType.APPLICATION_MODAL);
-		this.currentItem = itemToUpdate;
-		setResizable(false);
-		
-		setLayout(new BorderLayout());
-		getContentPane().setBackground(Color.WHITE);
-		((JComponent) getContentPane()).setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-		
-		init();
-		
-		if (currentItem != null) {
-			preFillData();
-		}
-		
-		pack();
-		setSize(500, getPreferredSize().height);
-		setLocationRelativeTo(parent);
-		setVisible(true);
-	}
-	
-	private void init() {
-		add(initHeader(), BorderLayout.NORTH);
-		add(initForm(), BorderLayout.CENTER);
-		add(initAction(), BorderLayout.SOUTH);
-	}
-	
-	private CustomPanel initHeader() {
-		CustomPanel wrapper = new CustomPanel(new GridBagLayout());
-		wrapper.add(new CustomLabel(getTitle() != null ? getTitle().toUpperCase() : "ITEM FORM", Brand.HEADER2_TEXT_SIZE, FontStyle.BOLD));
-		return wrapper;
-	}
-	
-	private CustomPanel createLabel(String text, boolean isRequired) {
-		CustomPanel panel = new CustomPanel();
-		panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
-		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
-		panel.add(new CustomLabel(text, Brand.STANDARD_TEXT_SIZE, FontStyle.BOLD));
-		if (isRequired) {
-			panel.add(Box.createHorizontalStrut(3));
-			panel.add(new CustomLabel("*", Brand.STANDARD_TEXT_SIZE, FontStyle.BOLD, Brand.RED));
-		}
-		return panel;
-	}
-	
-	private CustomPanel initForm() {
-		CustomPanel wrapper = new CustomPanel();
-		wrapper.setPadding(0, 20);
-		wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
-		
-		itemNameField = new CustomTextField("Enter item name...");
-		itemNameField.setCustomSize(Integer.MAX_VALUE, 35);
-		
-		imagePathField = new CustomTextField("/resources/images/default.jpg");
-		imagePathField.setCustomSize(Integer.MAX_VALUE, 35);
-		
-		descriptionField = new CustomTextArea("Provide a detailed description...", 5, 20);
-		descriptionField.setCustomSize(Integer.MAX_VALUE, 140);
-		
-		String[] categories = new String[Category.values().length];
-		for (int i = 0; i < Category.values().length; i++) {
-			categories[i] = Category.values()[i].name().replace("_", " ");
-		}
-		categoryField = new CustomComboBox<>(categories);
-		categoryField.setCustomSize(Integer.MAX_VALUE, 35);
-		
-		String[] conditions = new String[Condition.values().length];
-		for (int i = 0; i < Condition.values().length; i++) {
-			conditions[i] = Condition.values()[i].name();
-		}
-		conditionField = new CustomComboBox<>(conditions);
-		conditionField.setCustomSize(Integer.MAX_VALUE, 35);
-		
-		quantityField = new CustomSpinner(new SpinnerNumberModel(1, 0, 999, 1));
-		quantityField.setCustomSize(Integer.MAX_VALUE, 35);
-		
-		availabilityField = new CustomComboBox<>(new String[]{"Available", "Unavailable"});
-		availabilityField.setCustomSize(Integer.MAX_VALUE, 35);
-		
-		pickupLocationField = new CustomTextField("e.g., CCIS Lobby");
-		pickupLocationField.setCustomSize(Integer.MAX_VALUE, 35);
-		
-		pickupDateField = new CustomPanel(new GridLayout(2, 4, 0, 0));
-		pickupDateField.setOpaque(false);
-		String[] days = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "All"};
-		pickupDayBoxes = new JCheckBox[days.length];
-		
-		for (int i = 0; i < days.length; i++) {
-			pickupDayBoxes[i] = new JCheckBox(days[i]);
-			pickupDayBoxes[i].setOpaque(false);
-			pickupDayBoxes[i].setFocusPainted(false);
-			pickupDayBoxes[i].setCursor(new Cursor(Cursor.HAND_CURSOR));
-			if (FontLib.POPPINS_REGULAR != null) pickupDayBoxes[i].setFont(FontLib.POPPINS_REGULAR.deriveFont(12f));
-			pickupDateField.add(pickupDayBoxes[i]);
-		}
-		
-		pickupDayBoxes[7].addActionListener(e -> {
-			boolean isSelected = pickupDayBoxes[7].isSelected();
-			for (int i = 0; i < 7; i++) pickupDayBoxes[i].setSelected(isSelected);
-		});
-		
-		for (int i = 0; i < 7; i++) {
-			pickupDayBoxes[i].addActionListener(e -> {
-				boolean allChecked = true;
-				for (int j = 0; j < 7; j++) if (!pickupDayBoxes[j].isSelected()) allChecked = false;
-				pickupDayBoxes[7].setSelected(allChecked);
-			});
-		}
-		
-		String[] hours = new String[] {
-			"12:00 AM", "01:00 AM", "02:00 AM", "03:00 AM", "04:00 AM", "05:00 AM", 
-			"06:00 AM", "07:00 AM", "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM", 
-			"12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM", 
-			"06:00 PM", "07:00 PM", "08:00 PM", "09:00 PM", "10:00 PM", "11:00 PM"
-		};
-		pickupTimeField = new CustomSpinner(new SpinnerListModel(hours));
-		pickupTimeField.setCustomSize(Integer.MAX_VALUE, 35);
-		
-		wrapper.add(createLabel("Item Name:", true));
-		wrapper.add(itemNameField);
-		wrapper.add(Box.createVerticalStrut(10));
-		
-		wrapper.add(createLabel("Image Path:", false));
-		wrapper.add(imagePathField);
-		wrapper.add(Box.createVerticalStrut(10));
-		
-		wrapper.add(createLabel("Description:", true));
-		wrapper.add(descriptionField);
-		wrapper.add(Box.createVerticalStrut(10));
-		
-		wrapper.add(createRow("Category:", categoryField, true, "Condition:", conditionField, true));
-		wrapper.add(Box.createVerticalStrut(10));
+    private static final long serialVersionUID = 1L;
+    
+    private CustomTextField itemNameField;
+    private CustomLabel imagePathLabel;
+    private String selectedImagePath = "/resources/items/default.jpg";
+    
+    private CustomTextArea descriptionField;
+    private CustomComboBox<String> categoryField;
+    private CustomComboBox<String> conditionField;
+    private CustomTextField quantityField;
+    private CustomTextField pickupLocationField;
+    
+    private CustomPanel pickupDateField;
+    private JCheckBox[] pickupDayBoxes;
+    private CustomSpinner pickupTimeField;
+    
+    private CustomTextField priceField;
+    private CustomTextField maximumBorrowDaysField; // Changed to TextField
+    private CustomTextField desiredItemField;
+    
+    private ItemRecord currentItem;
+    private final String DB_URL = DatabaseManager.getURL();
+    private final String USER = DatabaseManager.getUser();
+    private final String PASSWORD = DatabaseManager.getPassword();
+    
+    public ItemForm(Window parent, String title, ItemRecord itemToUpdate) {
+        super(parent, title, Dialog.ModalityType.APPLICATION_MODAL);
+        this.currentItem = itemToUpdate;
+        setResizable(false);
+        
+        setLayout(new BorderLayout());
+        getContentPane().setBackground(Color.WHITE);
+        ((JComponent) getContentPane()).setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        init();
+        
+        if (currentItem != null) {
+            preFillData();
+        }
+        
+        pack();
+        setSize(550, getPreferredSize().height);
+        setLocationRelativeTo(parent);
+        setVisible(true);
+    }
+    
+    private void init() {
+        add(initHeader(), BorderLayout.NORTH);
+        add(initForm(), BorderLayout.CENTER);
+        add(initAction(), BorderLayout.SOUTH);
+    }
+    
+    private CustomPanel initHeader() {
+        CustomPanel wrapper = new CustomPanel(new GridBagLayout());
+        wrapper.add(new CustomLabel(getTitle() != null ? getTitle().toUpperCase() : "ITEM FORM", Brand.HEADER2_TEXT_SIZE, FontStyle.BOLD));
+        return wrapper;
+    }
+    
+    private CustomPanel initForm() {
+        CustomPanel wrapper = new CustomPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        
+        itemNameField = new CustomTextField("Enter item name...");
+        imagePathLabel = new CustomLabel(new File(selectedImagePath).getName(), Brand.STANDARD_TEXT_SIZE, FontStyle.REGULAR);
+        
+        CustomButton browseBtn = new CustomButton("Browse", 10);
+        browseBtn.setPadding(20, 5);
+        browseBtn.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setFileFilter(new FileNameExtensionFilter("Images (JPG, PNG)", "jpg", "png"));
+            if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+                File file = chooser.getSelectedFile();
+                selectedImagePath = "/resources/items/" + file.getName();
+                imagePathLabel.setText(file.getName());
+            }
+        });
 
-		wrapper.add(createRow("Quantity:", quantityField, true, "Availability:", availabilityField, true));
-		wrapper.add(Box.createVerticalStrut(10));
-		
-		wrapper.add(createLabel("Pickup Location:", true));
-		wrapper.add(pickupLocationField);
-		wrapper.add(Box.createVerticalStrut(10));
-		
-		wrapper.add(createRow("Pickup Date:", pickupDateField, true, "Pickup Time:", pickupTimeField, true));
-		wrapper.add(Box.createVerticalStrut(10));
-		
-		String lowerTitle = getTitle() != null ? getTitle().toLowerCase() : "";
-		boolean isMarketplace = currentItem != null ? (currentItem.action.toLowerCase().contains("marketplace")) : lowerTitle.contains("sell");
-		boolean isSharing = currentItem != null ? (currentItem.action.toLowerCase().contains("sharing")) : lowerTitle.contains("lend");
-		boolean isTrade = currentItem != null ? (currentItem.action.toLowerCase().contains("trade")) : (lowerTitle.contains("offer") || lowerTitle.contains("trade"));
-		
-		if (isMarketplace) {
-			priceField = new CustomTextField("e.g., 500");
-			priceField.setCustomSize(Integer.MAX_VALUE, 35);
-			wrapper.add(createLabel("Price:", true));
-			wrapper.add(priceField);
-			wrapper.add(Box.createVerticalStrut(10));
-		} else if (isSharing) {
-			maximumBorrowDaysField = new CustomSpinner(new SpinnerNumberModel(1, 1, 365, 1));
-			maximumBorrowDaysField.setCustomSize(Integer.MAX_VALUE, 35);
-			wrapper.add(createLabel("Maximum Borrow Days:", true));
-			wrapper.add(maximumBorrowDaysField);
-			wrapper.add(Box.createVerticalStrut(10));
-		} else if (isTrade) {
-			desiredItemField = new CustomTextField("e.g., Scientific Calculator");
-			desiredItemField.setCustomSize(Integer.MAX_VALUE, 35);
-			wrapper.add(createLabel("Desired Item in Return:", true));
-			wrapper.add(desiredItemField);
-			wrapper.add(Box.createVerticalStrut(10));
-		}
+        descriptionField = new CustomTextArea("Provide a detailed description...", 3, 20);
+        
+        String[] categories = new String[Category.values().length];
+        for (int i = 0; i < Category.values().length; i++) categories[i] = Category.values()[i].name().replace("_", " ");
+        categoryField = new CustomComboBox<>(categories);
+        
+        String[] conditions = new String[Condition.values().length];
+        for (int i = 0; i < Condition.values().length; i++) conditions[i] = Condition.values()[i].name();
+        conditionField = new CustomComboBox<>(conditions);
+        
+        quantityField = new CustomTextField("1");
+        pickupLocationField = new CustomTextField("e.g., CCIS Lobby");
+        
+        pickupDateField = new CustomPanel(new GridLayout(2, 4, 2, 2));
+        pickupDateField.setOpaque(false);
+        String[] days = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "All"};
+        pickupDayBoxes = new JCheckBox[days.length];
+        for (int i = 0; i < days.length; i++) {
+            pickupDayBoxes[i] = new JCheckBox(days[i]);
+            pickupDayBoxes[i].setOpaque(false); 
+            pickupDateField.add(pickupDayBoxes[i]);
+        }
+        
+        pickupTimeField = new CustomSpinner(new SpinnerListModel(new String[] {"08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM"}));
+        
+        addField(wrapper, gbc, "Item Name:", itemNameField);
+        
+        CustomPanel imgRow = new CustomPanel(new BorderLayout(5, 0));
+        imgRow.add(imagePathLabel, BorderLayout.CENTER);
+        imgRow.add(browseBtn, BorderLayout.EAST);
+        addField(wrapper, gbc, "Item Image:", imgRow);
+        
+        addField(wrapper, gbc, "Description:", descriptionField);
+        
+        CustomPanel row1 = new CustomPanel(new GridLayout(1, 2, 10, 0));
+        row1.add(createColumn("Category:", categoryField));
+        row1.add(createColumn("Condition:", conditionField));
+        gbc.gridy++; wrapper.add(row1, gbc);
+        
+        addField(wrapper, gbc, "Quantity:", quantityField);
+        addField(wrapper, gbc, "Pickup Location:", pickupLocationField);
+        
+        CustomPanel row2 = new CustomPanel(new GridLayout(1, 2, 10, 0));
+        row2.add(createColumn("Pickup Days:", pickupDateField));
+        row2.add(createColumn("Pickup Time:", pickupTimeField));
+        gbc.gridy++; wrapper.add(row2, gbc);
+        
+        String lowerTitle = getTitle() != null ? getTitle().toLowerCase() : "";
+        boolean isMarketplace = (currentItem != null && currentItem.action.toLowerCase().contains("marketplace")) || lowerTitle.contains("sell");
+        boolean isSharing = (currentItem != null && currentItem.action.toLowerCase().contains("sharing")) || lowerTitle.contains("lend");
+        boolean isTrade = (currentItem != null && currentItem.action.toLowerCase().contains("trade")) || (lowerTitle.contains("offer") || lowerTitle.contains("trade"));
+        
+        if (isMarketplace) {
+            priceField = new CustomTextField("0");
+            addField(wrapper, gbc, "Price:", priceField);
+        } else if (isSharing) {
+            maximumBorrowDaysField = new CustomTextField("1");
+            addField(wrapper, gbc, "Max Borrow Days:", maximumBorrowDaysField);
+        } else if (isTrade) {
+            desiredItemField = new CustomTextField("e.g., Calculator");
+            addField(wrapper, gbc, "Desired Item:", desiredItemField);
+        }
+        
+        return wrapper;
+    }
 
-		for (Component c : wrapper.getComponents()) {
-			if (c instanceof JComponent) ((JComponent) c).setAlignmentX(Component.LEFT_ALIGNMENT);
-		}
+    private void addField(CustomPanel parent, GridBagConstraints gbc, String label, JComponent comp) {
+        gbc.gridy++;
+        parent.add(new CustomLabel(label, Brand.STANDARD_TEXT_SIZE, FontStyle.BOLD), gbc);
+        gbc.gridy++;
+        parent.add(comp, gbc);
+    }
+    
+    private CustomPanel createColumn(String label, JComponent comp) {
+        CustomPanel col = new CustomPanel();
+        col.setLayout(new BoxLayout(col, BoxLayout.Y_AXIS));
+        col.add(new CustomLabel(label, Brand.STANDARD_TEXT_SIZE, FontStyle.BOLD));
+        comp.setAlignmentX(Component.LEFT_ALIGNMENT);
+        col.add(comp);
+        return col;
+    }
 
-		return wrapper;
-	}
-	
-	private void preFillData() {
-		itemNameField.setText(currentItem.itemName);
-		imagePathField.setText(currentItem.itemImage);
-		descriptionField.setText(currentItem.description);
-		categoryField.setSelectedItem(currentItem.category.replace("_", " "));
-		conditionField.setSelectedItem(currentItem.condition);
-		quantityField.setValue(currentItem.itemQuantity);
-		availabilityField.setSelectedItem(currentItem.availabilityStatus);
-		pickupLocationField.setText(currentItem.pickupArea);
-		pickupTimeField.setValue(currentItem.pickupTime);
-		
-		if (currentItem.pickupDays != null) {
-			String[] daysSelected = currentItem.pickupDays.split(",");
-			for (String d : daysSelected) {
-				String prefix = d.trim().substring(0, 3);
-				for (int i = 0; i < 7; i++) {
-					if (pickupDayBoxes[i].getText().equalsIgnoreCase(prefix)) pickupDayBoxes[i].setSelected(true);
-				}
-			}
-		}
-		
-		if (priceField != null && currentItem.price > 0) priceField.setText(String.valueOf(currentItem.price));
-		if (maximumBorrowDaysField != null && currentItem.maximumBorrowDays > 0) maximumBorrowDaysField.setValue(currentItem.maximumBorrowDays);
-		if (desiredItemField != null && currentItem.desiredItem != null) desiredItemField.setText(currentItem.desiredItem);
-	}
-	
-	private CustomPanel createRow(String label1, JComponent field1, boolean req1, String label2, JComponent field2, boolean req2) {
-		CustomPanel row = new CustomPanel(new GridLayout(1, 2, 10, 0));
-		row.setAlignmentX(Component.LEFT_ALIGNMENT);
-		row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80)); 
-		
-		CustomPanel col1 = new CustomPanel();
-		col1.setLayout(new BoxLayout(col1, BoxLayout.Y_AXIS));
-		col1.add(createLabel(label1, req1));
-		field1.setAlignmentX(Component.LEFT_ALIGNMENT);
-		col1.add(field1);
-		
-		CustomPanel col2 = new CustomPanel();
-		col2.setLayout(new BoxLayout(col2, BoxLayout.Y_AXIS));
-		col2.add(createLabel(label2, req2));
-		field2.setAlignmentX(Component.LEFT_ALIGNMENT);
-		col2.add(field2);
-		
-		row.add(col1);
-		row.add(col2);
-		return row;
-	}
-	
-	private CustomPanel initAction() {
-		CustomPanel wrapper = new CustomPanel(new FlowLayout(FlowLayout.CENTER));
-		CustomButton cancelButton = new CustomButton("Cancel");
-		cancelButton.setRadius(10);
-		cancelButton.addActionListener(e -> dispose());
-		
-		CustomButton submitButton = new CustomButton(currentItem != null ? "Update" : "Submit");
-		submitButton.setRadius(10);
-		submitButton.addActionListener(e -> {
-			if (validateForm()) {
-				if (currentItem != null) updateItemInDatabase();
-				JOptionPane.showMessageDialog(this, "Item successfully saved!", "Success", JOptionPane.INFORMATION_MESSAGE);
-				dispose();
-			}
-		});
-		wrapper.add(cancelButton);
-		wrapper.add(submitButton);
-		return wrapper;
-	}
+    private void preFillData() {
+        itemNameField.setText(currentItem.itemName);
+        selectedImagePath = currentItem.itemImage;
+        imagePathLabel.setText(new File(selectedImagePath).getName());
+        descriptionField.setText(currentItem.description);
+        categoryField.setSelectedItem(currentItem.category.replace("_", " "));
+        conditionField.setSelectedItem(currentItem.condition);
+        quantityField.setText(String.valueOf(currentItem.itemQuantity));
+        pickupLocationField.setText(currentItem.pickupArea);
+        pickupTimeField.setValue(currentItem.pickupTime);
+        
+        if (currentItem.pickupDays != null) {
+            String[] daysSelected = currentItem.pickupDays.split(",");
+            for (String d : daysSelected) {
+                String prefix = d.trim().substring(0, 3);
+                for (int i = 0; i < 7; i++) {
+                    if (pickupDayBoxes[i].getText().equalsIgnoreCase(prefix)) pickupDayBoxes[i].setSelected(true);
+                }
+            }
+        }
+        if (priceField != null && currentItem.price > 0) priceField.setText(String.valueOf(currentItem.price));
+        if (maximumBorrowDaysField != null && currentItem.maximumBorrowDays > 0) maximumBorrowDaysField.setText(String.valueOf(currentItem.maximumBorrowDays));
+        if (desiredItemField != null && currentItem.desiredItem != null) desiredItemField.setText(currentItem.desiredItem);
+    }
+    
+    private CustomPanel initAction() {
+        CustomPanel wrapper = new CustomPanel(new FlowLayout(FlowLayout.CENTER));
+        CustomButton cancelBtn = new CustomButton("Cancel", 10);
+        cancelBtn.setPadding(20, 5);
+        cancelBtn.addActionListener(e -> dispose());
+        CustomButton submitBtn = new CustomButton(currentItem != null ? "Update" : "Submit", 10);
+        submitBtn.setPadding(20, 5);
+        submitBtn.addActionListener(e -> {
+            if (isFormValid()) {
+                saveData();
+                JOptionPane.showMessageDialog(this, "Item saved successfully!");
+                dispose();
+            }
+        });
+        wrapper.add(cancelBtn);
+        wrapper.add(submitBtn);
+        return wrapper;
+    }
 
-	private boolean validateForm() {
-		if (itemNameField.getText().trim().isEmpty()) { showError("Item Name is required."); return false; }
-		if (descriptionField.getText().trim().isEmpty()) { showError("Description is required."); return false; }
-		
-		boolean daySelected = false;
-		for (int i = 0; i < 7; i++) if (pickupDayBoxes[i].isSelected()) daySelected = true;
-		if (!daySelected) { showError("Please select at least one pickup day."); return false; }
+    private boolean isFormValid() {
+        if (itemNameField.getText().trim().isEmpty()) { showError("Name required"); return false; }
+        try { Integer.parseInt(quantityField.getText().trim()); } catch (NumberFormatException e) { showError("Quantity must be a number"); return false; }
+        
+        if (maximumBorrowDaysField != null) {
+            try { Integer.parseInt(maximumBorrowDaysField.getText().trim()); } catch (NumberFormatException e) { showError("Max borrow days must be a number"); return false; }
+        }
+        
+        return true;
+    }
 
-		return true;
-	}
+    private void saveData() {
+        if (currentItem == null) insertItemIntoDatabase();
+        else updateItemInDatabase();
+    }
 
-	private void updateItemInDatabase() {
-		StringBuilder days = new StringBuilder();
-		String[] fullDays = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
-		for (int i = 0; i < 7; i++) {
-			if (pickupDayBoxes[i].isSelected()) {
-				if (days.length() > 0) days.append(",");
-				days.append(fullDays[i]);
-			}
-		}
-		
-		try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASSWORD);
-			 PreparedStatement pstmt = conn.prepareStatement(
-				 "UPDATE items SET item_name=?, item_quantity=?, item_image=?, description=?, category=?, condition=?, availability_status=?, pickup_area=?, pickup_days=?, pickup_time=?, price=?, maximum_borrow_days=?, desired_item=? WHERE item_id=?")) {
-			
-			pstmt.setString(1, itemNameField.getText().trim());
-			pstmt.setInt(2, (Integer) quantityField.getValue());
-			pstmt.setString(3, imagePathField.getText().trim());
-			pstmt.setString(4, descriptionField.getText().trim());
-			pstmt.setString(5, categoryField.getSelectedItem().toString().replace(" ", "_"));
-			pstmt.setString(6, conditionField.getSelectedItem().toString());
-			pstmt.setString(7, availabilityField.getSelectedItem().toString());
-			pstmt.setString(8, pickupLocationField.getText().trim());
-			pstmt.setString(9, days.toString());
-			pstmt.setString(10, pickupTimeField.getValue().toString());
-			
-			if (priceField != null) pstmt.setInt(11, Integer.parseInt(priceField.getText().trim()));
-			else pstmt.setNull(11, Types.INTEGER);
-			
-			if (maximumBorrowDaysField != null) pstmt.setInt(12, (Integer) maximumBorrowDaysField.getValue());
-			else pstmt.setNull(12, Types.INTEGER);
-			
-			if (desiredItemField != null) pstmt.setString(13, desiredItemField.getText().trim());
-			else pstmt.setNull(13, Types.VARCHAR);
-			
-			pstmt.setInt(14, currentItem.itemId);
-			pstmt.executeUpdate();
-			
-		} catch (SQLException ex) {
-			ex.printStackTrace();
-			showError("Database Error: " + ex.getMessage());
-		}
-	}
+    private void insertItemIntoDatabase() {
+        // Implementation logic
+    }
 
-	private void showError(String message) {
-		JOptionPane.showMessageDialog(this, message, "Validation Error", JOptionPane.ERROR_MESSAGE);
-	}
+    private void updateItemInDatabase() {
+        StringBuilder days = new StringBuilder();
+        String[] fullDays = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
+        for (int i = 0; i < 7; i++) {
+            if (pickupDayBoxes[i].isSelected()) {
+                if (days.length() > 0) days.append(",");
+                days.append(fullDays[i]);
+            }
+        }
+        
+        try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASSWORD);
+             PreparedStatement pstmt = conn.prepareStatement(
+                 "UPDATE items SET item_name=?, item_quantity=?, item_image=?, description=?, category=?, condition=?, pickup_area=?, pickup_days=?, pickup_time=?, price=?, maximum_borrow_days=?, desired_item=? WHERE item_id=?")) {
+            
+            pstmt.setString(1, itemNameField.getText().trim());
+            pstmt.setInt(2, Integer.parseInt(quantityField.getText().trim()));
+            pstmt.setString(3, selectedImagePath);
+            pstmt.setString(4, descriptionField.getText().trim());
+            pstmt.setString(5, categoryField.getSelectedItem().toString().replace(" ", "_"));
+            pstmt.setString(6, conditionField.getSelectedItem().toString());
+            pstmt.setString(7, pickupLocationField.getText().trim());
+            pstmt.setString(8, days.toString());
+            pstmt.setString(9, pickupTimeField.getValue().toString());
+            
+            if (priceField != null) pstmt.setInt(10, Integer.parseInt(priceField.getText().trim()));
+            else pstmt.setNull(10, Types.INTEGER);
+            
+            if (maximumBorrowDaysField != null) pstmt.setInt(11, Integer.parseInt(maximumBorrowDaysField.getText().trim()));
+            else pstmt.setNull(11, Types.INTEGER);
+            
+            if (desiredItemField != null) pstmt.setString(12, desiredItemField.getText().trim());
+            else pstmt.setNull(12, Types.VARCHAR);
+            
+            pstmt.setInt(13, currentItem.itemId);
+            pstmt.executeUpdate();
+            
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            showError("Database Error");
+        }
+    }
+
+    private void showError(String msg) {
+        JOptionPane.showMessageDialog(this, msg, "Error", JOptionPane.ERROR_MESSAGE);
+    }
 }
