@@ -8,57 +8,52 @@ import enums.TransactionLogAction;
 import enums.UserLogAction;
 import utils.SessionManager;
 
+//Singleton facade for inserting activity logs; resolves the current user automatically
 public class UserActivityLogger {
 
-   
-    private static final UserActivityLogger INSTANCE = new UserActivityLogger();
+ private static final UserActivityLogger INSTANCE = new UserActivityLogger();
 
- 
-    private UserActivityLogger() {}
+ private UserActivityLogger() {}
 
-    public static UserActivityLogger get() {
-        return INSTANCE;
-    }
+ public static UserActivityLogger get() {
+     return INSTANCE;
+ }
 
-   
-    private final LogsDatabase logDB = new LogsDatabase();
+ private final LogsDatabase logDB = new LogsDatabase();
 
-    public void user(UserLogAction action, String context) {
-        int userId = SessionManager.get().getCurrentUserId();
-        logDB.insertLog(action, userId, context);
-    }
+ // ── Session-scoped overloads (userId resolved from active session) ──
 
-  
-    public void item(ItemLogAction action, int itemId, String context) {
-        int userId = SessionManager.get().getCurrentUserId();
-        logDB.insertLog(action, userId, itemId, context);
-    }
+ public void user(UserLogAction action, String context) {
+     logDB.insertLog(action, SessionManager.get().getCurrentUserId(), context);
+ }
 
-   
-    public void transaction(TransactionLogAction action, int itemId, String context) {
-        int userId = SessionManager.get().getCurrentUserId();
-        logDB.insertLog(action, userId, itemId, context);
-    }
+ public void item(ItemLogAction action, int itemId, String context) {
+     logDB.insertLog(action, SessionManager.get().getCurrentUserId(), itemId, context);
+ }
 
-    public void reputation(ReputationLogAction action, String context) {
-        int userId = SessionManager.get().getCurrentUserId();
-        logDB.insertLog(action, userId, context);
-    }
+ public void transaction(TransactionLogAction action, int itemId, String context) {
+     logDB.insertLog(action, SessionManager.get().getCurrentUserId(), itemId, context);
+ }
 
+ public void reputation(ReputationLogAction action, String context) {
+     logDB.insertLog(action, SessionManager.get().getCurrentUserId(), context);
+ }
 
-    public void user(UserLogAction action, int userId, String context) {
-        logDB.insertLog(action, userId, context);
-    }
+ // ── Explicit-userId overloads (used when logging on behalf of another user) ──
 
-    public void item(ItemLogAction action, int userId, int itemId, String context) {
-        logDB.insertLog(action, userId, itemId, context);
-    }
+ public void user(UserLogAction action, int userId, String context) {
+     logDB.insertLog(action, userId, context);
+ }
 
-    public void transaction(TransactionLogAction action, int userId, int itemId, String context) {
-        logDB.insertLog(action, userId, itemId, context);
-    }
+ public void item(ItemLogAction action, int userId, int itemId, String context) {
+     logDB.insertLog(action, userId, itemId, context);
+ }
 
-    public void reputation(ReputationLogAction action, int userId, String context) {
-        logDB.insertLog(action, userId, context);
-    }
+ public void transaction(TransactionLogAction action, int userId, int itemId, String context) {
+     logDB.insertLog(action, userId, itemId, context);
+ }
+
+ public void reputation(ReputationLogAction action, int userId, String context) {
+     logDB.insertLog(action, userId, context);
+ }
 }

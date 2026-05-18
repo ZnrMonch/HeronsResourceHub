@@ -46,7 +46,7 @@ public class AdminDialog extends JDialog {
         cancelBtn.setDefaultColor(Color.GRAY);
         cancelBtn.setTextColor(Color.WHITE);
         cancelBtn.setPadding(5, 15, 5, 15);
-        cancelBtn.addActionListener(e -> dispose());
+        cancelBtn.addActionListener(__e__ -> dispose());
 
         CustomButton submitBtn = new CustomButton(submitBtnText != null ? submitBtnText : "Submit", 8);
         submitBtn.setDefaultColor(Brand.PRIMARY_COLOR);
@@ -73,10 +73,15 @@ public class AdminDialog extends JDialog {
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
         int maxW = (int) (screen.width  * 0.90);
         int maxH = (int) (screen.height * 0.85);
-        int w = Math.min(getWidth(),  maxW);
-        int h = Math.min(getHeight(), maxH);
-        w = Math.max(w, 520); // STEP 4: 480 → 520
-        h = Math.max(h, 300);
+
+        int w = getWidth();
+        int h = getHeight();
+
+        if (w > maxW) w = maxW;
+        if (h > maxH) h = maxH;
+        if (w < 520)  w = 520;
+        if (h < 300)  h = 300;
+
         setSize(w, h);
         setLocationRelativeTo(getOwner());
     }

@@ -1,5 +1,7 @@
 package admin.models;
 
+import java.sql.Timestamp;
+
 public class AdminItems {
 
     private int itemId;
@@ -13,6 +15,8 @@ public class AdminItems {
     private String availabilityStatus;
     private String action;
     private boolean archived;
+    private String imagePath;
+    private Timestamp archivedAt;
 
     public int getItemId() { return itemId; }
     public int getOwnerId() { return ownerId; }
@@ -25,6 +29,8 @@ public class AdminItems {
     public String getAvailabilityStatus() { return availabilityStatus; }
     public String getAction(){ return action; }
     public boolean getArchived() { return archived; }
+    public String getImagePath() { return imagePath; }
+    public Timestamp getArchivedAt() { return archivedAt; }
 
     public void setItemId(int itemId) { this.itemId = itemId; }
     public void setOwnerId(int ownerId)  { this.ownerId = ownerId; }
@@ -37,4 +43,6 @@ public class AdminItems {
     public void setAvailabilityStatus(String status){ this.availabilityStatus = status; }
     public void setAction(String action)  { this.action = action; }
     public void setArchived(boolean archived)  { this.archived = archived; }
+    public void setImagePath(String imagePath) { this.imagePath = imagePath; }
+    public void setArchivedAt(Timestamp archivedAt) { this.archivedAt = archivedAt; }
 }

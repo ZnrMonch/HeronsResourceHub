@@ -1,387 +1,270 @@
 package admin.database;
 
 import admin.models.AdminItems;
-import database.DatabaseManager;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+//Handles all database operations for the items table
 public class ItemDatabase extends BaseDatabase {
 
-    public int countActiveItems() {
-        String sql = "SELECT COUNT(*) FROM items";
-        try (Connection conn = getConn();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            if (rs.next()) return rs.getInt(1);
-        } catch (SQLException e) {
-            System.out.println("countActiveItems() failed: " + e.getMessage());
-        }
-        return 0;
-    }
+ private static final String SELECT_ITEMS_COLS =
+     "item_id, owner_id, item_name, item_quantity, description, item_image, "
+     + "`condition`, category, price, availability_status, action, "
+     + "items_is_archived, items_archived_at";
 
-    public List<AdminItems> getAllItems() {
-        List<AdminItems> list = new ArrayList<>();
-        String sql = "SELECT item_id, owner_id, initiator_firstname, initiator_lastname, "
-                   + "item_name, item_quantity, description, items_image, "
-                   + "`condition`, category, price, availability_status, action FROM items";
-        try (Connection conn = getConn();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) list.add(mapRow(rs, false));
-        } catch (SQLException e) {
-            System.out.println("getAllItems() failed: " + e.getMessage());
-        }
-        return list;
-    }
+ // ── Read ──
 
-    public List<AdminItems> getArchivedItems() {
-        List<AdminItems> list = new ArrayList<>();
-        String sql = "SELECT ia.item_id, ia.owner_id, ia.initiator_firstname, ia.initiator_lastname, "
-                   + "ia.item_name, ia.item_quantity, ia.description, ia.items_image, "
-                   + "ia.`condition`, ia.category, ia.price, ia.availability_status "
-                   + "FROM items_archive ia "
-                   + "INNER JOIN ("
-                   + "  SELECT item_id, MAX(item_archive_id) AS max_aid FROM items_archive GROUP BY item_id"
-                   + ") latest ON ia.item_archive_id = latest.max_aid "
-                   + "ORDER BY ia.item_id ASC";
-        try (Connection conn = getConn();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) list.add(mapRowArchived(rs));
-        } catch (SQLException e) {
-            System.out.println("getArchivedItems() failed: " + e.getMessage());
-        }
-        return list;
-    }
+ // Excludes archived items from the count
+ public int countActiveItems() {
+     String sql = "SELECT COUNT(*) FROM items WHERE items_is_archived = 0";
+     try (Connection conn = getConn();
+          PreparedStatement stmt = conn.prepareStatement(sql);
+          ResultSet rs = stmt.executeQuery()) {
+         if (rs.next()) return rs.getInt(1);
+     } catch (SQLException e) {
+         System.out.println("countActiveItems() failed: " + e.getMessage());
+     }
+     return 0;
+ }
 
-    public List<AdminItems> searchItems(String filter, String keyword) {
-        List<AdminItems> list = new ArrayList<>();
+ public List<AdminItems> getAllItems() {
+     List<AdminItems> list = new ArrayList<>();
+     String sql = "SELECT " + SELECT_ITEMS_COLS
+                + " FROM items WHERE items_is_archived = 0";
+     try (Connection conn = getConn();
+          PreparedStatement stmt = conn.prepareStatement(sql);
+          ResultSet rs = stmt.executeQuery()) {
+         while (rs.next()) list.add(mapRow(rs));
+     } catch (SQLException e) {
+         System.out.println("getAllItems() failed: " + e.getMessage());
+     }
+     return list;
+ }
 
-        if ("All".equals(filter)) {
-            String sql = "SELECT item_id, owner_id, initiator_firstname, initiator_lastname, "
-                       + "item_name, item_quantity, description, items_image, "
-                       + "`condition`, category, price, availability_status, action FROM items "
-                       + "WHERE ("
-                       + "  CAST(item_id       AS CHAR) LIKE ? OR"
-                       + "  item_name                   LIKE ? OR"
-                       + "  `condition`                 LIKE ? OR"
-                       + "  category                    LIKE ? OR"
-                       + "  CAST(item_quantity AS CHAR) LIKE ? OR"
-                       + "  CAST(price         AS CHAR) LIKE ? OR"
-                       + "  availability_status         LIKE ?"
-                       + ")";
-            try (Connection conn = getConn();
-                 PreparedStatement stmt = conn.prepareStatement(sql)) {
-                String like = "%" + keyword + "%";
-               
-                for (int i = 1; i <= 7; i++) stmt.setString(i, like);
-                ResultSet rs = stmt.executeQuery();
-                while (rs.next()) list.add(mapRow(rs, false));
-            } catch (SQLException e) {
-                System.out.println("searchItems(All) failed: " + e.getMessage());
-            }
-            return list;
-        }
+ public List<AdminItems> getArchivedItems() {
+     List<AdminItems> list = new ArrayList<>();
+     String sql = "SELECT " + SELECT_ITEMS_COLS
+                + " FROM items WHERE items_is_archived = 1 ORDER BY item_id ASC";
+     try (Connection conn = getConn();
+          PreparedStatement stmt = conn.prepareStatement(sql);
+          ResultSet rs = stmt.executeQuery()) {
+         while (rs.next()) list.add(mapRow(rs));
+     } catch (SQLException e) {
+         System.out.println("getArchivedItems() failed: " + e.getMessage());
+     }
+     return list;
+ }
 
+ public AdminItems getItemById(int itemId) {
+     String sql = "SELECT " + SELECT_ITEMS_COLS + " FROM items WHERE item_id = ?";
+     try (Connection conn = getConn();
+          PreparedStatement stmt = conn.prepareStatement(sql)) {
+         stmt.setInt(1, itemId);
+         ResultSet rs = stmt.executeQuery();
+         if (rs.next()) return mapRow(rs);
+     } catch (SQLException e) {
+         System.out.println("getItemById() failed: " + e.getMessage());
+     }
+     return null;
+ }
 
-        String column;
-        switch (filter) {
-            case "ID":        column = "item_id";             break;
-            case "Item Name": column = "item_name";           break;
-            case "Condition": column = "`condition`";         break;
-            case "Category":  column = "category";            break;
-            case "Stock":     column = "item_quantity";       break;
-            case "Price":     column = "price";               break;
-            case "Status":    column = "availability_status"; break;
-            default:          column = "item_name";           break;
-        }
-        String sql = "SELECT item_id, owner_id, initiator_firstname, initiator_lastname, "
-                   + "item_name, item_quantity, description, items_image, "
-                   + "`condition`, category, price, availability_status, action FROM items "
-                   + "WHERE " + column + " LIKE ?";
-        try (Connection conn = getConn();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, "%" + keyword + "%");
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) list.add(mapRow(rs, false));
-        } catch (SQLException e) {
-            System.out.println("searchItems() failed: " + e.getMessage());
-        }
-        return list;
-    }
+ // Searches active or archived items across all columns when filter is "All"
+ public List<AdminItems> searchItems(String filter, String keyword) {
+     return search(filter, keyword, false);
+ }
 
-    public List<AdminItems> searchArchivedItems(String filter, String keyword) {
-        List<AdminItems> list = new ArrayList<>();
+ public List<AdminItems> searchArchivedItems(String filter, String keyword) {
+     return search(filter, keyword, true);
+ }
 
-        // Common archive join fragment (reused for both All and single-column paths)
-        String archiveFrom =
-              "FROM items_archive ia "
-            + "INNER JOIN ("
-            + "  SELECT item_id, MAX(item_archive_id) AS max_aid FROM items_archive GROUP BY item_id"
-            + ") latest ON ia.item_archive_id = latest.max_aid ";
+ // ── Write ──
 
-        String selectCols =
-              "SELECT ia.item_id, ia.owner_id, ia.initiator_firstname, ia.initiator_lastname, "
-            + "ia.item_name, ia.item_quantity, ia.description, ia.items_image, "
-            + "ia.`condition`, ia.category, ia.price, ia.availability_status ";
+ // Returns the generated item_id, or -1 on failure
+ public int insertItem(int ownerId,
+         String name, String category, String condition,
+         int quantity, int price, String status, String action,
+         String description, String imagePath) {
+     String sql =
+         "INSERT INTO items "
+         + "(owner_id, item_name, category, `condition`, "
+         + " item_quantity, price, availability_status, description, "
+         + " item_image, date_listed, action) "
+         + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+     try (Connection conn = getConn();
+          PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+         stmt.setInt(1,     ownerId);
+         stmt.setString(2,  name);
+         stmt.setString(3,  category);
+         stmt.setString(4,  condition);
+         stmt.setInt(5,     quantity);
+         stmt.setInt(6,     price);
+         stmt.setString(7,  status);
+         stmt.setString(8,  description);
+         stmt.setString(9,  imagePath);
+         stmt.setString(10, action);
+         int rows = stmt.executeUpdate();
+         if (rows > 0) {
+             ResultSet keys = stmt.getGeneratedKeys();
+             if (keys.next()) return keys.getInt(1);
+         }
+     } catch (SQLException e) {
+         System.out.println("insertItem() failed: " + e.getMessage());
+     }
+     return -1;
+ }
 
-        if ("All".equals(filter)) {
-            String sql = selectCols + archiveFrom
-                       + "WHERE ("
-                       + "  CAST(ia.item_id       AS CHAR) LIKE ? OR"
-                       + "  ia.item_name                   LIKE ? OR"
-                       + "  ia.`condition`                 LIKE ? OR"
-                       + "  ia.category                    LIKE ? OR"
-                       + "  CAST(ia.item_quantity AS CHAR) LIKE ? OR"
-                       + "  CAST(ia.price         AS CHAR) LIKE ? OR"
-                       + "  ia.availability_status         LIKE ?"
-                       + ") ORDER BY ia.item_id ASC";
-            try (Connection conn = getConn();
-                 PreparedStatement stmt = conn.prepareStatement(sql)) {
-                String like = "%" + keyword + "%";
-                // Seven columns → seven identical bind values
-                for (int i = 1; i <= 7; i++) stmt.setString(i, like);
-                ResultSet rs = stmt.executeQuery();
-                while (rs.next()) list.add(mapRowArchived(rs));
-            } catch (SQLException e) {
-                System.out.println("searchArchivedItems(All) failed: " + e.getMessage());
-            }
-            return list;
-        }
+ public boolean updateItem(AdminItems item) {
+     String sql = "UPDATE items SET item_name = ?, category = ?, `condition` = ?, "
+                + "item_quantity = ?, price = ?, availability_status = ?, action = ? "
+                + "WHERE item_id = ?";
+     try (Connection conn = getConn();
+          PreparedStatement stmt = conn.prepareStatement(sql)) {
+         stmt.setString(1, item.getItemName());
+         stmt.setString(2, item.getCategory());
+         stmt.setString(3, item.getItemCondition());
+         stmt.setInt(4,    item.getItemQuantity());
+         stmt.setInt(5,    item.getPrice());
+         stmt.setString(6, item.getAvailabilityStatus());
+         stmt.setString(7, item.getAction());
+         stmt.setInt(8,    item.getItemId());
+         return stmt.executeUpdate() > 0;
+     } catch (SQLException e) {
+         System.out.println("updateItem() failed: " + e.getMessage());
+     }
+     return false;
+ }
 
+ // ── Archive ──
 
-        String column;
-        switch (filter) {
-            case "ID":        column = "item_id";       break;
-            case "Item Name": column = "item_name";     break;
-            case "Condition": column = "`condition`";   break;
-            case "Category":  column = "category";      break;
-            default:          column = "item_name";     break;
-        }
-        String sql = selectCols + archiveFrom
-                   + "WHERE ia." + column + " LIKE ? "
-                   + "ORDER BY ia.item_id ASC";
-        try (Connection conn = getConn();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, "%" + keyword + "%");
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) list.add(mapRowArchived(rs));
-        } catch (SQLException e) {
-            System.out.println("searchArchivedItems() failed: " + e.getMessage());
-        }
-        return list;
-    }
+ public boolean archiveItem(int itemId) {
+     String sql = "UPDATE items SET items_is_archived = 1, items_archived_at = NOW() WHERE item_id = ?";
+     return executeArchiveToggle(itemId, sql, "archiveItem()");
+ }
 
-    public AdminItems getItemById(int itemId) {
-        String sql = "SELECT item_id, owner_id, initiator_firstname, initiator_lastname, "
-                   + "item_name, item_quantity, description, items_image, "
-                   + "`condition`, category, price, availability_status, action FROM items "
-                   + "WHERE item_id = ?";
-        try (Connection conn = getConn();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, itemId);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) return mapRow(rs, false);
-        } catch (SQLException e) {
-            System.out.println("getItemById() active lookup failed: " + e.getMessage());
-        }
+ // Clears items_archived_at so the record looks fully active again
+ public boolean unarchiveItem(int itemId) {
+     String sql = "UPDATE items SET items_is_archived = 0, items_archived_at = NULL WHERE item_id = ?";
+     return executeArchiveToggle(itemId, sql, "unarchiveItem()");
+ }
 
-        String archiveSql = "SELECT item_id, owner_id, initiator_firstname, initiator_lastname, "
-                          + "item_name, item_quantity, description, items_image, "
-                          + "`condition`, category, price, availability_status "
-                          + "FROM items_archive WHERE item_id = ? "
-                          + "ORDER BY item_archive_id DESC LIMIT 1";
-        try (Connection conn = getConn();
-             PreparedStatement stmt = conn.prepareStatement(archiveSql)) {
-            stmt.setInt(1, itemId);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) return mapRowArchived(rs);
-        } catch (SQLException e) {
-            System.out.println("getItemById() archive lookup failed: " + e.getMessage());
-        }
-        return null;
-    }
+ // Guard: only rows already archived can be permanently deleted
+ public boolean permanentDeleteItem(int itemId) {
+     String sql = "DELETE FROM items WHERE item_id = ? AND items_is_archived = 1";
+     try (Connection conn = getConn();
+          PreparedStatement stmt = conn.prepareStatement(sql)) {
+         stmt.setInt(1, itemId);
+         int rows = stmt.executeUpdate();
+         if (rows > 0) {
+             System.out.println("permanentDeleteItem() success: item " + itemId + " permanently deleted.");
+             return true;
+         } else {
+             System.out.println("permanentDeleteItem() failed: item " + itemId + " not found or not archived.");
+         }
+     } catch (SQLException e) {
+         System.out.println("permanentDeleteItem() failed: " + e.getMessage());
+     }
+     return false;
+ }
 
-    public int insertItem(int ownerId, String initiatorFirstName, String initiatorLastName,
-            String name, String category, String condition,
-            int quantity, int price, String status, String action,
-            String description, String imagePath) {
-        String sql =
-            "INSERT INTO items "
-            + "(owner_id, initiator_firstname, initiator_lastname, item_name, category, `condition`, "
-            + " item_quantity, price, availability_status, description, "
-            + " items_image, date_listed, action) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
-        try (Connection conn = getConn();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setInt(1,     ownerId);
-            stmt.setString(2,  initiatorFirstName);
-            stmt.setString(3,  initiatorLastName);
-            stmt.setString(4,  name);
-            stmt.setString(5,  category);
-            stmt.setString(6,  condition);
-            stmt.setInt(7,     quantity);
-            stmt.setInt(8,     price);
-            stmt.setString(9,  status);
-            stmt.setString(10, description);
-            stmt.setString(11, imagePath);
-            stmt.setString(12, action);
-            int rows = stmt.executeUpdate();
-            if (rows > 0) {
-                ResultSet keys = stmt.getGeneratedKeys();
-                if (keys.next()) return keys.getInt(1);
-            }
-        } catch (SQLException e) {
-            System.out.println("insertItem() failed: " + e.getMessage());
-        }
-        return -1;
-    }
+ // ── Helpers ──
 
-    public boolean updateItem(AdminItems item) {
-        String sql = "UPDATE items SET item_name = ?, category = ?, `condition` = ?, "
-                   + "item_quantity = ?, price = ?, availability_status = ?, action = ? "
-                   + "WHERE item_id = ?";
-        try (Connection conn = getConn();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, item.getItemName());
-            stmt.setString(2, item.getCategory());
-            stmt.setString(3, item.getItemCondition());
-            stmt.setInt(4,    item.getItemQuantity());
-            stmt.setInt(5,    item.getPrice());
-            stmt.setString(6, item.getAvailabilityStatus());
-            stmt.setString(7, item.getAction());
-            stmt.setInt(8,    item.getItemId());
-            return stmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            System.out.println("updateItem() failed: " + e.getMessage());
-        }
-        return false;
-    }
+ // Shared search path for both active and archived; avoids duplicating two near-identical methods
+ private List<AdminItems> search(String filter, String keyword, boolean archived) {
+     List<AdminItems> list = new ArrayList<>();
+     int archiveFlag = archived ? 1 : 0;
+     String label = archived ? "searchArchivedItems" : "searchItems";
 
-    public boolean archiveItem(int itemId) {
-        String archiveItem =
-            "INSERT IGNORE INTO items_archive "
-            + "(item_id, owner_id, initiator_firstname, initiator_lastname, item_name, item_quantity, "
-            + " description, items_image, category, `condition`, price, availability_status, "
-            + " maximum_borrow_days, desired_item, pickup_area, pickup_time, pickup_days, action) "
-            + "SELECT item_id, owner_id, initiator_firstname, initiator_lastname, item_name, item_quantity, "
-            + "       description, items_image, category, `condition`, price, availability_status, "
-            + "       maximum_borrow_days, desired_item, pickup_area, pickup_time, pickup_days, action "
-            + "FROM items WHERE item_id = ?";
+     if ("All".equals(filter)) {
+         String sql = "SELECT " + SELECT_ITEMS_COLS
+                    + " FROM items WHERE ("
+                    + "  CAST(item_id       AS CHAR) LIKE ? OR"
+                    + "  item_name                   LIKE ? OR"
+                    + "  `condition`                 LIKE ? OR"
+                    + "  category                    LIKE ? OR"
+                    + "  CAST(item_quantity AS CHAR) LIKE ? OR"
+                    + "  CAST(price         AS CHAR) LIKE ? OR"
+                    + "  availability_status         LIKE ?"
+                    + ") AND items_is_archived = " + archiveFlag;
+         try (Connection conn = getConn();
+              PreparedStatement stmt = conn.prepareStatement(sql)) {
+             String like = "%" + keyword + "%";
+             for (int i = 1; i <= 7; i++) stmt.setString(i, like);
+             ResultSet rs = stmt.executeQuery();
+             while (rs.next()) list.add(mapRow(rs));
+         } catch (SQLException e) {
+             System.out.println(label + "(All) failed: " + e.getMessage());
+         }
+         return list;
+     }
 
-        String deleteItem = "DELETE FROM items WHERE item_id = ?";
+     String column = resolveItemColumn(filter);
+     String sql = "SELECT " + SELECT_ITEMS_COLS
+                + " FROM items WHERE " + column + " LIKE ? AND items_is_archived = " + archiveFlag;
+     try (Connection conn = getConn();
+          PreparedStatement stmt = conn.prepareStatement(sql)) {
+         stmt.setString(1, "%" + keyword + "%");
+         ResultSet rs = stmt.executeQuery();
+         while (rs.next()) list.add(mapRow(rs));
+     } catch (SQLException e) {
+         System.out.println(label + "() failed: " + e.getMessage());
+     }
+     return list;
+ }
 
-        try (Connection conn = getConn()) {
-            conn.setAutoCommit(false);
-            try {
-                try (PreparedStatement ps = conn.prepareStatement(archiveItem)) {
-                    ps.setInt(1, itemId);
-                    int rows = ps.executeUpdate();
-                    if (rows == 0)
-                        throw new SQLException("Item " + itemId + " not found in items table.");
-                }
+ // Wraps archive/unarchive in a transaction so a partial update is never left committed
+ private boolean executeArchiveToggle(int itemId, String sql, String label) {
+     Connection conn = null;
+     try {
+         conn = getConn();
+         conn.setAutoCommit(false);
+         int rowsAffected;
+         try (PreparedStatement ps = conn.prepareStatement(sql)) {
+             ps.setInt(1, itemId);
+             rowsAffected = ps.executeUpdate();
+         }
+         conn.commit();
+         return rowsAffected >= 1;
+     } catch (SQLException e) {
+         System.out.println(label + " rolled back: " + e.getMessage());
+         if (conn != null) try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+         return false;
+     } finally {
+         if (conn != null) try { conn.setAutoCommit(true); conn.close(); } catch (SQLException ex) { ex.printStackTrace(); }
+     }
+ }
 
-                exec(conn, deleteItem, itemId);
+ // Defaults unknown filter values to item_name rather than failing silently
+ private String resolveItemColumn(String filter) {
+     if (filter == null) return "item_name";
+     switch (filter) {
+         case "ID":        return "item_id";
+         case "Item Name": return "item_name";
+         case "Condition": return "`condition`";
+         case "Category":  return "category";
+         case "Stock":     return "item_quantity";
+         case "Price":     return "price";
+         case "Status":    return "availability_status";
+         default:          return "item_name";
+     }
+ }
 
-                conn.commit();
-                System.out.println("archiveItem() success: item " + itemId + " archived.");
-                return true;
-
-            } catch (SQLException e) {
-                conn.rollback();
-                System.out.println("archiveItem() rolled back: " + e.getMessage());
-            }
-        } catch (SQLException e) {
-            System.out.println("archiveItem() connection failed: " + e.getMessage());
-        }
-        return false;
-    }
-
-    public boolean unarchiveItem(int itemId) {
-        String insert =
-            "INSERT INTO items "
-            + "(item_id, owner_id, initiator_firstname, initiator_lastname, item_name, item_quantity, "
-            + " description, items_image, category, `condition`, price, availability_status, "
-            + " maximum_borrow_days, desired_item, pickup_area, pickup_time, pickup_days, action) "
-            + "SELECT item_id, owner_id, initiator_firstname, initiator_lastname, item_name, item_quantity, "
-            + "       description, items_image, category, `condition`, price, availability_status, "
-            + "       maximum_borrow_days, desired_item, pickup_area, pickup_time, pickup_days, action "
-            + "FROM items_archive WHERE item_id = ? "
-            + "ORDER BY item_archive_id DESC LIMIT 1";
-        String delete = "DELETE FROM items_archive WHERE item_id = ?";
-
-        try (Connection conn = getConn()) {
-            conn.setAutoCommit(false);
-            try {
-                try (PreparedStatement ins = conn.prepareStatement(insert)) {
-                    ins.setInt(1, itemId);
-                    int rows = ins.executeUpdate();
-                    if (rows == 0)
-                        throw new SQLException("Item " + itemId + " not found in items_archive.");
-                }
-                exec(conn, delete, itemId);
-                conn.commit();
-                System.out.println("unarchiveItem() success: item " + itemId + " restored.");
-                return true;
-            } catch (SQLException e) {
-                conn.rollback();
-                System.out.println("unarchiveItem() rolled back: " + e.getMessage());
-            }
-        } catch (SQLException e) {
-            System.out.println("unarchiveItem() connection failed: " + e.getMessage());
-        }
-        return false;
-    }
-
-    public boolean permanentDeleteItem(int itemId) {
-        String sql = "DELETE FROM items_archive WHERE item_id = ?";
-        try (Connection conn = getConn();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, itemId);
-            int rows = stmt.executeUpdate();
-            if (rows > 0) {
-                System.out.println("permanentDeleteItem() success: item " + itemId + " permanently deleted.");
-                return true;
-            } else {
-                System.out.println("permanentDeleteItem() failed: item " + itemId + " not found in archive.");
-            }
-        } catch (SQLException e) {
-            System.out.println("permanentDeleteItem() failed: " + e.getMessage());
-        }
-        return false;
-    }
-
-    private AdminItems mapRow(ResultSet rs, boolean isArchived) throws SQLException {
-        AdminItems item = new AdminItems();
-        item.setItemId(rs.getInt("item_id"));
-        item.setOwnerId(rs.getInt("owner_id"));
-        item.setItemName(rs.getString("item_name"));
-        item.setItemQuantity(rs.getInt("item_quantity"));
-        item.setDescription(rs.getString("description"));
-        item.setCategory(rs.getString("category"));
-        item.setItemCondition(rs.getString("condition"));
-        item.setPrice(rs.getInt("price"));
-        item.setAvailabilityStatus(rs.getString("availability_status"));
-        item.setAction(rs.getString("action"));
-        item.setArchived(isArchived);
-        return item;
-    }
-  
-    private AdminItems mapRowArchived(ResultSet rs) throws SQLException {
-        AdminItems item = new AdminItems();
-        item.setItemId(rs.getInt("item_id"));
-        item.setOwnerId(rs.getInt("owner_id"));
-        item.setItemName(rs.getString("item_name"));
-        item.setItemQuantity(rs.getInt("item_quantity"));
-        item.setDescription(rs.getString("description"));
-        item.setCategory(rs.getString("category"));
-        item.setItemCondition(rs.getString("condition"));
-        item.setPrice(rs.getInt("price"));
-        item.setAvailabilityStatus(rs.getString("availability_status"));
-        item.setAction("—");
-        item.setArchived(true);
-        return item;
-    }
+ private AdminItems mapRow(ResultSet rs) throws SQLException {
+     AdminItems item = new AdminItems();
+     item.setItemId(rs.getInt("item_id"));
+     item.setOwnerId(rs.getInt("owner_id"));
+     item.setItemName(rs.getString("item_name"));
+     item.setItemQuantity(rs.getInt("item_quantity"));
+     item.setDescription(rs.getString("description"));
+     item.setImagePath(rs.getString("item_image"));
+     item.setCategory(rs.getString("category"));
+     item.setItemCondition(rs.getString("condition"));
+     item.setPrice(rs.getInt("price"));
+     item.setAvailabilityStatus(rs.getString("availability_status"));
+     item.setAction(rs.getString("action"));
+     item.setArchived(rs.getInt("items_is_archived") == 1);
+     item.setArchivedAt(rs.getTimestamp("items_archived_at"));
+     return item;
+ }
 }

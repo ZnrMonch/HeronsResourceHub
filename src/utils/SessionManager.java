@@ -27,9 +27,9 @@ public class SessionManager {
     public static void logout() {
         instance = null;
     }
-
+  
     public int    getCurrentUserId()   { return userId; }
-    public String getCurrentUserRole() { return "super_admin"; }
+    public String getCurrentUserRole() { return userRole; }
     public String getCurrentFullName() { return fullName; }
 
    
