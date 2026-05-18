@@ -56,8 +56,54 @@ public class ItemDatabase extends BaseDatabase {
         return list;
     }
 
+    /**
+     * Searches active items by a single column, or across ALL searchable columns
+     * when filter equals "All".
+     *
+     * <p>When filter is "All" the WHERE clause uses OR across every relevant
+     * column so the keyword is matched anywhere in the row:
+     * <pre>
+     *   WHERE (
+     *     CAST(item_id       AS CHAR) LIKE ? OR
+     *     item_name                   LIKE ? OR
+     *     `condition`                 LIKE ? OR
+     *     category                    LIKE ? OR
+     *     CAST(item_quantity AS CHAR) LIKE ? OR
+     *     CAST(price         AS CHAR) LIKE ? OR
+     *     availability_status         LIKE ?
+     *   )
+     * </pre>
+     */
     public List<AdminItems> searchItems(String filter, String keyword) {
         List<AdminItems> list = new ArrayList<>();
+
+        if ("All".equals(filter)) {
+            String sql = "SELECT item_id, owner_id, initiator_firstname, initiator_lastname, "
+                       + "item_name, item_quantity, description, items_image, "
+                       + "`condition`, category, price, availability_status, action FROM items "
+                       + "WHERE ("
+                       + "  CAST(item_id       AS CHAR) LIKE ? OR"
+                       + "  item_name                   LIKE ? OR"
+                       + "  `condition`                 LIKE ? OR"
+                       + "  category                    LIKE ? OR"
+                       + "  CAST(item_quantity AS CHAR) LIKE ? OR"
+                       + "  CAST(price         AS CHAR) LIKE ? OR"
+                       + "  availability_status         LIKE ?"
+                       + ")";
+            try (Connection conn = getConn();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                String like = "%" + keyword + "%";
+                // Seven columns → seven identical bind values
+                for (int i = 1; i <= 7; i++) stmt.setString(i, like);
+                ResultSet rs = stmt.executeQuery();
+                while (rs.next()) list.add(mapRow(rs, false));
+            } catch (SQLException e) {
+                System.out.println("searchItems(All) failed: " + e.getMessage());
+            }
+            return list;
+        }
+
+        // Single-column search (original behaviour)
         String column;
         switch (filter) {
             case "ID":        column = "item_id";             break;
@@ -84,8 +130,54 @@ public class ItemDatabase extends BaseDatabase {
         return list;
     }
 
+    /**
+     * Searches archived items by a single column, or across ALL searchable columns
+     * when filter equals "All".
+     *
+     * <p>The archive query joins items_archive with itself to keep only the most
+     * recent snapshot per item_id, then applies the same OR expression used in
+     * searchItems() for "All".
+     */
     public List<AdminItems> searchArchivedItems(String filter, String keyword) {
         List<AdminItems> list = new ArrayList<>();
+
+        // Common archive join fragment (reused for both All and single-column paths)
+        String archiveFrom =
+              "FROM items_archive ia "
+            + "INNER JOIN ("
+            + "  SELECT item_id, MAX(item_archive_id) AS max_aid FROM items_archive GROUP BY item_id"
+            + ") latest ON ia.item_archive_id = latest.max_aid ";
+
+        String selectCols =
+              "SELECT ia.item_id, ia.owner_id, ia.initiator_firstname, ia.initiator_lastname, "
+            + "ia.item_name, ia.item_quantity, ia.description, ia.items_image, "
+            + "ia.`condition`, ia.category, ia.price, ia.availability_status ";
+
+        if ("All".equals(filter)) {
+            String sql = selectCols + archiveFrom
+                       + "WHERE ("
+                       + "  CAST(ia.item_id       AS CHAR) LIKE ? OR"
+                       + "  ia.item_name                   LIKE ? OR"
+                       + "  ia.`condition`                 LIKE ? OR"
+                       + "  ia.category                    LIKE ? OR"
+                       + "  CAST(ia.item_quantity AS CHAR) LIKE ? OR"
+                       + "  CAST(ia.price         AS CHAR) LIKE ? OR"
+                       + "  ia.availability_status         LIKE ?"
+                       + ") ORDER BY ia.item_id ASC";
+            try (Connection conn = getConn();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                String like = "%" + keyword + "%";
+                // Seven columns → seven identical bind values
+                for (int i = 1; i <= 7; i++) stmt.setString(i, like);
+                ResultSet rs = stmt.executeQuery();
+                while (rs.next()) list.add(mapRowArchived(rs));
+            } catch (SQLException e) {
+                System.out.println("searchArchivedItems(All) failed: " + e.getMessage());
+            }
+            return list;
+        }
+
+        // Single-column search (original behaviour)
         String column;
         switch (filter) {
             case "ID":        column = "item_id";       break;
@@ -94,13 +186,7 @@ public class ItemDatabase extends BaseDatabase {
             case "Category":  column = "category";      break;
             default:          column = "item_name";     break;
         }
-        String sql = "SELECT ia.item_id, ia.owner_id, ia.initiator_firstname, ia.initiator_lastname, "
-                   + "ia.item_name, ia.item_quantity, ia.description, ia.items_image, "
-                   + "ia.`condition`, ia.category, ia.price, ia.availability_status "
-                   + "FROM items_archive ia "
-                   + "INNER JOIN ("
-                   + "  SELECT item_id, MAX(item_archive_id) AS max_aid FROM items_archive GROUP BY item_id"
-                   + ") latest ON ia.item_archive_id = latest.max_aid "
+        String sql = selectCols + archiveFrom
                    + "WHERE ia." + column + " LIKE ? "
                    + "ORDER BY ia.item_id ASC";
         try (Connection conn = getConn();
@@ -143,7 +229,6 @@ public class ItemDatabase extends BaseDatabase {
         }
         return null;
     }
-
 
     public int insertItem(int ownerId, String initiatorFirstName, String initiatorLastName,
             String name, String category, String condition,
@@ -202,18 +287,6 @@ public class ItemDatabase extends BaseDatabase {
     }
 
     public boolean archiveItem(int itemId) {
-        // Step 1 — reputation_log rows tied to this item's transactions
-        String deleteRepLog =
-            "DELETE FROM reputation_log WHERE transaction_id IN "
-            + "(SELECT transaction_id FROM transaction_log WHERE item_id = ?)";
-
-        // Step 2 — transaction_log rows for this item
-        String deleteTransLog = "DELETE FROM transaction_log WHERE item_id = ?";
-
-        // Step 3 — items_log rows for this item
-        String deleteItemsLog = "DELETE FROM items_log WHERE item_id = ?";
-
-        // Step 4a — copy item to archive
         String archiveItem =
             "INSERT IGNORE INTO items_archive "
             + "(item_id, owner_id, initiator_firstname, initiator_lastname, item_name, item_quantity, "
@@ -224,24 +297,19 @@ public class ItemDatabase extends BaseDatabase {
             + "       maximum_borrow_days, desired_item, pickup_area, pickup_time, pickup_days, action "
             + "FROM items WHERE item_id = ?";
 
-        // Step 4b — delete item row
         String deleteItem = "DELETE FROM items WHERE item_id = ?";
 
         try (Connection conn = getConn()) {
             conn.setAutoCommit(false);
             try {
-                exec(conn, deleteRepLog,   itemId); // 1
-                exec(conn, deleteTransLog, itemId); // 2
-                exec(conn, deleteItemsLog, itemId); // 3
-
                 try (PreparedStatement ps = conn.prepareStatement(archiveItem)) {
                     ps.setInt(1, itemId);
                     int rows = ps.executeUpdate();
                     if (rows == 0)
                         throw new SQLException("Item " + itemId + " not found in items table.");
-                }                                   // 4a
+                }
 
-                exec(conn, deleteItem, itemId);     // 4b
+                exec(conn, deleteItem, itemId);
 
                 conn.commit();
                 System.out.println("archiveItem() success: item " + itemId + " archived.");

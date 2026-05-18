@@ -25,6 +25,9 @@ import enums.*;
  *
  *  3. AppDialog              — every JOptionPane replaced with the new
  *     AppDialog helper for consistent styling.
+ *
+ *  4. "All" filter           — "All" is now the first option in every
+ *     filter dropdown so users get a full cross-column search by default.
  */
 public class AdminTable extends CustomPanel implements ActionListener {
     private static final long serialVersionUID = 1L;
@@ -72,7 +75,7 @@ public class AdminTable extends CustomPanel implements ActionListener {
         }
     }
 
-    // ── Header (unchanged except added refresh button logic) ──────────────────
+    // ── Header ────────────────────────────────────────────────────────────────
 
     private CustomPanel initHeader() {
         CustomPanel header = new CustomPanel();
@@ -128,23 +131,26 @@ public class AdminTable extends CustomPanel implements ActionListener {
             header.add(dateFilterPanel);
         }
 
-
         return header;
     }
-    
 
+    /**
+     * Returns the filter-dropdown options for the current table type.
+     * "All" is always the first entry so the combo box defaults to a
+     * full cross-column search without the user having to change anything.
+     */
     private String[] getFilterOptions() {
         if (type == TableType.USERS) {
-            return new String[]{ "ID","Student ID","First Name","Last Name",
-                                 "College","Year Level","System Role" };
+            return new String[]{ "All", "ID", "Student ID", "First Name",
+                                 "Last Name", "College", "Year Level", "System Role" };
         } else if (type == TableType.ITEMS) {
-            return new String[]{ "ID","Item Name","Condition","Category",
-                                 "Stock","Price","Status" };
+            return new String[]{ "All", "ID", "Item Name", "Condition",
+                                 "Category", "Stock", "Price", "Status" };
         } else {
             if (logType == LogType.ITEM_LOGS || logType == LogType.TRANSACTION_LOGS)
-                return new String[]{ "ID","User ID","Item ID","Action" };
+                return new String[]{ "All", "ID", "User ID", "Item ID", "Action" };
             else
-                return new String[]{ "ID","User ID","Action" };
+                return new String[]{ "All", "ID", "User ID", "Action" };
         }
     }
 
@@ -227,8 +233,6 @@ public class AdminTable extends CustomPanel implements ActionListener {
         table.getTableHeader().setBorder(BorderFactory.createEmptyBorder());
 
         // ── Action buttons — visibility controlled by Permission ──────────────
-        // SUPER_ADMIN sees everything. ADMIN sees nothing in this panel.
-     // ── Action buttons — visibility controlled by Permission ──────────────
         if (type != TableType.LOGS) {
             btnUpdateOrRetrieve = new CustomButton("Update Data", 8);
             btnArchiveOrDelete  = new CustomButton("Archive Data", 8);
@@ -251,7 +255,6 @@ public class AdminTable extends CustomPanel implements ActionListener {
             });
 
             // ── Checkbox column renderer + editor ─────────────────────────────
-         // ── Checkbox column — register once, CustomTable re-applies after every page/reload
             chkHeader.setHeader(true);
             table.setCheckboxColumn(0, chkRenderer, chkEditor,
                     (tbl, val, sel, foc, row, col) -> {
@@ -324,7 +327,6 @@ public class AdminTable extends CustomPanel implements ActionListener {
             if (Permission.canDelete()) actionsPanel.add(btnArchiveOrDelete);
             bottomPanel.add(actionsPanel, BorderLayout.EAST);
         }
-    
 
         tableWrapper.add(scrollWrapper, BorderLayout.CENTER);
         tableWrapper.add(bottomPanel,   BorderLayout.SOUTH);
@@ -374,9 +376,8 @@ public class AdminTable extends CustomPanel implements ActionListener {
             descCol.setPreferredWidth(260); descCol.setMinWidth(150);
         }
     }
+
     // ── Data loading ──────────────────────────────────────────────────────────
-
-
 
     private void loadTableData() {
         if (table == null) return;
@@ -415,18 +416,10 @@ public class AdminTable extends CustomPanel implements ActionListener {
         if (type != TableType.LOGS) {
             resetCheckboxState();
         }
-        }
-    
-        
-    
+    }
+
     // ── Button UI state ───────────────────────────────────────────────────────
 
-    /**
-     * Updates button labels, colours, and enabled state.
-     * Visibility was already set in initTable() based on Permission — we don't
-     * override that here; we only manage the enabled/disabled state based on
-     * whether a row is actually selected.
-     */
     private void updateActionUI() {
         if (btnUpdateOrRetrieve == null || btnArchiveOrDelete == null) return;
 
@@ -443,13 +436,13 @@ public class AdminTable extends CustomPanel implements ActionListener {
             if (btnAddAction != null) btnAddAction.setVisible(Permission.canCreate());
         }
     }
+
     private void applyButtonStyle(CustomButton btn, String text, String hexColor) {
         btn.setText(text);
         btn.setDefaultColor(Color.decode(hexColor));
         btn.setHoverColor(btn.getBackground().darker());
     }
 
-    
     private void updateSelectedCount() {
         int count = 0;
         for (int r = 0; r < table.getModel().getRowCount(); r++) {
@@ -482,12 +475,10 @@ public class AdminTable extends CustomPanel implements ActionListener {
         }
         selectedCountLabel.setText("Selected: 0");
     }
-    
-    
+
     // ── Action handlers — each starts with a Permission.require() guard ───────
 
     private void handleAdd() {
-        // Frontend already hides this button, but guard the backend too
         Permission.require(Permission.canCreate(), "create records");
 
         Window owner = SwingUtilities.getWindowAncestor(this);
@@ -654,7 +645,6 @@ public class AdminTable extends CustomPanel implements ActionListener {
                                 JOptionPane.INFORMATION_MESSAGE
                         );
                     } else {
-                        // If the caller opted in, prefer the service's specific error message.
                         String msg = failureMsg;
                         if (checkUserServiceError) {
                             String svcError = userService.getLastAddError();
@@ -682,7 +672,7 @@ public class AdminTable extends CustomPanel implements ActionListener {
         worker.execute();
     }
 
-    // ── ArchiveTask inner class (unchanged logic) ─────────────────────────────
+    // ── ArchiveTask inner class ───────────────────────────────────────────────
 
     private class ArchiveTask {
         private final int          id;
@@ -712,9 +702,8 @@ public class AdminTable extends CustomPanel implements ActionListener {
         return Integer.parseInt(table.getModel().getValueAt(modelRow, idCol).toString());
     }
 
-	@Override
-	public void actionPerformed(ActionEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        // TODO Auto-generated method stub
+    }
 }
