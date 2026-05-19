@@ -11,7 +11,7 @@ public class Main {
 		FontLib.loadFonts();
 
 		// Temporary
-		  SessionManager.login(8, "admin", "Jasmine Claire Martizano");
+		  SessionManager.login(8, "super_admin", "Jasmine Claire Martizano");
 		  
 //	      new Auth();
 //		  new Page(new Marketplace());

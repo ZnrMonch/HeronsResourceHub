@@ -1,7 +1,7 @@
 package enums;
 
 public enum UserLogAction {
-
+	USER_LOGIN("Login", "User Login"),
     USER_CREATE( "Create",   "User created"),
     USER_UPDATE( "Update",   "User updated"),
     USER_ARCHIVE("Archive",  "User archived"),

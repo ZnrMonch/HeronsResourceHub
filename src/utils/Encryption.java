@@ -7,8 +7,8 @@ import java.util.Base64;
 
 public class Encryption {
 
-    private static final String SECRET_KEY = "UMakSecretKey123"; // exactly 16 chars
-    private static final byte[] IV         = new byte[16];       // 16 zero bytes
+    private static final String SECRET_KEY = "UMakSecretKey123"; 
+    private static final byte[] IV         = new byte[16];      
 
     private Encryption() {}
 

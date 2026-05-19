@@ -608,7 +608,8 @@ public class AdminTable extends CustomPanel {
  }
 
  // runAsync overloads kept for potential future use; currently all CRUD runs synchronously
- private void runAsync(ArchiveTask task, String successMsg, String failureMsg) {
+ @SuppressWarnings("unused")
+private void runAsync(ArchiveTask task, String successMsg, String failureMsg) {
      runAsync(task, successMsg, failureMsg, false);
  }
 
