@@ -14,6 +14,7 @@ public class CustomTabbedPane extends CustomPanel {
     private CustomPanel contentPanel;
     private CardLayout cardLayout;
     private List<TabItem> tabs;
+    private List<TabSelectionListener> selectionListeners = new ArrayList<>();
     
     // Set your brand colors here
     private Color activeColor = Brand.PRIMARY_COLOR;
@@ -68,7 +69,7 @@ public class CustomTabbedPane extends CustomPanel {
         contentPane.setOpaque(false); 
         contentPanel.add(contentPane, cardName);
 
-        TabItem tab = new TabItem(title, defaultIcon, activeIcon, cardName);
+        TabItem tab = new TabItem(title, defaultIcon, activeIcon, cardName, contentPane);
         tabs.add(tab);
         headerPanel.add(tab);
 
@@ -82,7 +83,7 @@ public class CustomTabbedPane extends CustomPanel {
         contentPane.setOpaque(false); 
         contentPanel.add(contentPane, cardName);
 
-        TabItem tab = new TabItem(title, null, null, cardName);
+        TabItem tab = new TabItem(title, null, null, cardName, contentPane);
         tabs.add(tab);
         headerPanel.add(tab);
 
@@ -91,11 +92,25 @@ public class CustomTabbedPane extends CustomPanel {
         }
     }
 
+    public interface TabSelectionListener {
+        void onTabSelected(int index, String title, JPanel content);
+    }
+
+    public void addTabSelectionListener(TabSelectionListener listener) {
+        if (listener != null) {
+            selectionListeners.add(listener);
+        }
+    }
+    
     private void selectTab(TabItem selectedTab) {
         for (TabItem tab : tabs) {
             tab.setActive(tab == selectedTab);
         }
         cardLayout.show(contentPanel, selectedTab.cardName);
+        int index = tabs.indexOf(selectedTab);
+        for (TabSelectionListener listener : selectionListeners) {
+            listener.onTabSelected(index, selectedTab.title, selectedTab.contentPane);
+        }
     }
 
     private class TabItem extends CustomPanel {
@@ -104,11 +119,15 @@ public class CustomTabbedPane extends CustomPanel {
         private ImageIcon defaultIcon;
         private ImageIcon activeIcon;
         private String cardName;
+        private String title;
+        private JPanel contentPane;
 
-        public TabItem(String title, ImageIcon defaultIcon, ImageIcon activeIcon, String cardName) {
+        public TabItem(String title, ImageIcon defaultIcon, ImageIcon activeIcon, String cardName, JPanel contentPane) {
             this.defaultIcon = defaultIcon;
             this.activeIcon = activeIcon;
             this.cardName = cardName;
+            this.title = title;
+            this.contentPane = contentPane;
 
             setLayout(new BorderLayout());
             setOpaque(false);

@@ -601,15 +601,6 @@ public class Registration extends JPanel {
 			UserRecord user =
 					new UserRecord();
 
-			user.systemRole = "Student";
-			user.studentId = studentId;
-			user.umakEmailAddress = email;
-			user.password = password;
-			user.college = college;
-			user.yearLevel = yearLevel;
-			user.courseProgram = course;
-			user.firstName = firstName;
-			user.lastName = lastName;
 
 			users.add(user);
 

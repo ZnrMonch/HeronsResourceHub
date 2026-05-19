@@ -25,4 +25,5 @@ public class ItemRecord {
 
 	public String initiatorFirstName;
 	public String initiatorLastName;
+	public Timestamp transactionDate;
 }

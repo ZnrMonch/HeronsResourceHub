@@ -2,6 +2,8 @@ package marketplace;
 
 import java.awt.*;
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.sql.*;
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -15,9 +17,15 @@ import database.DatabaseManager;
 public class ItemForm extends JDialog {
     private static final long serialVersionUID = 1L;
     
+    public interface OnSuccessListener {
+        void onSuccess();
+    }
+    
     private CustomTextField itemNameField;
     private CustomLabel imagePathLabel;
-    private String selectedImagePath = "/resources/items/default.jpg";
+    
+    private String selectedImagePath = ""; 
+    private File selectedImageFile = null; // Holds the selected file before saving
     
     private CustomTextArea descriptionField;
     private CustomComboBox<String> categoryField;
@@ -30,17 +38,18 @@ public class ItemForm extends JDialog {
     private CustomSpinner pickupTimeField;
     
     private CustomTextField priceField;
-    private CustomTextField maximumBorrowDaysField; // Changed to TextField
+    private CustomTextField maximumBorrowDaysField; 
     private CustomTextField desiredItemField;
     
     private ItemRecord currentItem;
-    private final String DB_URL = DatabaseManager.getURL();
-    private final String USER = DatabaseManager.getUser();
-    private final String PASSWORD = DatabaseManager.getPassword();
+    private int currentUserId;
+    private OnSuccessListener successListener;
     
-    public ItemForm(Window parent, String title, ItemRecord itemToUpdate) {
+    public ItemForm(Window parent, String title, ItemRecord itemToUpdate, int currentUserId, OnSuccessListener listener) {
         super(parent, title, Dialog.ModalityType.APPLICATION_MODAL);
         this.currentItem = itemToUpdate;
+        this.currentUserId = currentUserId;
+        this.successListener = listener;
         setResizable(false);
         
         setLayout(new BorderLayout());
@@ -51,6 +60,7 @@ public class ItemForm extends JDialog {
         
         if (currentItem != null) {
             preFillData();
+            checkCategoryCondition();
         }
         
         pack();
@@ -81,7 +91,7 @@ public class ItemForm extends JDialog {
         gbc.gridy = 0;
         
         itemNameField = new CustomTextField("Enter item name...");
-        imagePathLabel = new CustomLabel(new File(selectedImagePath).getName(), Brand.STANDARD_TEXT_SIZE, FontStyle.REGULAR);
+        imagePathLabel = new CustomLabel(selectedImagePath.isEmpty() ? "No image selected" : new File(selectedImagePath).getName(), Brand.STANDARD_TEXT_SIZE, FontStyle.REGULAR);
         
         CustomButton browseBtn = new CustomButton("Browse", 10);
         browseBtn.setPadding(20, 5);
@@ -89,9 +99,10 @@ public class ItemForm extends JDialog {
             JFileChooser chooser = new JFileChooser();
             chooser.setFileFilter(new FileNameExtensionFilter("Images (JPG, PNG)", "jpg", "png"));
             if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-                File file = chooser.getSelectedFile();
-                selectedImagePath = "/resources/items/" + file.getName();
-                imagePathLabel.setText(file.getName());
+                selectedImageFile = chooser.getSelectedFile();
+                // Set the path string exactly as it will be stored in the database
+                selectedImagePath = "/resources/items/" + selectedImageFile.getName();
+                imagePathLabel.setText(selectedImageFile.getName());
             }
         });
 
@@ -100,6 +111,7 @@ public class ItemForm extends JDialog {
         String[] categories = new String[Category.values().length];
         for (int i = 0; i < Category.values().length; i++) categories[i] = Category.values()[i].name().replace("_", " ");
         categoryField = new CustomComboBox<>(categories);
+        categoryField.addActionListener(e -> checkCategoryCondition());
         
         String[] conditions = new String[Condition.values().length];
         for (int i = 0; i < Condition.values().length; i++) conditions[i] = Condition.values()[i].name();
@@ -112,10 +124,37 @@ public class ItemForm extends JDialog {
         pickupDateField.setOpaque(false);
         String[] days = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "All"};
         pickupDayBoxes = new JCheckBox[days.length];
+        
         for (int i = 0; i < days.length; i++) {
             pickupDayBoxes[i] = new JCheckBox(days[i]);
             pickupDayBoxes[i].setOpaque(false); 
             pickupDateField.add(pickupDayBoxes[i]);
+        }
+        
+        JCheckBox allBox = pickupDayBoxes[7];
+        allBox.addActionListener(e -> {
+            boolean isSelected = allBox.isSelected();
+            for (int i = 0; i < 7; i++) {
+                pickupDayBoxes[i].setSelected(isSelected);
+            }
+        });
+        
+        for (int i = 0; i < 7; i++) {
+            final int index = i; 
+            pickupDayBoxes[i].addActionListener(e -> {
+                if (!pickupDayBoxes[index].isSelected()) {
+                    allBox.setSelected(false);
+                } else {
+                    boolean allSelected = true;
+                    for (int j = 0; j < 7; j++) {
+                        if (!pickupDayBoxes[j].isSelected()) {
+                            allSelected = false;
+                            break;
+                        }
+                    }
+                    allBox.setSelected(allSelected);
+                }
+            });
         }
         
         pickupTimeField = new CustomSpinner(new SpinnerListModel(new String[] {"08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM"}));
@@ -163,7 +202,7 @@ public class ItemForm extends JDialog {
 
     private void addField(CustomPanel parent, GridBagConstraints gbc, String label, JComponent comp) {
         gbc.gridy++;
-        parent.add(new CustomLabel(label, Brand.STANDARD_TEXT_SIZE, FontStyle.BOLD), gbc);
+        parent.add(createRequiredLabel(label), gbc);
         gbc.gridy++;
         parent.add(comp, gbc);
     }
@@ -171,10 +210,28 @@ public class ItemForm extends JDialog {
     private CustomPanel createColumn(String label, JComponent comp) {
         CustomPanel col = new CustomPanel();
         col.setLayout(new BoxLayout(col, BoxLayout.Y_AXIS));
-        col.add(new CustomLabel(label, Brand.STANDARD_TEXT_SIZE, FontStyle.BOLD));
+        col.add(createRequiredLabel(label));
         comp.setAlignmentX(Component.LEFT_ALIGNMENT);
         col.add(comp);
         return col;
+    }
+    
+    private CustomPanel createRequiredLabel(String text) {
+        CustomPanel panel = new CustomPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        panel.setOpaque(false);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(new CustomLabel(text, Brand.STANDARD_TEXT_SIZE, FontStyle.BOLD));
+        panel.add(new CustomLabel(" *", Brand.STANDARD_TEXT_SIZE, FontStyle.BOLD, Brand.RED));
+        return panel;
+    }
+
+    private void checkCategoryCondition() {
+        if ("Consumable_Goods".equals(categoryField.getSelectedItem().toString().replace(" ", "_"))) {
+            conditionField.setSelectedItem("New");
+            conditionField.setEnabled(false);
+        } else {
+            conditionField.setEnabled(true);
+        }
     }
 
     private void preFillData() {
@@ -186,15 +243,21 @@ public class ItemForm extends JDialog {
         conditionField.setSelectedItem(currentItem.condition);
         quantityField.setText(String.valueOf(currentItem.itemQuantity));
         pickupLocationField.setText(currentItem.pickupArea);
-        pickupTimeField.setValue(currentItem.pickupTime);
         
         if (currentItem.pickupDays != null) {
             String[] daysSelected = currentItem.pickupDays.split(",");
+            int selectedCount = 0;
             for (String d : daysSelected) {
                 String prefix = d.trim().substring(0, 3);
                 for (int i = 0; i < 7; i++) {
-                    if (pickupDayBoxes[i].getText().equalsIgnoreCase(prefix)) pickupDayBoxes[i].setSelected(true);
+                    if (pickupDayBoxes[i].getText().equalsIgnoreCase(prefix)) {
+                        pickupDayBoxes[i].setSelected(true);
+                        selectedCount++;
+                    }
                 }
+            }
+            if (selectedCount == 7) {
+                pickupDayBoxes[7].setSelected(true);
             }
         }
         if (priceField != null && currentItem.price > 0) priceField.setText(String.valueOf(currentItem.price));
@@ -213,6 +276,16 @@ public class ItemForm extends JDialog {
             if (isFormValid()) {
                 saveData();
                 JOptionPane.showMessageDialog(this, "Item saved successfully!");
+                if (successListener != null) {
+                    successListener.onSuccess();
+                }
+                
+                Window parent = SwingUtilities.getWindowAncestor(this);
+                if(parent != null) {
+                    parent.revalidate();
+                    parent.repaint();
+                }
+                
                 dispose();
             }
         });
@@ -222,26 +295,148 @@ public class ItemForm extends JDialog {
     }
 
     private boolean isFormValid() {
-        if (itemNameField.getText().trim().isEmpty()) { showError("Name required"); return false; }
-        try { Integer.parseInt(quantityField.getText().trim()); } catch (NumberFormatException e) { showError("Quantity must be a number"); return false; }
+        if (selectedImagePath == null || selectedImagePath.trim().isEmpty()) {
+            showError("An item image is required. Please browse and select an image.");
+            return false;
+        }
+
+        String itemName = itemNameField.getText().trim();
+        if (itemName.length() < 1 || itemName.length() > 150) { 
+            showError("Item Name must be between 1 and 150 characters long."); 
+            return false; 
+        }
+
+        if (descriptionField.getText().trim().length() < 4) { 
+            showError("Description must be at least 4 characters long."); 
+            return false; 
+        }
+
+        if (pickupLocationField.getText().trim().length() < 4) { 
+            showError("Pickup Location must be at least 4 characters long."); 
+            return false; 
+        }
+        
+        String qtyStr = quantityField.getText().trim();
+        if (qtyStr.length() < 1 || qtyStr.length() > 3) {
+            showError("Quantity must be between 1 and 3 characters long.");
+            return false;
+        }
+        try { 
+            int qty = Integer.parseInt(qtyStr); 
+            if (qty < 1) {
+                showError("Quantity must be at least 1."); 
+                return false; 
+            }
+        } catch (NumberFormatException e) { 
+            showError("Quantity must be a valid number."); 
+            return false; 
+        }
+        
+        if (priceField != null) {
+            String priceStr = priceField.getText().trim();
+            if (priceStr.length() < 1 || priceStr.length() > 6) {
+                showError("Price must be between 1 and 6 characters long.");
+                return false;
+            }
+            try { 
+                int price = Integer.parseInt(priceStr); 
+                if (price < 0) {
+                    showError("Price cannot be negative."); 
+                    return false; 
+                }
+            } catch (NumberFormatException e) { 
+                showError("Price must be a valid number."); 
+                return false; 
+            }
+        }
         
         if (maximumBorrowDaysField != null) {
-            try { Integer.parseInt(maximumBorrowDaysField.getText().trim()); } catch (NumberFormatException e) { showError("Max borrow days must be a number"); return false; }
+            String daysStr = maximumBorrowDaysField.getText().trim();
+            if (daysStr.length() < 1 || daysStr.length() > 3) {
+                showError("Maximum borrow days must be between 1 and 3 digits.");
+                return false;
+            }
+            try { 
+                int days = Integer.parseInt(daysStr); 
+                if (days < 1 || days > 100) {
+                    showError("Maximum borrow days must be between 1 and 100."); 
+                    return false; 
+                }
+            } catch (NumberFormatException e) { 
+                showError("Maximum borrow days must be a valid number."); 
+                return false; 
+            }
+        }
+        
+        if (desiredItemField != null) {
+            if (desiredItemField.getText().trim().length() < 4) { 
+                showError("Desired Item must be at least 4 characters long."); 
+                return false; 
+            }
+        }
+        
+        boolean daySelected = false;
+        for (int i = 0; i < 7; i++) {
+            if (pickupDayBoxes[i].isSelected()) {
+                daySelected = true;
+                break;
+            }
+        }
+        if (!daySelected) {
+            showError("Please select at least one pickup day.");
+            return false;
         }
         
         return true;
     }
 
     private void saveData() {
+        copyImageFileToLocalDirectory();
+        
         if (currentItem == null) insertItemIntoDatabase();
         else updateItemInDatabase();
     }
-
-    private void insertItemIntoDatabase() {
-        // Implementation logic
+    
+    private void copyImageFileToLocalDirectory() {
+        if (selectedImageFile != null) {
+            try {
+                // Safely resolve the absolute project root to place it directly into /src/resources/items and /bin/resources/items
+                String projectPath = System.getProperty("user.dir");
+                File srcDestDir = new File(projectPath, "src" + File.separator + "resources" + File.separator + "items");
+                
+                if (!srcDestDir.exists()) {
+                    srcDestDir.mkdirs();
+                }
+                
+                File srcDestFile = new File(srcDestDir, selectedImageFile.getName());
+                Files.copy(selectedImageFile.toPath(), srcDestFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                
+                // Copy to bin directory as well so the image loads immediately during runtime
+                File binDestDir = new File(projectPath, "bin" + File.separator + "resources" + File.separator + "items");
+                if (!binDestDir.exists()) {
+                    binDestDir.mkdirs();
+                }
+                File binDestFile = new File(binDestDir, selectedImageFile.getName());
+                Files.copy(selectedImageFile.toPath(), binDestFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                System.err.println("Failed to copy the image file to the local directory.");
+            }
+        }
     }
 
-    private void updateItemInDatabase() {
+    private void insertItemIntoDatabase() {
+        ItemRecord newItem = new ItemRecord();
+        newItem.ownerId = this.currentUserId; 
+        newItem.itemName = itemNameField.getText().trim();
+        newItem.itemQuantity = Integer.parseInt(quantityField.getText().trim());
+        newItem.itemImage = selectedImagePath; // Stores exactly as /resources/items/filename
+        newItem.description = descriptionField.getText().trim();
+        newItem.category = categoryField.getSelectedItem().toString().replace(" ", "_");
+        newItem.condition = conditionField.getSelectedItem().toString();
+        newItem.pickupArea = pickupLocationField.getText().trim();
+        
         StringBuilder days = new StringBuilder();
         String[] fullDays = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
         for (int i = 0; i < 7; i++) {
@@ -250,37 +445,50 @@ public class ItemForm extends JDialog {
                 days.append(fullDays[i]);
             }
         }
+        newItem.pickupDays = days.toString();
+        newItem.pickupTime = pickupTimeField.getValue().toString();
         
-        try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASSWORD);
-             PreparedStatement pstmt = conn.prepareStatement(
-                 "UPDATE items SET item_name=?, item_quantity=?, item_image=?, description=?, category=?, condition=?, pickup_area=?, pickup_days=?, pickup_time=?, price=?, maximum_borrow_days=?, desired_item=? WHERE item_id=?")) {
-            
-            pstmt.setString(1, itemNameField.getText().trim());
-            pstmt.setInt(2, Integer.parseInt(quantityField.getText().trim()));
-            pstmt.setString(3, selectedImagePath);
-            pstmt.setString(4, descriptionField.getText().trim());
-            pstmt.setString(5, categoryField.getSelectedItem().toString().replace(" ", "_"));
-            pstmt.setString(6, conditionField.getSelectedItem().toString());
-            pstmt.setString(7, pickupLocationField.getText().trim());
-            pstmt.setString(8, days.toString());
-            pstmt.setString(9, pickupTimeField.getValue().toString());
-            
-            if (priceField != null) pstmt.setInt(10, Integer.parseInt(priceField.getText().trim()));
-            else pstmt.setNull(10, Types.INTEGER);
-            
-            if (maximumBorrowDaysField != null) pstmt.setInt(11, Integer.parseInt(maximumBorrowDaysField.getText().trim()));
-            else pstmt.setNull(11, Types.INTEGER);
-            
-            if (desiredItemField != null) pstmt.setString(12, desiredItemField.getText().trim());
-            else pstmt.setNull(12, Types.VARCHAR);
-            
-            pstmt.setInt(13, currentItem.itemId);
-            pstmt.executeUpdate();
-            
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-            showError("Database Error");
+        if (priceField != null) {
+            newItem.price = Integer.parseInt(priceField.getText().trim());
+            newItem.action = "Marketplace";
+            ItemActionManager.addMarketplaceItem(newItem);
+        } else if (maximumBorrowDaysField != null) {
+            newItem.maximumBorrowDays = Integer.parseInt(maximumBorrowDaysField.getText().trim());
+            newItem.action = "Sharing";
+            ItemActionManager.addSharingItem(newItem);
+        } else if (desiredItemField != null) {
+            newItem.desiredItem = desiredItemField.getText().trim();
+            newItem.action = "Trade";
+            ItemActionManager.addTradeItem(newItem);
         }
+    }
+
+    private void updateItemInDatabase() {
+        currentItem.itemName = itemNameField.getText().trim();
+        currentItem.itemQuantity = Integer.parseInt(quantityField.getText().trim());
+        currentItem.itemImage = selectedImagePath; // Stores exactly as /resources/items/filename
+        currentItem.description = descriptionField.getText().trim();
+        currentItem.category = categoryField.getSelectedItem().toString().replace(" ", "_");
+        currentItem.condition = conditionField.getSelectedItem().toString();
+        currentItem.pickupArea = pickupLocationField.getText().trim();
+        currentItem.pickupTime = pickupTimeField.getValue().toString();
+        
+        StringBuilder days = new StringBuilder();
+        String[] fullDays = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
+        for (int i = 0; i < 7; i++) {
+            if (pickupDayBoxes[i].isSelected()) {
+                if (days.length() > 0) days.append(",");
+                days.append(fullDays[i]);
+            }
+        }
+        currentItem.pickupDays = days.toString();
+        
+        if (priceField != null) currentItem.price = Integer.parseInt(priceField.getText().trim());
+        if (maximumBorrowDaysField != null) currentItem.maximumBorrowDays = Integer.parseInt(maximumBorrowDaysField.getText().trim());
+        if (desiredItemField != null) currentItem.desiredItem = desiredItemField.getText().trim();
+
+        boolean success = ItemActionManager.updateItemDetailed(currentItem, "update item details");
+        if (!success) showError("Database Error");
     }
 
     private void showError(String msg) {

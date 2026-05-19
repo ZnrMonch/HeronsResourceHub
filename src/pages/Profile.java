@@ -1,91 +1,117 @@
 package pages;
 
 import java.awt.*;
+import java.io.File;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 import javax.swing.*;
+
 import components.*;
 import utils.*;
 import profile.EditProfilePicture;
 import database.UserRecord;
+import database.DatabaseManager;
+import database.UMak;
 
 public class Profile extends CustomPanel {
     private static final long serialVersionUID = 1L;
 
-    private final UserRecord user;
+    private static final String DEFAULT_PROFILE_PIC = "/resources/defaultpictures/renzjan.jpg";
+    private static final String[] COLLEGES = UMak.COLLEGES_INSTITUTES;
+    private static final String[] YEARS = {"1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year", "GRADUATE", "ALUMNI"};
 
-    private boolean isEditing = false;
+    private final UserRecord user;
+    
+    // UI Components
+    private CustomToggleButton editProfileButton;
     private CustomPanel profileContentPanel;
     private AvatarPanel avatarPanel;
-    private CustomToggleButton editProfileButton = new CustomToggleButton(
-            IconLoader.loadAndScaleIcon("/resources/icons/edit.png", 25, 25),
-            IconLoader.loadAndScaleIcon("/resources/icons/close.png", 25, 25)
-    );
-
-    // Editable Swing fields
+    
+    // Text Fields
+    private CustomTextField studentIdField = new CustomTextField("");
     private CustomTextField lastNameField = new CustomTextField("");
     private CustomTextField firstNameField = new CustomTextField("");
     private CustomTextField contactNumberField = new CustomTextField("");
-    private CustomTextField courseField = new CustomTextField("");
     private CustomTextField collegeField = new CustomTextField("");
+    private CustomTextField courseField = new CustomTextField("");
     private CustomTextField yearLevelField = new CustomTextField("");
-    private CustomComboBox<String> collegeCombo = null;
-    private CustomComboBox<String> yearCombo = null;
-
     private CustomTextField gcashField = new CustomTextField("");
     private CustomTextField mayaField = new CustomTextField("");
-    private CustomTextField mastercardField = new CustomTextField("");
-    private CustomTextField visaField = new CustomTextField("");
-    private String storedPassword = ""; // for mask/display/hiding
+    private CustomTextField bdoField = new CustomTextField("");
+    private CustomTextField bpiField = new CustomTextField("");
 
-    // ---- Constructors ----
+    // Combo Boxes
+    private CustomComboBox<String> collegeCombo;
+    private CustomComboBox<String> yearCombo;
 
-    /** Preferred constructor (requires user info). */
+    // State Variables
+    private boolean isEditing = false;
+    private String storedPassword = "";
+    private String gcashNum = "", mayaNum = "", bdoNum = "", bpiNum = "";
+    private Map<String, String> originalValues = new HashMap<>();
+
     public Profile(UserRecord user) {
         if (user == null) throw new IllegalArgumentException("UserRecord is required");
         this.user = user;
-        if (user.password != null) storedPassword = user.password;
+        if (user.password != null) this.storedPassword = user.password;
+
+        editProfileButton = new CustomToggleButton(
+            IconLoader.loadAndScaleIcon("/resources/icons/edit.png", 25, 25),
+            IconLoader.loadAndScaleIcon("/resources/icons/close.png", 25, 25)
+        );
+
+        loadPaymentMethods();
+
         setLayout(new BorderLayout(20, 20));
         add(initWest(), BorderLayout.WEST);
         add(initCenter(), BorderLayout.CENTER);
     }
 
-    /** Default constructor: uses a dummy/default user. */
-    public Profile() {
-        this(createDefaultUserRecord());
+    private Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
     }
 
-    /** Static helper: returns a "dummy" UserRecord. */
-    private static UserRecord createDefaultUserRecord() {
-        UserRecord user = new UserRecord();
-        user.systemRole = "user";
-        user.studentId = "DUMMY-STUDENT-ID";
-        user.umakEmailAddress = "dummy@umak.edu.ph";
-        user.password = "defaultpassword";
-        user.college = "CCIS";
-        user.yearLevel = "1st Year";
-        user.courseProgram = "BS in Information Technology";
-        user.firstName = "Default";
-        user.lastName = "User";
-        user.karmaScore = 0;
-        user.profileImage = "/resources/defaultpictures/renzjan.jpg";
-        user.contactNum = 639000000000L;
-        user.gcashNum = 639000000001L;
-        user.mayaNum = 639000000002L;
-        user.mastercardNum = "1111222233334444";
-        user.visaNum = "4444333322221111";
-        return user;
+    private String getCurrentProfilePicturePath() {
+        if (user.profile_image == null || user.profile_image.trim().isEmpty()) {
+            return DEFAULT_PROFILE_PIC;
+        }
+        try {
+            File absoluteFile = new File(user.profile_image);
+            if (absoluteFile.exists() && absoluteFile.isAbsolute()) {
+                return absoluteFile.getAbsolutePath();
+            }
+            if (getClass().getResourceAsStream(user.profile_image) != null) {
+                return user.profile_image;
+            }
+        } catch (Exception ignore) {}
+        
+        return DEFAULT_PROFILE_PIC;
     }
 
-    private String getProfilePicturePath() {
-        return (user.profileImage != null && !user.profileImage.isEmpty())
-                ? user.profileImage : "/resources/defaultpictures/renzjan.jpg";
+    private String getKarmaTitle(int score) {
+        if (score <= 49) return "New User";
+        if (score <= 99) return "Verified Beginner";
+        if (score <= 199) return "Trusted Member";
+        if (score <= 349) return "Active Member";
+        if (score <= 499) return "Reliable Trader";
+        if (score <= 649) return "Skilled Trader";
+        if (score <= 799) return "Advanced Trader";
+        if (score <= 949) return "Expert Trader";
+        if (score <= 999) return "Elite Trader";
+        return "Apex Trader"; 
     }
 
     private CustomPanel initWest() {
         CustomPanel wrapper = new CustomPanel(new BorderLayout(0, 20));
         wrapper.setPreferredSize(new Dimension(300, Integer.MAX_VALUE));
+
         CustomPanel profilePictureWrapper = new CustomPanel(new GridBagLayout());
         profilePictureWrapper.setPreferredSize(new Dimension(300, 300));
-
         avatarPanel = new AvatarPanel();
         profilePictureWrapper.add(avatarPanel);
 
@@ -94,21 +120,27 @@ public class Profile extends CustomPanel {
         karmaWrapper.setRadius(20);
         karmaWrapper.setBackground(Color.WHITE);
 
+        CustomPanel headerContainer = new CustomPanel();
+        headerContainer.setLayout(new BoxLayout(headerContainer, BoxLayout.Y_AXIS));
+        
         CustomLabel karmaLabel = new CustomLabel("KARMA POINTS", 34f, FontStyle.BOLD);
-        karmaLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        karmaLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        int score = (user.karma_score != 0) ? user.karma_score : 67;
+        CustomLabel karmaTitleLabel = new CustomLabel(getKarmaTitle(score).toUpperCase(), 16f, FontStyle.REGULAR, Color.GRAY);
+        karmaTitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        CustomLabel karmaPointsLabel = new CustomLabel(
-                String.valueOf(user.karmaScore), 120f, FontStyle.BOLD);
+        headerContainer.add(karmaLabel);
+        headerContainer.add(Box.createVerticalStrut(5));
+        headerContainer.add(karmaTitleLabel);
+
+        CustomLabel karmaPointsLabel = new CustomLabel(String.valueOf(score), 80f, FontStyle.BOLD, Brand.SECONDARY_COLOR);
         karmaPointsLabel.setHorizontalAlignment(SwingConstants.CENTER);
-
-        CustomLabel karmaDescLabel = new CustomLabel(
-                "Your Community Standing", 18f, FontStyle.REGULAR);
+        
+        CustomLabel karmaDescLabel = new CustomLabel("Your Community Standing", 18f, FontStyle.REGULAR, Color.GRAY);
         karmaDescLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
-        karmaPointsLabel.setForeground(Brand.SECONDARY_COLOR);
-        karmaDescLabel.setForeground(Color.GRAY);
-
-        karmaWrapper.add(karmaLabel, BorderLayout.NORTH);
+        karmaWrapper.add(headerContainer, BorderLayout.NORTH);
         karmaWrapper.add(karmaPointsLabel, BorderLayout.CENTER);
         karmaWrapper.add(karmaDescLabel, BorderLayout.SOUTH);
 
@@ -117,43 +149,36 @@ public class Profile extends CustomPanel {
         return wrapper;
     }
 
-    // --- AvatarPanel as before, but reads path from user ---
     private class AvatarPanel extends JPanel {
         private static final long serialVersionUID = 1L;
-        private boolean isHovered = false;
-        private Icon editIcon;
+        private final Icon editIcon;
 
         public AvatarPanel() {
             setOpaque(false);
             setPreferredSize(new Dimension(250, 250));
-            editIcon = IconLoader.loadAndScaleIcon("/resources/icons/edit.png", 40, 40);
+            editIcon = IconLoader.loadAndScaleColorizedIcon("/resources/icons/edit.png", 100, 100, Color.WHITE);
 
             addMouseListener(new java.awt.event.MouseAdapter() {
                 @Override
                 public void mouseReleased(java.awt.event.MouseEvent e) {
                     if (isEditing) {
-                        Window parentWindow = SwingUtilities.getWindowAncestor(Profile.this);
-                        JFrame parentFrame = (parentWindow instanceof JFrame) ? (JFrame) parentWindow : null;
+                        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(Profile.this);
                         EditProfilePicture dialog = new EditProfilePicture(parentFrame);
-
                         String updatedPath = dialog.getSavedImagePath();
                         if (updatedPath != null) {
-                            user.profileImage = updatedPath;
+                            user.profile_image = updatedPath;
                             AvatarPanel.this.repaint();
+                            buildProfileFields();
                         }
                     }
                 }
                 @Override
                 public void mouseEntered(java.awt.event.MouseEvent e) {
-                    if (isEditing) {
-                        isHovered = true;
-                        setCursor(new Cursor(Cursor.HAND_CURSOR));
-                        repaint();
-                    } else setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+                    setCursor(new Cursor(isEditing ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
+                    if (isEditing) repaint();
                 }
                 @Override
                 public void mouseExited(java.awt.event.MouseEvent e) {
-                    isHovered = false;
                     setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
                     repaint();
                 }
@@ -166,16 +191,14 @@ public class Profile extends CustomPanel {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            Icon mainAvatar = IconLoader.loadAndScaleCircularIcon(getProfilePicturePath(), 250, 250);
+            Icon mainAvatar = IconLoader.loadAndScaleCircularIcon(getCurrentProfilePicturePath(), 250, 250);
             if (mainAvatar != null) mainAvatar.paintIcon(this, g2, 0, 0);
 
-            if (isEditing && isHovered) {
+            if (isEditing) {
                 g2.setColor(new Color(0, 0, 0, 110));
                 g2.fillOval(0, 0, 250, 250);
                 if (editIcon != null) {
-                    int iconX = (250 - editIcon.getIconWidth()) / 2;
-                    int iconY = (250 - editIcon.getIconHeight()) / 2;
-                    editIcon.paintIcon(this, g2, iconX, iconY);
+                    editIcon.paintIcon(this, g2, (250 - editIcon.getIconWidth()) / 2, (250 - editIcon.getIconHeight()) / 2);
                 }
             }
             g2.dispose();
@@ -197,6 +220,7 @@ public class Profile extends CustomPanel {
         CustomPanel topWrapper = new CustomPanel();
         topWrapper.setLayout(new BoxLayout(topWrapper, BoxLayout.X_AXIS));
         topWrapper.add(new CustomLabel("Personal Information", Brand.HEADER2_TEXT_SIZE, FontStyle.BOLD));
+        
         editProfileButton.setDefaultColor(new Color(0, 0, 0, 0));
         editProfileButton.setHoverColor(new Color(0, 0, 0, 0));
         topWrapper.add(Box.createHorizontalStrut(10));
@@ -205,32 +229,23 @@ public class Profile extends CustomPanel {
         editProfileButton.addToggleListener(toggled -> {
             if (!toggled && isEditing) {
                 if (!hasUnsavedChanges()) {
-                    isEditing = false;
-                    avatarPanel.repaint();
-                    buildProfileFields();
+                    exitEditingMode();
                     return;
                 }
+                
                 Object[] options = {"Save Changes", "Discard"};
-                int choice = JOptionPane.showOptionDialog(
-                        this,
-                        "Do you want to save the changes made to your profile?",
-                        "Confirm Changes",
-                        JOptionPane.YES_NO_OPTION,
-                        JOptionPane.QUESTION_MESSAGE,
-                        null,
-                        options,
-                        options[0]
-                );
+                int choice = JOptionPane.showOptionDialog(this, "Do you want to save the changes made to your profile?", "Confirm Changes",
+                    JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
 
                 if (choice == JOptionPane.YES_OPTION) {
-                    saveFields();
-                    isEditing = false;
-                    avatarPanel.repaint();
-                    buildProfileFields();
+                    if (validateFields()) {
+                        saveFields();
+                        exitEditingMode();
+                    } else {
+                        SwingUtilities.invokeLater(() -> editProfileButton.setToggled(true));
+                    }
                 } else if (choice == JOptionPane.NO_OPTION) {
-                    isEditing = false;
-                    avatarPanel.repaint();
-                    buildProfileFields();
+                    exitEditingMode();
                 } else {
                     SwingUtilities.invokeLater(() -> editProfileButton.setToggled(true));
                 }
@@ -238,116 +253,269 @@ public class Profile extends CustomPanel {
                 isEditing = true;
                 avatarPanel.repaint();
                 buildProfileFields();
+                SwingUtilities.invokeLater(this::captureOriginalValues);
             }
         });
 
         profileContentPanel = new CustomPanel(new BorderLayout());
         buildProfileFields();
+
         wrapper.add(topWrapper, BorderLayout.NORTH);
         wrapper.add(profileContentPanel, BorderLayout.CENTER);
 
         return wrapper;
     }
 
+    private void exitEditingMode() {
+        isEditing = false;
+        avatarPanel.repaint();
+        buildProfileFields();
+        originalValues.clear();
+    }
+
+    private boolean validateFields() {
+        if (lastNameField.getText().trim().isEmpty()) {
+            showError("Last name cannot be empty.");
+            return false;
+        }
+        if (firstNameField.getText().trim().isEmpty()) {
+            showError("First name cannot be empty.");
+            return false;
+        }
+        if (courseField.getText().trim().isEmpty()) {
+            showError("Course/Program cannot be empty.");
+            return false;
+        }
+        
+        String contact = normalizeDigits(contactNumberField.getText());
+        if (!contact.isEmpty() && (contact.length() != 11 || !contact.startsWith("09"))) {
+            showError("Contact number must be an 11-digit number starting with 09.");
+            return false;
+        }
+        
+        String gcash = normalizeDigits(gcashField.getText());
+        if (!gcash.isEmpty() && (gcash.length() != 11 || !gcash.startsWith("09"))) {
+            showError("GCash number must be an 11-digit number starting with 09.");
+            return false;
+        }
+
+        String maya = normalizeDigits(mayaField.getText());
+        if (!maya.isEmpty() && (maya.length() != 11 || !maya.startsWith("09"))) {
+            showError("Maya number must be an 11-digit number starting with 09.");
+            return false;
+        }
+
+        String bdo = normalizeDigits(bdoField.getText());
+        if (!bdo.isEmpty() && bdo.length() != 16) {
+            showError("BDO number must be a 16-digit number.");
+            return false;
+        }
+
+        String bpi = normalizeDigits(bpiField.getText());
+        if (!bpi.isEmpty() && bpi.length() != 16) {
+            showError("BPI number must be a 16-digit number.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private void showError(String message) {
+        JOptionPane.showMessageDialog(this, message, "Validation Error", JOptionPane.ERROR_MESSAGE);
+    }
+
+    private void saveFields() {
+        user.last_name = lastNameField.getText();
+        user.first_name = firstNameField.getText();
+        
+        String contactDigits = normalizeDigits(contactNumberField.getText());
+        user.contact_num = contactDigits.isEmpty() ? null : contactDigits;
+        
+        user.college = (collegeCombo != null) ? (String) collegeCombo.getSelectedItem() : collegeField.getText();
+        user.course_program = courseField.getText();
+        user.year_level = (yearCombo != null) ? (String) yearCombo.getSelectedItem() : yearLevelField.getText();
+
+        gcashNum = gcashField.getText();
+        mayaNum = mayaField.getText();
+        bdoNum = bdoField.getText();
+        bpiNum = bpiField.getText();
+        user.password = storedPassword;
+        
+        saveProfileToDatabase();
+    }
+
+    // Tracks changes via fail-fast matching to prevent unnecessary computations
+    private boolean hasUnsavedChanges() {
+        if (!isEditing || originalValues.isEmpty()) return false;
+
+        if (!safeEquals(originalValues.get("lastName"), lastNameField.getText())) return true;
+        if (!safeEquals(originalValues.get("firstName"), firstNameField.getText())) return true;
+        if (!safeEquals(originalValues.get("courseProgram"), courseField.getText())) return true;
+
+        if (!normalizeDigits(originalValues.get("contactNumber")).equals(normalizeDigits(contactNumberField.getText()))) return true;
+        
+        String curCollege = (collegeCombo != null && collegeCombo.getSelectedItem() != null) ? collegeCombo.getSelectedItem().toString() : collegeField.getText();
+        if (!safeEquals(originalValues.get("college"), curCollege)) return true;
+
+        String curYear = (yearCombo != null && yearCombo.getSelectedItem() != null) ? yearCombo.getSelectedItem().toString() : yearLevelField.getText();
+        if (!safeEquals(originalValues.get("yearLevel"), curYear)) return true;
+
+        if (!normalizeDigits(originalValues.get("gcashNum")).equals(normalizeDigits(gcashField.getText()))) return true;
+        if (!normalizeDigits(originalValues.get("mayaNum")).equals(normalizeDigits(mayaField.getText()))) return true;
+        if (!safeEquals(originalValues.get("bdoNum"), bdoField.getText())) return true;
+        if (!safeEquals(originalValues.get("bpiNum"), bpiField.getText())) return true;
+
+        return false;
+    }
+
+    private void captureOriginalValues() {
+        originalValues.clear();
+        originalValues.put("lastName", safeGet(lastNameField.getText()));
+        originalValues.put("firstName", safeGet(firstNameField.getText()));
+        originalValues.put("contactNumber", safeGet(contactNumberField.getText()));
+        originalValues.put("college", collegeCombo != null && collegeCombo.getSelectedItem() != null ? collegeCombo.getSelectedItem().toString() : safeGet(collegeField.getText()));
+        originalValues.put("courseProgram", safeGet(courseField.getText()));
+        originalValues.put("yearLevel", yearCombo != null && yearCombo.getSelectedItem() != null ? yearCombo.getSelectedItem().toString() : safeGet(yearLevelField.getText()));
+        originalValues.put("gcashNum", safeGet(gcashField.getText()));
+        originalValues.put("mayaNum", safeGet(mayaField.getText()));
+        originalValues.put("bdoNum", safeGet(bdoField.getText()));
+        originalValues.put("bpiNum", safeGet(bpiField.getText()));
+    }
+
+    private String safeGet(String value) {
+        return value == null ? "" : value;
+    }
+
+    private boolean safeEquals(String a, String b) {
+        return safeGet(a).equals(safeGet(b));
+    }
+
+    private String normalizeDigits(String s) {
+        return safeGet(s).replaceAll("\\D", "");
+    }
+
+    private String censorNumber(String num) {
+        if (num == null) return "";
+        int len = num.length();
+        if (len <= 2) return "*".repeat(len);
+        if (len <= 5) return num.charAt(0) + "*".repeat(len - 2) + num.charAt(len - 1);
+        
+        int keepStart = Math.min(3, len - 2);
+        return num.substring(0, keepStart) + "*".repeat(len - keepStart - 2) + num.substring(len - 2);
+    }
+
+    private String censorCardNetwork(String num) {
+        if (num == null) return "";
+        String digits = num.replaceAll("\\D", "");
+        if (digits.length() <= 4) return digits;
+        return "*".repeat(digits.length() - 4) + digits.substring(digits.length() - 4);
+    }
+
     private void buildProfileFields() {
         profileContentPanel.removeAll();
 
         CustomPanel infoWrapper = new CustomPanel();
-        CustomPanel infoWrapper1 = new CustomPanel();
-        CustomPanel infoWrapper2 = new CustomPanel();
+        CustomPanel leftCol = new CustomPanel();
+        CustomPanel rightCol = new CustomPanel();
 
         infoWrapper.setLayout(new BoxLayout(infoWrapper, BoxLayout.X_AXIS));
-        infoWrapper1.setLayout(new BoxLayout(infoWrapper1, BoxLayout.Y_AXIS));
-        infoWrapper2.setLayout(new BoxLayout(infoWrapper2, BoxLayout.Y_AXIS));
-        infoWrapper1.setAlignmentY(Component.TOP_ALIGNMENT);
-        infoWrapper2.setAlignmentY(Component.TOP_ALIGNMENT);
+        leftCol.setLayout(new BoxLayout(leftCol, BoxLayout.Y_AXIS));
+        rightCol.setLayout(new BoxLayout(rightCol, BoxLayout.Y_AXIS));
+        leftCol.setAlignmentY(Component.TOP_ALIGNMENT);
+        rightCol.setAlignmentY(Component.TOP_ALIGNMENT);
 
-        // Use user fields everywhere:
-        infoWrapper1.add(infoDisplayWrapper("Student ID", user.studentId, null, false));
-        infoWrapper1.add(Box.createVerticalStrut(15));
-        infoWrapper1.add(infoDisplayWrapper("Last Name", user.lastName, lastNameField, true));
-        infoWrapper1.add(Box.createVerticalStrut(15));
-        infoWrapper1.add(infoDisplayWrapper("First Name", user.firstName, firstNameField, true));
-        infoWrapper1.add(Box.createVerticalStrut(15));
-        infoWrapper1.add(infoDisplayWrapper("Contact Number", numberToString(user.contactNum), contactNumberField, true));
-        infoWrapper1.add(Box.createVerticalStrut(15));
-        infoWrapper1.add(infoDisplayWrapper("UMak Email Address", user.umakEmailAddress, null, false));
-        infoWrapper1.add(Box.createVerticalStrut(15));
-        infoWrapper1.add(infoDisplayWrapper("Member Since", "January 01, 2001", null, false)); // Optional: add to UserRecord!
-        infoWrapper1.add(Box.createVerticalStrut(15));
-        infoWrapper1.add(infoDisplayWrapper("Password", storedPassword, null, false));
-        infoWrapper1.add(Box.createVerticalStrut(15));
+        // Left Column Fields
+        leftCol.add(infoWrapper("Student ID", user.student_id, studentIdField, false));
+        leftCol.add(Box.createVerticalStrut(15));
+        leftCol.add(infoWrapper("Last Name", user.last_name, lastNameField, true));
+        leftCol.add(Box.createVerticalStrut(15));
+        leftCol.add(infoWrapper("First Name", user.first_name, firstNameField, true));
+        leftCol.add(Box.createVerticalStrut(15));
+        leftCol.add(infoWrapper("Contact Number", user.contact_num, contactNumberField, true));
+        leftCol.add(Box.createVerticalStrut(15));
+        leftCol.add(infoWrapper("UMak Email Address", user.umak_email_address, null, false));
+        leftCol.add(Box.createVerticalStrut(15));
+        leftCol.add(infoWrapper("Member Since", "January 01, 2001", null, false));
+        leftCol.add(Box.createVerticalStrut(15));
+        leftCol.add(infoWrapper("Password", storedPassword, null, false));
+        leftCol.add(Box.createVerticalStrut(15));
 
-        String[] colleges = new String[]{"CBFS","CCIS","CCAPS","CCSE","CET","CGPP","CHK","CITE","CITE-HSU","CTHM","IAD","IOA","IOP","ION","IIHS","IOPsy","ISW","IDEM"};
-        collegeCombo = new CustomComboBox<>(colleges);
-        infoWrapper2.add(comboInfoWrapper("College/Institute", user.college, collegeCombo, true));
-        infoWrapper2.add(Box.createVerticalStrut(15));
-        infoWrapper2.add(infoDisplayWrapper("Course/Program", user.courseProgram, courseField, true));
-        infoWrapper2.add(Box.createVerticalStrut(15));
+        // Right Column Fields
+        collegeCombo = new CustomComboBox<>(COLLEGES);
+        rightCol.add(comboInfoWrapper("College/Institute", user.college, collegeCombo, true));
+        rightCol.add(Box.createVerticalStrut(15));
+        rightCol.add(infoWrapper("Course/Program", user.course_program, courseField, true));
+        rightCol.add(Box.createVerticalStrut(15));
 
-        String[] years = new String[]{"1st Year","2nd Year","3rd Year","4th Year","5th Year","Alumni"};
-        yearCombo = new CustomComboBox<>(years);
-        infoWrapper2.add(comboInfoWrapper("Year Level", user.yearLevel, yearCombo, true));
-        infoWrapper2.add(Box.createVerticalStrut(30));
-        infoWrapper2.add(new CustomLabel("Payment Information", Brand.HEADER4_TEXT_SIZE, FontStyle.BOLD));
-        infoWrapper2.add(Box.createVerticalStrut(5));
+        yearCombo = new CustomComboBox<>(YEARS);
+        rightCol.add(comboInfoWrapper("Year Level", user.year_level, yearCombo, true));
+        rightCol.add(Box.createVerticalStrut(30));
+        
+        rightCol.add(new CustomLabel("Payment Information", Brand.HEADER4_TEXT_SIZE, FontStyle.BOLD));
+        rightCol.add(Box.createVerticalStrut(5));
 
         CustomPanel paymentInfoPanel = new CustomPanel(new GridLayout(0, 2));
-        CustomPanel paymentInfoPanel1 = new CustomPanel();
-        CustomPanel paymentInfoPanel2 = new CustomPanel();
+        CustomPanel paymentLeft = new CustomPanel();
+        CustomPanel paymentRight = new CustomPanel();
+        paymentLeft.setLayout(new BoxLayout(paymentLeft, BoxLayout.Y_AXIS));
+        paymentRight.setLayout(new BoxLayout(paymentRight, BoxLayout.Y_AXIS));
 
-        paymentInfoPanel1.setLayout(new BoxLayout(paymentInfoPanel1, BoxLayout.Y_AXIS));
-        paymentInfoPanel2.setLayout(new BoxLayout(paymentInfoPanel2, BoxLayout.Y_AXIS));
+        // Payment Info Left
+        paymentLeft.add(createLeftAlignedLabel("Online Payment"));
+        paymentLeft.add(Box.createVerticalStrut(10));
+        paymentLeft.add(paymentInfoWrapper("/resources/icons/gcash.png", "GCash", gcashNum, gcashField));
+        paymentLeft.add(Box.createVerticalStrut(10));
+        paymentLeft.add(paymentInfoWrapper("/resources/icons/maya.png", "Maya", mayaNum, mayaField));
 
-        paymentInfoPanel1.add(new CustomLabel("Online Payment"));
-        paymentInfoPanel1.add(Box.createVerticalStrut(10));
-        paymentInfoPanel1.add(paymentInfoWrapper("/resources/icons/gcash.png", "GCash", numberToString(user.gcashNum), gcashField));
-        paymentInfoPanel1.add(Box.createVerticalStrut(10));
-        paymentInfoPanel1.add(paymentInfoWrapper("/resources/icons/maya.png", "Maya", numberToString(user.mayaNum), mayaField));
+        // Payment Info Right
+        paymentRight.add(createLeftAlignedLabel("Payment Network"));
+        paymentRight.add(Box.createVerticalStrut(10));
+        paymentRight.add(paymentInfoWrapper("/resources/icons/bdo.jpg", "BDO", bdoNum, bdoField));
+        paymentRight.add(Box.createVerticalStrut(10));
+        paymentRight.add(paymentInfoWrapper("/resources/icons/bpi.jpg", "BPI", bpiNum, bpiField));
 
-        paymentInfoPanel2.add(new CustomLabel("Payment Network"));
-        paymentInfoPanel2.add(Box.createVerticalStrut(10));
-        paymentInfoPanel2.add(paymentInfoWrapper("/resources/icons/mastercard.png", "Mastercard", user.mastercardNum, mastercardField));
-        paymentInfoPanel2.add(Box.createVerticalStrut(10));
-        paymentInfoPanel2.add(paymentInfoWrapper("/resources/icons/visa.png", "Visa", user.visaNum, visaField));
-
-        paymentInfoPanel.add(paymentInfoPanel1);
-        paymentInfoPanel.add(paymentInfoPanel2);
+        paymentInfoPanel.add(paymentLeft);
+        paymentInfoPanel.add(paymentRight);
         paymentInfoPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        infoWrapper2.add(paymentInfoPanel);
+        rightCol.add(paymentInfoPanel);
 
-        infoWrapper.add(infoWrapper1);
-        infoWrapper.add(infoWrapper2);
+        infoWrapper.add(leftCol);
+        infoWrapper.add(rightCol);
 
         CustomPanel topAnchor = new CustomPanel(new BorderLayout());
         topAnchor.add(infoWrapper, BorderLayout.NORTH);
 
         profileContentPanel.add(topAnchor, BorderLayout.CENTER);
-
         profileContentPanel.revalidate();
         profileContentPanel.repaint();
     }
 
-    private CustomPanel infoDisplayWrapper(String info, String value, CustomTextField field, boolean isEditable) {
+    private CustomLabel createLeftAlignedLabel(String text) {
+        CustomLabel label = new CustomLabel(text);
+        label.setAlignmentX(Component.LEFT_ALIGNMENT);
+        return label;
+    }
+
+    // Base wrapper structure shared by text, combo, and payment fields
+    private CustomPanel createBaseFieldWrapper(String title, Icon icon) {
         CustomPanel wrapper = new CustomPanel();
         wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
         wrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        CustomLabel infoLabel = new CustomLabel(info, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR);
-        infoLabel.setForeground(Color.GRAY);
+        CustomLabel infoLabel = new CustomLabel(title, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY);
+        if (icon != null) infoLabel.setIcon(icon);
         infoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         wrapper.add(infoLabel);
         wrapper.add(Box.createVerticalStrut(5));
+        return wrapper;
+    }
+
+    private CustomPanel infoWrapper(String info, String value, CustomTextField field, boolean isEditable) {
+        CustomPanel wrapper = createBaseFieldWrapper(info, null);
 
         if ("Password".equals(info)) {
-            CustomTextField pwdDisplay = new CustomTextField(maskPasswordDisplay(storedPassword));
-            pwdDisplay.setCustomSize(300, 35);
-            pwdDisplay.setEditable(false);
-            pwdDisplay.setEnabled(false);
-            pwdDisplay.setAlignmentX(Component.LEFT_ALIGNMENT);
-            wrapper.add(pwdDisplay);
-
+            wrapper.add(createDisabledField(storedPassword == null ? "*" : "*".repeat(Math.max(1, storedPassword.length())), 300));
             if (isEditing) {
                 CustomButton changePwd = new CustomButton("Change Password", 10);
                 changePwd.setDefaultColor(Brand.RED);
@@ -357,8 +525,7 @@ public class Profile extends CustomPanel {
                 changePwd.addMouseListener(new java.awt.event.MouseAdapter() {
                     @Override
                     public void mouseClicked(java.awt.event.MouseEvent e) {
-                        Window win = SwingUtilities.getWindowAncestor(Profile.this);
-                        new ChangePasswordDialog(win, storedPassword, newPassword -> {
+                        new ChangePasswordDialog(SwingUtilities.getWindowAncestor(Profile.this), storedPassword, newPassword -> {
                             storedPassword = newPassword;
                             buildProfileFields();
                         });
@@ -375,32 +542,18 @@ public class Profile extends CustomPanel {
         }
 
         if (isEditing && isEditable && field != null) {
-            field.setText(value != null ? value : "");
+            field.setText(safeGet(value));
             field.setCustomSize(300, 35);
             field.setAlignmentX(Component.LEFT_ALIGNMENT);
             wrapper.add(field);
         } else {
-            CustomTextField displayField = new CustomTextField(value != null ? value : "");
-            displayField.setCustomSize(300, 35);
-            displayField.setEditable(false);
-            displayField.setEnabled(false);
-            displayField.setAlignmentX(Component.LEFT_ALIGNMENT);
-            wrapper.add(displayField);
+            wrapper.add(createDisabledField(safeGet(value), 300));
         }
         return wrapper;
     }
 
     private CustomPanel comboInfoWrapper(String info, String value, JComboBox<String> combo, boolean isEditable) {
-        CustomPanel wrapper = new CustomPanel();
-        wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
-        wrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        CustomLabel infoLabel = new CustomLabel(info, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR);
-        infoLabel.setForeground(Color.GRAY);
-        infoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        wrapper.add(infoLabel);
-        wrapper.add(Box.createVerticalStrut(5));
+        CustomPanel wrapper = createBaseFieldWrapper(info, null);
 
         if (isEditing && isEditable && combo != null) {
             combo.setSelectedItem(value);
@@ -419,114 +572,101 @@ public class Profile extends CustomPanel {
             });
             wrapper.add(combo);
         } else {
-            CustomTextField displayField = new CustomTextField(value);
-            displayField.setCustomSize(300, 35);
-            displayField.setEditable(false);
-            displayField.setEnabled(false);
-            displayField.setAlignmentX(Component.LEFT_ALIGNMENT);
-            wrapper.add(displayField);
+            wrapper.add(createDisabledField(safeGet(value), 300));
         }
         return wrapper;
     }
 
-    private CustomPanel paymentInfoWrapper(String path, String info, String value, CustomTextField field) {
-        CustomPanel wrapper = new CustomPanel();
-        wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
-        wrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
+    private CustomPanel paymentInfoWrapper(String iconPath, String info, String value, CustomTextField field) {
+        CustomPanel wrapper = createBaseFieldWrapper(info, IconLoader.loadAndScaleIcon(iconPath, 20, 20));
 
-        CustomLabel infoLabel = new CustomLabel(info, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR);
-        infoLabel.setIcon(IconLoader.loadAndScaleIcon(path, 20, 20));
-        infoLabel.setForeground(Color.GRAY);
-        infoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        wrapper.add(infoLabel);
-        wrapper.add(Box.createVerticalStrut(5));
         if (isEditing && field != null) {
-            field.setText(value != null ? value : "");
+            field.setText(safeGet(value));
             field.setCustomSize(200, 35);
             field.setAlignmentX(Component.LEFT_ALIGNMENT);
             wrapper.add(field);
         } else {
-            CustomTextField displayNum = new CustomTextField(censorNumber(value));
-            displayNum.setCustomSize(200, 35);
-            displayNum.setEditable(false);
-            displayNum.setEnabled(false);
-            displayNum.setAlignmentX(Component.LEFT_ALIGNMENT);
-            wrapper.add(displayNum);
+            String display = ("BDO".equalsIgnoreCase(info) || "BPI".equalsIgnoreCase(info)) 
+                             ? censorCardNetwork(value) 
+                             : censorNumber(value);
+            wrapper.add(createDisabledField(display, 200));
         }
-
+        wrapper.add(Box.createVerticalStrut(6));
         return wrapper;
     }
 
-    private void saveFields() {
-        user.lastName = lastNameField.getText();
-        user.firstName = firstNameField.getText();
-        // Parse to Long (or null if blank or invalid)
-        String contactText = contactNumberField.getText();
-        try { user.contactNum = (contactText != null && !contactText.trim().isEmpty()) ? Long.parseLong(contactText) : null; }
-        catch (Exception e) { user.contactNum = null; }
-
-        if (collegeCombo != null) user.college = (String) collegeCombo.getSelectedItem();
-        else user.college = collegeField.getText();
-        user.courseProgram = courseField.getText();
-        if (yearCombo != null) user.yearLevel = (String) yearCombo.getSelectedItem();
-        else user.yearLevel = yearLevelField.getText();
-
-        try { user.gcashNum = tryParseLong(gcashField.getText()); } catch (Exception e) { user.gcashNum = null; }
-        try { user.mayaNum = tryParseLong(mayaField.getText()); } catch (Exception e) { user.mayaNum = null; }
-        user.mastercardNum = mastercardField.getText();
-        user.visaNum = visaField.getText();
-
-        user.password = storedPassword;
+    private CustomTextField createDisabledField(String value, int width) {
+        CustomTextField displayField = new CustomTextField(value);
+        displayField.setCustomSize(width, 35);
+        displayField.setEditable(false);
+        displayField.setEnabled(false);
+        displayField.setFocusable(false);
+        displayField.setAlignmentX(Component.LEFT_ALIGNMENT);
+        displayField.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
+        return displayField;
     }
 
-    private boolean hasUnsavedChanges() {
-        if (!safeEquals(lastNameField.getText(), user.lastName)) return true;
-        if (!safeEquals(firstNameField.getText(), user.firstName)) return true;
-        if (!safeEquals(contactNumberField.getText(), numberToString(user.contactNum))) return true;
-        if (collegeCombo != null && !safeEquals((String)collegeCombo.getSelectedItem(), user.college)) return true;
-        if (!safeEquals(courseField.getText(), user.courseProgram)) return true;
-        if (yearCombo != null && !safeEquals((String)yearCombo.getSelectedItem(), user.yearLevel)) return true;
-        if (!safeEquals(gcashField.getText(), numberToString(user.gcashNum))) return true;
-        if (!safeEquals(mayaField.getText(), numberToString(user.mayaNum))) return true;
-        if (!safeEquals(mastercardField.getText(), user.mastercardNum)) return true;
-        if (!safeEquals(visaField.getText(), user.visaNum)) return true;
-        return false;
-    }
-
-    private static boolean safeEquals(String a, String b) {
-        if (a == null) a = "";
-        if (b == null) b = "";
-        return a.equals(b);
-    }
-    private static String numberToString(Number n) { return n == null ? "" : String.valueOf(n); }
-    private static Long tryParseLong(String s) {
-        if (s == null || s.trim().isEmpty()) return null;
-        try { return Long.parseLong(s); } catch (Exception e) { return null; }
-    }
-
-    // Util methods for masking
-    private String maskPasswordDisplay(String pwd) {
-        if (pwd == null || pwd.isEmpty()) return "*";
-        return "*".repeat(Math.max(1, pwd.length()));
-    }
-    private String censorNumber(String num) {
-        if (num == null) return "";
-        int len = num.length();
-        if (len <= 2) return "*".repeat(len);
-        if (len <= 5) {
-            StringBuilder sb = new StringBuilder();
-            sb.append(num.charAt(0));
-            for (int i = 1; i < len - 1; i++) sb.append('*');
-            sb.append(num.charAt(len - 1));
-            return sb.toString();
+    private void loadPaymentMethods() {
+        String sql = "SELECT payment_type, payment_number FROM payment_methods WHERE user_id = ? AND is_active = TRUE";
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, user.user_id);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String type = rs.getString("payment_type");
+                    String number = rs.getString("payment_number");
+                    if ("gcash".equalsIgnoreCase(type)) gcashNum = number;
+                    else if ("maya".equalsIgnoreCase(type)) mayaNum = number;
+                    else if ("bdo".equalsIgnoreCase(type)) bdoNum = number;
+                    else if ("bpi".equalsIgnoreCase(type)) bpiNum = number;
+                }
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error fetching payment methods: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
         }
-        int keepStart = Math.min(3, len - 2);
-        int keepEnd = 2;
-        StringBuilder sb = new StringBuilder();
-        sb.append(num.substring(0, keepStart));
-        for (int i = 0; i < len - keepStart - keepEnd; i++) sb.append('*');
-        sb.append(num.substring(len - keepEnd));
-        return sb.toString();
+    }
+
+    private void saveProfileToDatabase() {
+        String updateUsersSql = "UPDATE users SET first_name=?, last_name=?, contact_num=?, college=?, course_program=?, year_level=?, password=?, profile_image=? WHERE user_id=?";
+        String upsertPaymentSql = "INSERT INTO payment_methods (user_id, payment_type, payment_number, is_active) VALUES (?, ?, ?, TRUE) ON DUPLICATE KEY UPDATE payment_number=?, is_active=TRUE";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement psUser = conn.prepareStatement(updateUsersSql)) {
+                psUser.setString(1, user.first_name);
+                psUser.setString(2, user.last_name);
+                
+                if (user.contact_num != null && !user.contact_num.trim().isEmpty()) {
+                    psUser.setString(3, user.contact_num);
+                } else {
+                    psUser.setNull(3, java.sql.Types.VARCHAR);
+                }
+                
+                psUser.setString(4, user.college);
+                psUser.setString(5, user.course_program);
+                psUser.setString(6, user.year_level);
+                psUser.setString(7, user.password);
+                psUser.setString(8, user.profile_image);
+                psUser.setInt(9, user.user_id);
+                psUser.executeUpdate();
+            }
+            upsertPaymentHelper(conn, upsertPaymentSql, "gcash", gcashNum);
+            upsertPaymentHelper(conn, upsertPaymentSql, "maya", mayaNum);
+            upsertPaymentHelper(conn, upsertPaymentSql, "BDO", bdoNum);
+            upsertPaymentHelper(conn, upsertPaymentSql, "BPI", bpiNum);
+            conn.commit();
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Failed to persist profile changes: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void upsertPaymentHelper(Connection conn, String sql, String type, String value) throws SQLException {
+        if (value == null || value.trim().isEmpty()) return;
+        try (PreparedStatement psPay = conn.prepareStatement(sql)) {
+            psPay.setInt(1, user.user_id);
+            psPay.setString(2, type);
+            psPay.setString(3, value.trim());
+            psPay.setString(4, value.trim());
+            psPay.executeUpdate();
+        }
     }
 }

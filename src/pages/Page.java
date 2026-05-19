@@ -3,6 +3,8 @@ package pages;
 import java.awt.*;
 import javax.swing.*;
 import components.*;
+import database.UserRecord;
+import marketplace.Marketplace;
 import utils.*;
 
 public class Page extends JFrame {
@@ -10,8 +12,10 @@ public class Page extends JFrame {
 	
 	private CustomPanel contentPane = new CustomPanel(Brand.BACKGROUND_COLOR);
 	private CustomPanel bodyPanel = new CustomPanel();
+	private UserRecord currentUser;
 	
-	public Page(JPanel content) {
+	public Page(JPanel content, UserRecord user) {
+		this.currentUser = user;
 		setTitle("University of Makati | Herons' Resource Hub");
 		setIconImage(IconLoader.loadAndScaleIcon("/resources/images/hrh-icon.jpg", 50, 50).getImage());
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -52,6 +56,14 @@ public class Page extends JFrame {
 		
 		CustomPanel logoWrapper = new CustomPanel();
 		logoWrapper.setLayout(new BoxLayout(logoWrapper, BoxLayout.X_AXIS));
+		logoWrapper.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		logoWrapper.addMouseListener(new java.awt.event.MouseAdapter() {
+			@Override
+			public void mouseClicked(java.awt.event.MouseEvent e) {
+				switchPage(new Marketplace(currentUser));
+			}
+		});
+		
 		JLabel umakLogo = new JLabel(IconLoader.loadAndScaleIcon("/resources/images/umak-icon-50.png", 50, 50));
 		JLabel brandingLogo = new JLabel(IconLoader.loadAndScaleIcon("/resources/images/hrh-icon.jpg", 50, 50));
 		logoWrapper.add(umakLogo);
@@ -75,7 +87,7 @@ public class Page extends JFrame {
 		eastWrapper.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 10));
 		eastWrapper.setOpaque(false);
 		eastWrapper.setLayout(new BoxLayout(eastWrapper, BoxLayout.X_AXIS));
-		JLabel notifBtn = new JLabel(IconLoader.loadAndScaleIcon("/resources/icons/notifications.png", 40, 40));
+		JLabel notifBtn = new JLabel(IconLoader.loadAndScaleIcon("/resources/icons/admin.png", 40, 40));
 		JLabel profileBtn = new JLabel(IconLoader.loadAndScaleIcon("/resources/icons/profile.png", 40, 40));
 		notifBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 		profileBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -86,14 +98,10 @@ public class Page extends JFrame {
 		JMenuItem profileItem = createMenuItem("Profile");
 		profileItem.addActionListener(e -> handleProfile());
 		
-		JMenuItem aboutUsItem = createMenuItem("About Us");
-		aboutUsItem.addActionListener(e -> handleAboutUs());
-		
 		JMenuItem logoutItem = createMenuItem("Log Out");
 		logoutItem.addActionListener(e -> handleLogout());
 		
 		profileMenu.add(profileItem);
-		profileMenu.add(aboutUsItem);
 		profileMenu.addSeparator();
 		profileMenu.add(logoutItem);
 		
@@ -127,11 +135,7 @@ public class Page extends JFrame {
 	}
 
 	private void handleProfile() {
-		// Implement profile navigation here
-	}
-
-	private void handleAboutUs() {
-		// Implement about us navigation here
+		switchPage(new Profile(currentUser));
 	}
 
 	private void handleLogout() {
@@ -140,8 +144,14 @@ public class Page extends JFrame {
 			"Confirm Logout", JOptionPane.YES_NO_OPTION);
 				
 		if (confirm == JOptionPane.YES_OPTION) {
-			dispose(); // Close the current page
-			// Open login form here
+			dispose();
 		}
+	}
+	
+	public void switchPage(JPanel newContent) {
+		bodyPanel.removeAll();
+		bodyPanel.add(newContent, BorderLayout.CENTER);
+		bodyPanel.revalidate();
+		bodyPanel.repaint();
 	}
 }

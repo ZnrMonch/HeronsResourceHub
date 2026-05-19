@@ -58,6 +58,7 @@ public class ItemPanel extends CustomPanel {
 	private CustomButton secondaryActionButton;
 	private ViewStateListener itemViewStateListener;
 	private boolean checkoutView = false;
+	private boolean isItemViewActive = false; 
 
 	private final String DB_URL = DatabaseManager.getURL();
 	private final String USER = DatabaseManager.getUser();
@@ -86,18 +87,148 @@ public class ItemPanel extends CustomPanel {
 		restoreView();
 	}
 
-	public void applyFilters(String target, String search, String category, String condition, String price) {
-		this.currentSearchTarget = target == null ? "All" : target;
-		this.currentSearchText = search == null ? "" : search.trim().toLowerCase();
-		this.currentCategoryFilter = category == null ? "All Categories" : category;
-		this.currentConditionFilter = condition == null ? "All Conditions" : condition;
-		this.currentPriceFilter = price == null ? "All Prices" : price;
-		this.currentPage = 0;
-		restoreView();
+	public void refreshPanel() {
+		SwingUtilities.invokeLater(() -> {
+			fetchItemData();
+			
+			if (isItemViewActive && selectedItem != null) {
+				boolean found = false;
+				for (ItemRecord item : getItemsForCurrentTab()) {
+					if (item.itemId == selectedItem.itemId) {
+						selectedItem = item; 
+						found = true;
+						break;
+					}
+				}
+				
+				if (found) {
+					refreshItemView(); 
+				} else {
+					restoreView(); 
+				}
+			} else {
+				restoreView();
+			}
+			
+			Window window = SwingUtilities.getWindowAncestor(this);
+			if (window != null) {
+				window.revalidate();
+				window.repaint();
+			}
+		});
 	}
 
-	private void restoreView() {
+	public void fetchItemData() {
+	    marketplaceItems.clear();
+	    marketplaceWithdrawnItems.clear();
+	    sharingItems.clear();
+	    sharingWithdrawnItems.clear();
+	    sharingApprovalItems.clear();
+	    sharingReturnItems.clear();
+	    tradeItems.clear();
+	    tradeWithdrawnItems.clear();
+	    tradeApprovalItems.clear();
+
+	    try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASSWORD);
+	            Statement stmt = conn.createStatement();
+	            ResultSet rs = stmt.executeQuery(
+	                    "SELECT i.*, " +
+	                    "  CASE WHEN (i.action LIKE '%_Approval' OR i.action LIKE '%_Return') AND u_req.user_id IS NOT NULL THEN u_req.first_name ELSE u.first_name END AS initiator_firstname, " +
+	                    "  CASE WHEN (i.action LIKE '%_Approval' OR i.action LIKE '%_Return') AND u_req.user_id IS NOT NULL THEN u_req.last_name ELSE u.last_name END AS initiator_lastname " +
+	                    "FROM items i " +
+	                    "LEFT JOIN users u ON i.owner_id = u.user_id " +
+	                    "LEFT JOIN (" +
+	                    "  SELECT t1.item_id, t1.borrower_id " +
+	                    "  FROM transactions t1 " +
+	                    "  WHERE t1.transaction_id = (SELECT MAX(transaction_id) FROM transactions t2 WHERE t2.item_id = t1.item_id)" +
+	                    ") latest_t ON latest_t.item_id = i.item_id " +
+	                    "LEFT JOIN users u_req ON latest_t.borrower_id = u_req.user_id " +
+	                    "WHERE i.items_is_archived = 0")) {
+
+	        while (rs.next()) {
+	            ItemRecord item = new ItemRecord();
+	            item.itemId = rs.getInt("item_id");
+	            item.ownerId = rs.getInt("owner_id");
+	            item.itemName = rs.getString("item_name");
+	            item.itemQuantity = rs.getInt("item_quantity");
+	            item.description = rs.getString("description");
+
+	            item.itemImage = rs.getString("item_image");
+	            if (item.itemImage == null || item.itemImage.trim().isEmpty()
+	                    || item.itemImage.contains("axolotl.jpg")) {
+	                item.itemImage = "/resources/images/umak_img.jpg";
+	            }
+
+	            item.category = rs.getString("category");
+	            item.condition = rs.getString("condition");
+	            item.price = rs.getInt("price");
+	            item.availabilityStatus = rs.getString("availability_status");
+	            item.maximumBorrowDays = rs.getInt("maximum_borrow_days");
+	            item.desiredItem = rs.getString("desired_item");
+	            item.dateListed = rs.getTimestamp("date_listed");
+	            item.pickupArea = rs.getString("pickup_area");
+	            item.pickupTime = rs.getString("pickup_time");
+	            item.pickupDays = rs.getString("pickup_days");
+	            item.action = rs.getString("action");
+	            item.itemsIsArchived = rs.getBoolean("items_is_archived");
+	            item.itemsArchivedAt = rs.getTimestamp("items_archived_at");
+	            item.initiatorFirstName = rs.getString("initiator_firstname");
+	            item.initiatorLastName = rs.getString("initiator_lastname");
+
+	            String normalizedAction = item.action == null ? "" : item.action.trim().toLowerCase();
+
+	            if (normalizedAction.startsWith("sharing")) {
+	                item.price = 0;
+	            }
+
+	            boolean isAvailable = "Available".equalsIgnoreCase(item.availabilityStatus) && item.itemQuantity > 0;
+
+	            switch (normalizedAction) {
+	            case "marketplace":
+	                if (isAvailable) {
+	                	marketplaceItems.add(item);
+	                }
+	            case "marketplace_withdrawn":
+	                marketplaceWithdrawnItems.add(item);
+	                break;
+	            case "sharing":
+	                if (isAvailable) {
+	                	sharingItems.add(item);
+	                }
+	            case "sharing_withdrawn":
+	                sharingWithdrawnItems.add(item);
+	                break;
+	            case "sharing_approval":
+	                sharingApprovalItems.add(item);
+	                sharingWithdrawnItems.add(item);
+	                break;
+	            case "sharing_return":
+	                sharingReturnItems.add(item);
+	                sharingWithdrawnItems.add(item);
+	                break;
+	            case "trade":
+	                if (isAvailable) {
+	                	tradeItems.add(item);
+	                }
+	            case "trade_withdrawn":
+	                tradeWithdrawnItems.add(item);
+	                break;
+	            case "trade_approval":
+	                tradeApprovalItems.add(item);
+	                tradeWithdrawnItems.add(item);
+	                break;
+	            default:
+	                break;
+	            }
+	        }
+	    } catch (SQLException e) {
+	        e.printStackTrace();
+	    }
+	}
+	
+	public void restoreView() {
 		checkoutView = false;
+		isItemViewActive = false; 
 		removeAll();
 		if (View.GRID.equals(view)) {
 			initGridView();
@@ -112,106 +243,29 @@ public class ItemPanel extends CustomPanel {
 		repaint();
 	}
 
-	private void fetchItemData() {
-		marketplaceItems.clear();
-		marketplaceWithdrawnItems.clear();
-		sharingItems.clear();
-		sharingWithdrawnItems.clear();
-		sharingApprovalItems.clear();
-		sharingReturnItems.clear();
-		tradeItems.clear();
-		tradeWithdrawnItems.clear();
-		tradeApprovalItems.clear();
-
-		try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASSWORD);
-				Statement stmt = conn.createStatement();
-				ResultSet rs = stmt.executeQuery(
-						"SELECT i.*, u.first_name AS initiator_firstname, u.last_name AS initiator_lastname FROM items i LEFT JOIN users u ON i.owner_id = u.user_id")) {
-
-			while (rs.next()) {
-				ItemRecord item = new ItemRecord();
-				item.itemId = rs.getInt("item_id");
-				item.ownerId = rs.getInt("owner_id");
-				item.itemName = rs.getString("item_name");
-				item.itemQuantity = rs.getInt("item_quantity");
-				item.description = rs.getString("description");
-
-				item.itemImage = rs.getString("item_image");
-				if (item.itemImage == null || item.itemImage.trim().isEmpty()
-						|| item.itemImage.contains("axolotl.jpg")) {
-					item.itemImage = "/resources/images/umak_img.jpg";
-				}
-
-				item.category = rs.getString("category");
-				item.condition = rs.getString("condition");
-				item.price = rs.getInt("price");
-				item.availabilityStatus = rs.getString("availability_status");
-				item.maximumBorrowDays = rs.getInt("maximum_borrow_days");
-				item.desiredItem = rs.getString("desired_item");
-				item.dateListed = rs.getTimestamp("date_listed");
-				item.pickupArea = rs.getString("pickup_area");
-				item.pickupTime = rs.getString("pickup_time");
-				item.pickupDays = rs.getString("pickup_days");
-				item.action = rs.getString("action");
-				item.itemsIsArchived = rs.getBoolean("items_is_archived");
-				item.itemsArchivedAt = rs.getTimestamp("items_archived_at");
-				item.initiatorFirstName = rs.getString("initiator_firstname");
-				item.initiatorLastName = rs.getString("initiator_lastname");
-
-				String normalizedAction = item.action == null ? "" : item.action.trim().toLowerCase();
-
-				if (normalizedAction.startsWith("sharing")) {
-					item.price = 0;
-				}
-
-				switch (normalizedAction) {
-				case "marketplace":
-					marketplaceItems.add(item);
-					break;
-				case "marketplace_withdrawn":
-					marketplaceWithdrawnItems.add(item);
-					break;
-				case "sharing":
-					sharingItems.add(item);
-					break;
-				case "sharing_withdrawn":
-					sharingWithdrawnItems.add(item);
-					break;
-				case "sharing_approval":
-					sharingApprovalItems.add(item);
-					break;
-				case "sharing_return":
-					sharingReturnItems.add(item);
-					break;
-				case "trade":
-					tradeItems.add(item);
-					break;
-				case "trade_withdrawn":
-					tradeWithdrawnItems.add(item);
-					break;
-				case "trade_approval":
-					tradeApprovalItems.add(item);
-					break;
-				default:
-					break;
-				}
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
+	public void applyFilters(String target, String search, String category, String condition, String price) {
+		this.currentSearchTarget = target == null ? "All" : target;
+		this.currentSearchText = search == null ? "" : search.trim().toLowerCase();
+		this.currentCategoryFilter = category == null ? "All Categories" : category;
+		this.currentConditionFilter = condition == null ? "All Conditions" : condition;
+		this.currentPriceFilter = price == null ? "All Prices" : price;
+		this.currentPage = 0;
+		restoreView();
 	}
 
-	private void updateItemActionInDB(int itemId, String newAction) {
+	private boolean updateItemStatusInDB(int itemId, String newAction, String newStatus) {
 		try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASSWORD);
-				PreparedStatement pstmt = conn.prepareStatement("UPDATE items SET action = ? WHERE item_id = ?")) {
+				PreparedStatement pstmt = conn.prepareStatement("UPDATE items SET action = ?, availability_status = ? WHERE item_id = ?")) {
 			pstmt.setString(1, newAction);
-			pstmt.setInt(2, itemId);
-			pstmt.executeUpdate();
+			pstmt.setString(2, newStatus);
+			pstmt.setInt(3, itemId);
+			return pstmt.executeUpdate() > 0;
 		} catch (SQLException ex) {
 			ex.printStackTrace();
 			JOptionPane.showMessageDialog(this, "Database Error: " + ex.getMessage(), "Error",
-					JOptionPane.ERROR_MESSAGE);
+						JOptionPane.ERROR_MESSAGE);
 		}
+		return false;
 	}
 
 	private String getPrimaryActionText(ItemRecord record) {
@@ -263,7 +317,7 @@ public class ItemPanel extends CustomPanel {
 	private List<ItemRecord> filterByUser(List<ItemRecord> list) {
 		List<ItemRecord> filtered = new ArrayList<>();
 		for (ItemRecord item : list) {
-			if (user != null && item.ownerId == user.userId) {
+			if (user != null && item.ownerId == user.user_id) {
 				filtered.add(item);
 			}
 		}
@@ -284,21 +338,15 @@ public class ItemPanel extends CustomPanel {
 			combined.addAll(marketplaceItems);
 			break;
 		case MARKETPLACE_WITHDRAWN:
-			combined.addAll(marketplaceItems);
 			combined.addAll(marketplaceWithdrawnItems);
 			combined = filterByUser(combined);
 			break;
 		case SHARING_WITHDRAWN:
-			combined.addAll(sharingItems);
 			combined.addAll(sharingWithdrawnItems);
-			combined.addAll(sharingApprovalItems);
-			combined.addAll(sharingReturnItems);
 			combined = filterByUser(combined);
 			break;
 		case TRADE_WITHDRAWN:
-			combined.addAll(tradeItems);
 			combined.addAll(tradeWithdrawnItems);
-			combined.addAll(tradeApprovalItems);
 			combined = filterByUser(combined);
 			break;
 		default:
@@ -379,6 +427,7 @@ public class ItemPanel extends CustomPanel {
 	private void showItemView(ItemRecord record) {
 		selectedItem = record;
 		checkoutView = false;
+		isItemViewActive = true; 
 		removeAll();
 		viewItem();
 		if (itemViewStateListener != null) {
@@ -592,6 +641,21 @@ public class ItemPanel extends CustomPanel {
 		revalidate();
 		repaint();
 	}
+	
+	private String formatPickupDays(String pickupDays) {
+		if (pickupDays == null || pickupDays.isEmpty()) return "N/A";
+		String days = pickupDays.replace(" ", "");
+		switch (days) {
+			case "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday":
+				return "Everyday";
+			case "Monday,Tuesday,Wednesday,Thursday,Friday":
+				return "Every Weekdays";
+			case "Saturday,Sunday":
+				return "Every Weekends";
+			default:
+				return "Every " + days.replace(",", ", ");
+		}
+	}
 
 	private CustomPanel viewItemInfo() {
 		CustomPanel wrapper = new CustomPanel(new BorderLayout());
@@ -605,7 +669,7 @@ public class ItemPanel extends CustomPanel {
 		int stock = selectedItem != null ? selectedItem.itemQuantity : 0;
 		String pickupArea = selectedItem != null && selectedItem.pickupArea != null ? selectedItem.pickupArea : "";
 		String pickupTime = selectedItem != null && selectedItem.pickupTime != null ? selectedItem.pickupTime : "";
-		String pickupDays = selectedItem != null && selectedItem.pickupDays != null ? selectedItem.pickupDays : "";
+		String formattedDays = formatPickupDays(selectedItem != null ? selectedItem.pickupDays : "");
 
 		CustomPanel itemInfoWrapper = new CustomPanel(new BorderLayout(10, 0));
 		itemInfoWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -625,10 +689,12 @@ public class ItemPanel extends CustomPanel {
 			fullName = "by " + selectedItem.initiatorFirstName.toUpperCase() + " "
 					+ selectedItem.initiatorLastName.toUpperCase();
 		}
+		
 		CustomLabel initiatorLabel = new CustomLabel(fullName, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR);
 		initiatorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-		String displayDays = pickupDays.replace(",", ", ");
+		
+		CustomLabel explicitStockLabel = new CustomLabel("Stock: " + stock, Brand.STANDARD_TEXT_SIZE, stock <= 0 ? FontStyle.BOLD : FontStyle.REGULAR, stock <= 0 ? Brand.RED : Color.GRAY);
+		explicitStockLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
 		CustomPanel locationWrapper = new CustomPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
 		locationWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -636,7 +702,7 @@ public class ItemPanel extends CustomPanel {
 				new JLabel(IconLoader.loadAndScaleColorizedIcon("/resources/icons/location.png", 15, 15, Color.GRAY)));
 		locationWrapper.add(new CustomLabel(pickupArea, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY));
 		locationWrapper.add(new CustomLabel("\u2022", Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD, Color.GRAY));
-		locationWrapper.add(new CustomLabel(displayDays, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY));
+		locationWrapper.add(new CustomLabel(formattedDays, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY));
 		locationWrapper.add(new CustomLabel("\u2022", Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD, Color.GRAY));
 		locationWrapper.add(new CustomLabel(pickupTime, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY));
 
@@ -646,10 +712,6 @@ public class ItemPanel extends CustomPanel {
 		SpinnerNumberModel spinnerModel = (SpinnerNumberModel) quantitySpinner.getModel();
 
 		int maxLimit = Math.max(1, stock);
-		if (tabMode == MarketplaceTabMode.SHARING) {
-			maxLimit = Math.min(3, Math.max(1, stock));
-		}
-
 		spinnerModel.setMaximum(maxLimit);
 		spinnerModel.setMinimum(1);
 		spinnerModel.setValue(1);
@@ -658,13 +720,6 @@ public class ItemPanel extends CustomPanel {
 		quantitySpinner.addChangeListener(quantityChangeListener);
 
 		quantityWrapper.add(quantitySpinner);
-		quantityWrapper
-				.add(new CustomLabel("Stock: " + stock, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY));
-
-		if (tabMode == MarketplaceTabMode.SHARING) {
-			quantityWrapper.add(new CustomLabel(" (Max limit of 3 items per borrow)", Brand.STANDARD_TEXT_SIZE,
-					FontStyle.ITALIC, Brand.RED));
-		}
 
 		CustomPanel actionRow = buildTabActionRow();
 
@@ -687,11 +742,20 @@ public class ItemPanel extends CustomPanel {
 		}
 
 		topContent.add(initiatorLabel);
+		topContent.add(Box.createVerticalStrut(5));
+		topContent.add(explicitStockLabel);
 		topContent.add(Box.createVerticalStrut(10));
 		topContent.add(locationWrapper);
 		topContent.add(Box.createVerticalStrut(10));
-		topContent.add(quantityWrapper);
-		topContent.add(Box.createVerticalStrut(10));
+
+		boolean isWithdrawnTab = (tabMode == MarketplaceTabMode.MARKETPLACE_WITHDRAWN || tabMode == MarketplaceTabMode.SHARING_WITHDRAWN || tabMode == MarketplaceTabMode.TRADE_WITHDRAWN);
+		
+		// Only show quantity wrapper in MARKETPLACE tab where users buy specific quantities
+		if (!isWithdrawnTab && tabMode == MarketplaceTabMode.MARKETPLACE) {
+			topContent.add(quantityWrapper);
+			topContent.add(Box.createVerticalStrut(10));
+		}
+		
 		if (actionRow != null)
 			topContent.add(actionRow);
 		topContent.add(Box.createVerticalStrut(40));
@@ -731,29 +795,56 @@ public class ItemPanel extends CustomPanel {
 				toggleStatusBtn.setDefaultColor(Brand.PRIMARY_COLOR);
 				toggleStatusBtn.setHoverColor(Brand.PRIMARY_COLOR.darker());
 				toggleStatusBtn.addActionListener(e -> {
-					String newAction = isWithdrawn ? currentAction.replace("_Withdrawn", "").replace("_withdrawn", "")
-							: currentAction + "_Withdrawn";
-					updateItemActionInDB(selectedItem.itemId, newAction);
-					JOptionPane.showMessageDialog(this, "Item status successfully updated.", "Success",
-							JOptionPane.INFORMATION_MESSAGE);
-					fetchItemData();
-					restoreView();
+					if (isWithdrawn && selectedItem.itemQuantity <= 0) {
+						JOptionPane.showMessageDialog(this, "Cannot add to listing. Item stock is currently zero.", "Action Denied", JOptionPane.WARNING_MESSAGE);
+						return;
+					}
+					
+					String newAction = isWithdrawn ? currentAction.replace("_Withdrawn", "").replace("_withdrawn", "") : currentAction + "_Withdrawn";
+					String newStatus = isWithdrawn ? "Available" : "Unavailable";
+					
+					boolean updated = updateItemStatusInDB(selectedItem.itemId, newAction, newStatus);
+					if (updated) {
+						JOptionPane.showMessageDialog(this, "Item status successfully updated.", "Success",
+								JOptionPane.INFORMATION_MESSAGE);
+						refreshPanel();
+					} else {
+						JOptionPane.showMessageDialog(this, "Item status was not updated in the database.", "Update Failed",
+								JOptionPane.ERROR_MESSAGE);
+					}
 				});
 				row.add(toggleStatusBtn);
 
 				row.add(Box.createHorizontalStrut(10));
 
-				CustomButton updateItemBtn = new CustomButton("Update Item", 10);
+				CustomButton updateItemBtn = new CustomButton("Update Data", 10);
 				updateItemBtn.setPadding(20, 5);
 				updateItemBtn.setDefaultColor(Brand.GREEN);
 				updateItemBtn.setHoverColor(Brand.GREEN.darker());
 				updateItemBtn.addActionListener(e -> {
 					Window parentWindow = SwingUtilities.getWindowAncestor(this);
-					new ItemForm(parentWindow, "Update Item", selectedItem);
-					fetchItemData();
-					restoreView();
+					new ItemForm(parentWindow, "Update Item", selectedItem, user.user_id, () -> {
+						refreshPanel();
+					});
 				});
 				row.add(updateItemBtn);
+
+				row.add(Box.createHorizontalStrut(10));
+
+				CustomButton deleteItemBtn = new CustomButton("Remove Data", 10);
+				deleteItemBtn.setPadding(20, 5);
+				deleteItemBtn.setDefaultColor(Brand.RED);
+				deleteItemBtn.setHoverColor(Brand.RED.darker());
+				deleteItemBtn.addActionListener(e -> {
+					int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to permanently remove this item?", "Confirm Deletion", JOptionPane.YES_NO_OPTION);
+					if (confirm == JOptionPane.YES_OPTION) {
+						ItemActionManager.deleteArchivedItem(selectedItem.itemId, "User removed item");
+						JOptionPane.showMessageDialog(this, "Item successfully removed.", "Success", JOptionPane.INFORMATION_MESSAGE);
+						
+						refreshPanel();
+					}
+				});
+				row.add(deleteItemBtn);
 			}
 			return row;
 		}
@@ -790,35 +881,52 @@ public class ItemPanel extends CustomPanel {
 			primaryActionButton.setHoverColor(Brand.PRIMARY_COLOR.darker());
 			primaryActionButton.setPadding(20, 5);
 			primaryActionButton.addActionListener(e -> {
-				updateItemActionInDB(selectedItem.itemId, "Sharing_Approval");
-				JOptionPane.showMessageDialog(this, "Borrow Request sent to the owner!", "Success",
-						JOptionPane.INFORMATION_MESSAGE);
-				fetchItemData();
-				restoreView();
+				// Use selectedItem.itemQuantity directly since the spinner is hidden
+				boolean success = ItemActionManager.processRequestApproval(selectedItem.itemId, user.user_id, selectedItem.itemQuantity, null, "borrow request", "Borrow-Request", false, "Sharing_Approval", null);
+				if (success) {
+					JOptionPane.showMessageDialog(this, "Borrow Request sent to the owner!", "Success",
+							JOptionPane.INFORMATION_MESSAGE);
+					refreshPanel();
+				} else {
+					JOptionPane.showMessageDialog(this, "Borrow request failed due to a database error.", "Error",
+							JOptionPane.ERROR_MESSAGE);
+				}
 			});
 			row.add(primaryActionButton);
 			break;
 		case TRADE:
+			CustomTextField proposedItemField = new CustomTextField("Item to propose...");
+			proposedItemField.setCustomSize(200, 35);
+			proposedItemField.setAlignmentX(Component.LEFT_ALIGNMENT);
+			
+			row.add(proposedItemField);
+			row.add(Box.createHorizontalStrut(10));
+			
 			primaryActionButton = new CustomButton("Propose Trade", 10);
 			primaryActionButton.setDefaultColor(Brand.PRIMARY_COLOR);
 			primaryActionButton.setHoverColor(Brand.PRIMARY_COLOR.darker());
 			primaryActionButton.setPadding(20, 5);
 			primaryActionButton.addActionListener(e -> {
-				updateItemActionInDB(selectedItem.itemId, "Trade_Approval");
-				JOptionPane.showMessageDialog(this, "Trade Proposal sent to the owner!", "Success",
-						JOptionPane.INFORMATION_MESSAGE);
-				fetchItemData();
-				restoreView();
+				String proposedItem = proposedItemField.getText().trim();
+				if (proposedItem.isEmpty()) {
+					JOptionPane.showMessageDialog(this, "Please enter the item you want to propose for the trade.", "Proposal Empty", JOptionPane.WARNING_MESSAGE);
+					return;
+				}
+				
+				// Pass proposedItem directly via updated processRequestApproval method
+				boolean success = ItemActionManager.processRequestApproval(selectedItem.itemId, user.user_id, selectedItem.itemQuantity, null, "trade request", "Trade-Request", false, "Trade_Approval", proposedItem);
+				if (success) {
+					JOptionPane.showMessageDialog(this, "Trade Proposal sent to the owner!", "Success",
+							JOptionPane.INFORMATION_MESSAGE);
+					refreshPanel();
+				} else {
+					JOptionPane.showMessageDialog(this, "Trade proposal failed due to a database error.", "Error",
+							JOptionPane.ERROR_MESSAGE);
+				}
 			});
-
-			secondaryActionButton = new CustomButton("View Offers", 10);
-			secondaryActionButton.setDefaultColor(Color.DARK_GRAY);
-			secondaryActionButton.setHoverColor(Color.DARK_GRAY.darker());
-			secondaryActionButton.setPadding(20, 5);
 
 			row.add(primaryActionButton);
 			row.add(Box.createHorizontalStrut(10));
-			row.add(secondaryActionButton);
 			break;
 		default:
 			break;
@@ -833,21 +941,53 @@ public class ItemPanel extends CustomPanel {
 
 		double unitPrice = selectedItem != null ? selectedItem.price : 0;
 		double total = getSelectedItemTotal();
+		
+		String itemName = selectedItem != null && selectedItem.itemName != null ? selectedItem.itemName : "Item";
+		String itemCategory = selectedItem != null && selectedItem.category != null ? selectedItem.category : "";
+		String formattedDays = formatPickupDays(selectedItem != null ? selectedItem.pickupDays : "");
+		String area = (selectedItem != null && selectedItem.pickupArea != null) ? selectedItem.pickupArea : "";
+		String time = (selectedItem != null && selectedItem.pickupTime != null) ? selectedItem.pickupTime : "";
+		int stock = selectedItem != null ? selectedItem.itemQuantity : 0;
 
 		CustomPanel itemInfoWrapper = new CustomPanel(new BorderLayout(10, 0));
 		itemInfoWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
-		itemInfoWrapper.add(
-				new CustomLabel(selectedItem != null && selectedItem.itemName != null ? selectedItem.itemName : "Item",
-						Brand.HEADER2_TEXT_SIZE, FontStyle.BOLD),
-				BorderLayout.CENTER);
+		itemInfoWrapper.add(new CustomLabel(itemName, Brand.HEADER2_TEXT_SIZE, FontStyle.BOLD), BorderLayout.CENTER);
 
-		CustomLabel categoryLabel = new CustomLabel(
-				selectedItem != null && selectedItem.category != null ? selectedItem.category : "",
-				Brand.HEADER4_TEXT_SIZE, FontStyle.REGULAR);
+		CustomLabel categoryLabel = new CustomLabel(itemCategory, Brand.HEADER4_TEXT_SIZE, FontStyle.REGULAR);
 		categoryLabel.setForeground(Color.GRAY);
 		itemInfoWrapper.add(categoryLabel, BorderLayout.EAST);
 
+		String priceText = unitPrice > 0 ? "P" + String.format("%.0f", unitPrice) : "Free";
+		CustomLabel priceLabel = new CustomLabel(priceText, Brand.HEADER1_TEXT_SIZE, FontStyle.BOLD);
+		priceLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+		priceLabel.setForeground(Brand.PRIMARY_COLOR);
+
+		String initiatorName = selectedItem != null ? (selectedItem.initiatorFirstName + " " + selectedItem.initiatorLastName) : "Unknown";
+		CustomLabel initiatorLabel = new CustomLabel("by " + initiatorName.toUpperCase(), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR);
+		initiatorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+		CustomLabel explicitStockLabel = new CustomLabel("Stock: " + stock, Brand.STANDARD_TEXT_SIZE, stock <= 0 ? FontStyle.BOLD : FontStyle.REGULAR, stock <= 0 ? Brand.RED : Color.GRAY);
+		explicitStockLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+		CustomPanel locationWrapper = new CustomPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+		locationWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
+		locationWrapper.add(new JLabel(IconLoader.loadAndScaleColorizedIcon("/resources/icons/location.png", 15, 15, Color.GRAY)));
+		locationWrapper.add(new CustomLabel(area, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY));
+		locationWrapper.add(new CustomLabel("\u2022", Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD, Color.GRAY));
+		locationWrapper.add(new CustomLabel(formattedDays, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY));
+		locationWrapper.add(new CustomLabel("\u2022", Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD, Color.GRAY));
+		locationWrapper.add(new CustomLabel(time, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR, Color.GRAY));
+
 		topContent.add(itemInfoWrapper);
+		topContent.add(Box.createVerticalStrut(10));
+		topContent.add(priceLabel);
+		topContent.add(Box.createVerticalStrut(15));
+		topContent.add(initiatorLabel);
+		topContent.add(Box.createVerticalStrut(5));
+		topContent.add(explicitStockLabel);
+		topContent.add(Box.createVerticalStrut(10));
+		topContent.add(locationWrapper);
+		topContent.add(Box.createVerticalStrut(20));
 
 		if (!MarketplaceTabMode.MARKETPLACE.equals(tabMode)) {
 			CustomLabel msg = new CustomLabel("Checkout is not available in this tab.");
@@ -888,33 +1028,12 @@ public class ItemPanel extends CustomPanel {
 			details.add(paymentPanel);
 			details.add(Box.createVerticalStrut(50));
 
-			String formattedDays = "";
-			if (selectedItem != null && selectedItem.pickupDays != null) {
-				String days = selectedItem.pickupDays.replace(" ", "");
-				if (days.equalsIgnoreCase("Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday")) {
-					formattedDays = "Everyday";
-				} else if (days.equalsIgnoreCase("Monday,Tuesday,Wednesday,Thursday,Friday")) {
-					formattedDays = "Every Weekdays";
-				} else if (days.equalsIgnoreCase("Saturday,Sunday")) {
-					formattedDays = "Every Weekends";
-				} else {
-					formattedDays = "Every " + days.replace(",", ", ");
-				}
-			}
-
-			String area = (selectedItem != null && selectedItem.pickupArea != null) ? selectedItem.pickupArea : "";
-			String time = (selectedItem != null && selectedItem.pickupTime != null) ? selectedItem.pickupTime : "";
-
 			CustomPanel summaryWrapper = new CustomPanel(new BorderLayout());
 			summaryWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
 
 			CustomPanel leftInfoPanel = new CustomPanel();
 			leftInfoPanel.setLayout(new BoxLayout(leftInfoPanel, BoxLayout.Y_AXIS));
 			leftInfoPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-			String initiatorName = selectedItem != null
-					? (selectedItem.initiatorFirstName + " " + selectedItem.initiatorLastName)
-					: "Unknown";
 			leftInfoPanel.add(new CustomLabel(initiatorName, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
 
 			CustomPanel claimPanel = new CustomPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
@@ -945,14 +1064,15 @@ public class ItemPanel extends CustomPanel {
 			payButton.setPadding(20, 5);
 			payButton.addActionListener(e -> {
 
+				String refNo = null;
 				if (!payment.equalsIgnoreCase("Cash")) {
-					String refNo = JOptionPane.showInputDialog(this,
+					refNo = JOptionPane.showInputDialog(this,
 							"Enter Payment Reference Number for " + payment + ":", "Payment Reference",
 							JOptionPane.PLAIN_MESSAGE);
 
-					if (refNo == null || refNo.trim().isEmpty()) {
+					if (refNo == null || !refNo.matches("\\d{8,}")) {
 						JOptionPane.showMessageDialog(this,
-								"Payment Reference is required for online/bank payments to proceed.", "Required",
+								"Payment Reference must contain at least 8 digits and only numbers.", "Invalid Reference",
 								JOptionPane.ERROR_MESSAGE);
 						return;
 					}
@@ -964,27 +1084,19 @@ public class ItemPanel extends CustomPanel {
 						options[0]);
 				if (choice == JOptionPane.YES_OPTION) {
 					int quantityToBuy = getSelectedQuantity();
-					try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASSWORD);
-							PreparedStatement pstmt = conn.prepareStatement(
-									"UPDATE items SET item_quantity = item_quantity - ? WHERE item_id = ?")) {
-						pstmt.setInt(1, quantityToBuy);
-						pstmt.setInt(2, selectedItem.itemId);
-						pstmt.executeUpdate();
-
-						try (PreparedStatement archiveStmt = conn.prepareStatement(
-								"UPDATE items SET items_is_archived = 1 WHERE item_id = ? AND item_quantity <= 0")) {
-							archiveStmt.setInt(1, selectedItem.itemId);
-							archiveStmt.executeUpdate();
-						}
-					} catch (SQLException ex) {
-						ex.printStackTrace();
+					boolean success = ItemActionManager.buyItem(selectedItem.itemId, user.user_id, quantityToBuy, (int)total, payment, refNo);
+					
+					if (success) {
+						JOptionPane.showMessageDialog(this,
+								"Transaction completed successfully!\nPlease meet the seller at the designated time and location.",
+								"Success", JOptionPane.INFORMATION_MESSAGE);
+						
+						refreshPanel();
+					} else {
+						JOptionPane.showMessageDialog(this,
+								"Transaction failed due to a database error.",
+								"Error", JOptionPane.ERROR_MESSAGE);
 					}
-
-					JOptionPane.showMessageDialog(this,
-							"Transaction completed successfully!\nPlease meet the seller at the designated time and location.",
-							"Success", JOptionPane.INFORMATION_MESSAGE);
-					fetchItemData();
-					restoreView();
 				}
 			});
 

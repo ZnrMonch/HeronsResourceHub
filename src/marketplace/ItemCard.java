@@ -61,6 +61,13 @@ public class ItemCard extends CustomPanel {
 		CustomButton actionButton = new CustomButton(actionText);
 		actionButton.setPadding(5, 10, 5, 10);
 		actionButton.setRadius(15);
+		
+		// Set button color to red if the action text is "Pending Processing"
+		if ("Pending Processing".equalsIgnoreCase(actionText)) {
+			actionButton.setDefaultColor(Brand.RED);
+			actionButton.setHoverColor(Brand.RED.darker());
+		}
+		
 		actionButton.addActionListener(e -> {
 			if (onAction != null) {
 				onAction.onItemAction(record);
@@ -74,6 +81,7 @@ public class ItemCard extends CustomPanel {
 			nameLabel.setText(record.itemName);
 			descriptionLabel.setText(record.description);
 			priceLabel.setText(record.price > 0 ? String.format("P%.0f", (double) record.price) : "");
+			quantityLabel.setText("Stock: " + record.itemQuantity);
 			categoryLabel.setText(record.category != null ? record.category : "");
 			conditionLabel.setText(record.condition != null ? record.condition : "");
 			
@@ -143,7 +151,7 @@ public class ItemCard extends CustomPanel {
 			bottomWrapper.add(priceLabel);
 			if (!priceLabel.getText().isEmpty()) {
 				bottomWrapper.add(Box.createHorizontalStrut(5));				
-			}
+			}			
 			bottomWrapper.add(quantityLabel);
 			bottomWrapper.add(Box.createHorizontalGlue());
 			bottomWrapper.add(actionButton);

@@ -6,5 +6,5 @@ public enum Category {
 	EQUIPMENT,
 	SUPPLIES,
 	CONSUMABLE_GOODS,
-	OTHERS
+	OTHER
 }

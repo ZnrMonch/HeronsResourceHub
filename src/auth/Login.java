@@ -223,7 +223,7 @@ public class Login extends JPanel {
 			UserRecord user = createLogs.get(0);
 
 			// Account does not exist
-			if (user.studentId == null || user.studentId.isEmpty()) {
+			if (user.student_id == null || user.student_id.isEmpty()) {
 				loginEmptyError.setText("The account doesn't exist.");
 				return;
 			}
@@ -235,7 +235,7 @@ public class Login extends JPanel {
 			}
 
 			// SUCCESS LOGIN
-			this.authFrame.setContentPane(new Page(new Marketplace()));
+//			this.authFrame.setContentPane(new Page(new Marketplace()));
 			this.authFrame.revalidate();
 			this.authFrame.repaint();
 		});
@@ -273,23 +273,6 @@ public class Login extends JPanel {
 
 				UserRecord log = new UserRecord();
 
-				log.systemRole = rs.getString("systemRole");
-				log.studentId = rs.getString("studentId");
-				log.umakEmailAddress = rs.getString("umakEmailAddress");
-				log.password = rs.getString("password");
-				log.college = rs.getString("college");
-				log.yearLevel = rs.getString("yearLevel");
-				log.courseProgram = rs.getString("courseProgram");
-				log.firstName = rs.getString("firstName");
-				log.lastName = rs.getString("lastName");
-				log.karmaScore = rs.getInt("karmaScore");
-				log.profileImage = rs.getString("profileImage");
-				log.contactNum = rs.getLong("contactNum");
-				log.homeAddress = rs.getString("homeAddress");
-				log.gcashNum = rs.getLong("gcashNum");
-				log.mayaNum = rs.getLong("mayaNum");
-				log.mastercardNum = rs.getString("mastercardNum");
-				log.visaNum = rs.getString("visaNum");
 
 				createLogs.add(log);
 			}

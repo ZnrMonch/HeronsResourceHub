@@ -46,7 +46,7 @@ public class SplitRequestPanel extends CustomPanel {
 		itemsList = new ArrayList<>();
 		requestList = new JList<>();
 		requestList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-		
+	
 		if (FontLib.POPPINS_REGULAR != null) {
 			requestList.setFont(FontLib.POPPINS_REGULAR.deriveFont(14f));
 		} else {
@@ -117,10 +117,21 @@ public class SplitRequestPanel extends CustomPanel {
 
 		try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASSWORD);
 			 PreparedStatement pstmt = conn.prepareStatement(
-				"SELECT i.*, u.first_name AS initiator_firstname, u.last_name AS initiator_lastname FROM items i LEFT JOIN users u ON i.owner_id = u.user_id WHERE i.action = ? AND i.owner_id = ? AND i.items_is_archived = 0")) {
+				"SELECT i.*, " +
+				"  u_req.first_name AS initiator_firstname, " +
+				"  u_req.last_name AS initiator_lastname, " +
+				"  latest_t.proposed_item AS proposed_item_trans " +
+				"FROM items i " +
+				"LEFT JOIN (" +
+				"  SELECT t1.item_id, t1.borrower_id, t1.proposed_item " +
+				"  FROM transactions t1 " +
+				"  WHERE t1.transaction_id = (SELECT MAX(transaction_id) FROM transactions t2 WHERE t2.item_id = t1.item_id)" +
+				") latest_t ON latest_t.item_id = i.item_id " +
+				"LEFT JOIN users u_req ON latest_t.borrower_id = u_req.user_id " +
+				"WHERE i.action = ? AND i.owner_id = ? AND i.items_is_archived = 0")) {
 			
 			pstmt.setString(1, targetAction);
-			pstmt.setInt(2, user.userId);
+			pstmt.setInt(2, user.user_id);
 			
 			ResultSet rs = pstmt.executeQuery();
 			while (rs.next()) {
@@ -147,6 +158,9 @@ public class SplitRequestPanel extends CustomPanel {
 				item.initiatorFirstName = rs.getString("initiator_firstname");
 				item.initiatorLastName = rs.getString("initiator_lastname");
 				
+				// Use desiredItem strictly for what was proposed in the transaction to keep it within the model easily
+				item.desiredItem = rs.getString("proposed_item_trans");
+
 				itemsList.add(item);
 			}
 		} catch (SQLException e) {
@@ -155,6 +169,12 @@ public class SplitRequestPanel extends CustomPanel {
 		
 		requestList.setListData(itemsList.toArray(new ItemRecord[0]));
 		showPlaceholder();
+		requestList.revalidate();
+		requestList.repaint();
+	}
+
+	public void refreshData() {
+		fetchRequests();
 	}
 	
 	private void showPlaceholder() {
@@ -256,11 +276,22 @@ public class SplitRequestPanel extends CustomPanel {
 		CustomPanel requesterWrapper = new CustomPanel();
 		requesterWrapper.setLayout(new BoxLayout(requesterWrapper, BoxLayout.X_AXIS));
 		requesterWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
-		requesterWrapper.add(new CustomLabel("Owner/Lister: ", Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD));
+		requesterWrapper.add(new CustomLabel("Request from: ", Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD));
 		requesterWrapper.add(Box.createHorizontalStrut(5));
 		requesterWrapper.add(new CustomLabel(item.initiatorFirstName + " " + item.initiatorLastName, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
 		detailsWrapper.add(requesterWrapper);
 		detailsWrapper.add(Box.createVerticalStrut(10));
+		
+		if (tabMode == MarketplaceTabMode.TRADE_APPROVAL && item.desiredItem != null && !item.desiredItem.trim().isEmpty()) {
+			CustomPanel proposedWrapper = new CustomPanel();
+			proposedWrapper.setLayout(new BoxLayout(proposedWrapper, BoxLayout.X_AXIS));
+			proposedWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
+			proposedWrapper.add(new CustomLabel("Proposed Item: ", Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD));
+			proposedWrapper.add(Box.createHorizontalStrut(5));
+			proposedWrapper.add(new CustomLabel(item.desiredItem, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+			detailsWrapper.add(proposedWrapper);
+			detailsWrapper.add(Box.createVerticalStrut(10));
+		}
 		
 		CustomPanel locationWrapper = new CustomPanel();
 		locationWrapper.setLayout(new BoxLayout(locationWrapper, BoxLayout.X_AXIS));
@@ -351,19 +382,40 @@ public class SplitRequestPanel extends CustomPanel {
 	}
 	
 	private void processAction(int itemId, String newAction, String successMessage, boolean archive) {
-		try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASSWORD);
-			 PreparedStatement pstmt = conn.prepareStatement("UPDATE items SET action = ?, items_is_archived = ? WHERE item_id = ?")) {
-			pstmt.setString(1, newAction);
-			pstmt.setBoolean(2, archive);
-			pstmt.setInt(3, itemId);
-			pstmt.executeUpdate();
-			
-			JOptionPane.showMessageDialog(this, successMessage + "\nPlease coordinate at the designated time and location.", "Success", JOptionPane.INFORMATION_MESSAGE);
-			fetchRequests(); 
-			
-		} catch (SQLException ex) {
-			ex.printStackTrace();
-			JOptionPane.showMessageDialog(this, "Database Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-		}
-	}
+        String transAction = "Update";
+        String availabilityStatus = null;
+        String logReason = "update";
+        String actionCol = newAction;
+        
+        if (tabMode == MarketplaceTabMode.SHARING_APPROVAL && "Sharing_Return".equals(newAction)) {
+            transAction = "Borrow-Approved";
+            availabilityStatus = "Unavailable";
+            logReason = "update - accept";
+        } else if (tabMode == MarketplaceTabMode.SHARING_APPROVAL && "Sharing".equals(newAction)) {
+            transAction = "Borrow-Declined";
+            logReason = "update - decline";
+        } else if (tabMode == MarketplaceTabMode.SHARING_RETURN && "Sharing".equals(newAction)) {
+            transAction = "Borrow-Return";
+            availabilityStatus = "Available";
+            logReason = "update - return";
+        } else if (tabMode == MarketplaceTabMode.TRADE_APPROVAL && archive) {
+            transAction = "Trade-Approved";
+            availabilityStatus = "Unavailable";
+            logReason = "update - accept";
+            actionCol = null;
+        } else if (tabMode == MarketplaceTabMode.TRADE_APPROVAL && !archive) {
+            transAction = "Trade-Declined";
+            logReason = "update - decline";
+        }
+
+		// Pass original desiredItem properly through so it updates or maintains the proposed item
+		boolean success = ItemActionManager.processRequestApproval(itemId, user.user_id, 1, availabilityStatus, logReason, transAction, archive, actionCol, null);
+
+		if (success) {
+            JOptionPane.showMessageDialog(this, successMessage + "\nPlease coordinate at the designated time and location.", "Success", JOptionPane.INFORMATION_MESSAGE);
+            fetchRequests(); 
+        } else {
+            JOptionPane.showMessageDialog(this, "Database Error", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
 }

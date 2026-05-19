@@ -111,6 +111,13 @@ public abstract class BaseBrowsePanel extends CustomPanel {
 		add(content, BorderLayout.CENTER);
 	}
 
+    // NEW: Exposes a hard-refresh trigger to the parent tabs
+	public void refreshData() {
+		if (content != null) {
+			content.refreshPanel();
+		}
+	}
+
 	private void resetFilters() {
 		searchTargetBox.setSelectedIndex(0);
 		searchField.setText("");

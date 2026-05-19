@@ -26,8 +26,17 @@ public class MarketplaceTabView extends CustomPanel {
         subTabs.addTab("Selling Center", new BaseBrowsePanel(user, "Search in Selling Center...", "Sell an Item", MarketplaceTabMode.MARKETPLACE_WITHDRAWN) {
             @Override
             protected void onActionClicked() {
-                new ItemForm((Window) SwingUtilities.getWindowAncestor(this), "Sell an Item", null);
+                new ItemForm((Window) SwingUtilities.getWindowAncestor(this), "Sell an Item", null, user.user_id, () -> {
+                	// UPDATED: Now calls the unified refresh data method
+                	this.refreshData();
+                });
             }
+        });
+
+        subTabs.addTabSelectionListener((index, title, content) -> {
+        	if (content instanceof BaseBrowsePanel) {
+        		((BaseBrowsePanel) content).refreshData();
+        	}
         });
 
         add(subTabs, BorderLayout.CENTER);

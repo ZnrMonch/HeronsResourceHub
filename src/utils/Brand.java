@@ -31,7 +31,7 @@ public class Brand {
 		CATEGORY_COLORS.put(Category.EQUIPMENT, Color.decode("#548EE4"));
 		CATEGORY_COLORS.put(Category.SUPPLIES, Color.decode("#6c5ec1"));
 		CATEGORY_COLORS.put(Category.CONSUMABLE_GOODS, Color.decode("#ff50be"));
-		CATEGORY_COLORS.put(Category.OTHERS, Color.decode("#737373"));
+		CATEGORY_COLORS.put(Category.OTHER, Color.decode("#737373"));
 
 		CONDITION_COLORS.put(Condition.NEW, Color.decode("#37ad00"));
 		CONDITION_COLORS.put(Condition.GOOD, Color.decode("#f9cb0f"));
