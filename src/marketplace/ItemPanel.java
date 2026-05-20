@@ -22,6 +22,7 @@ interface ItemActionListener {
 }
 
 public class ItemPanel extends CustomPanel {
+	
 	private static final long serialVersionUID = 1L;
 	private View view = View.GRID;
 	private MarketplaceTabMode tabMode = MarketplaceTabMode.MARKETPLACE;
@@ -65,7 +66,7 @@ public class ItemPanel extends CustomPanel {
 	private final String PASSWORD = DatabaseManager.getPassword();
 
 	private String currentSearchTarget = "All";
-	private String currentSearchText = "";
+	private String currentSearchText = "";	
 	private String currentCategoryFilter = "All Categories";
 	private String currentConditionFilter = "All Conditions";
 	private String currentPriceFilter = "All Prices";
@@ -79,6 +80,7 @@ public class ItemPanel extends CustomPanel {
 		setBackground(Color.WHITE);
 		setPadding(20);
 		setLayout(new BorderLayout(20, 20));
+		
 		if (tabMode != null) {
 			this.tabMode = tabMode;
 		}
@@ -134,7 +136,8 @@ public class ItemPanel extends CustomPanel {
 	            ResultSet rs = stmt.executeQuery(
 	                    "SELECT i.*, " +
 	                    "  CASE WHEN (i.action LIKE '%_Approval' OR i.action LIKE '%_Return') AND u_req.user_id IS NOT NULL THEN u_req.first_name ELSE u.first_name END AS initiator_firstname, " +
-	                    "  CASE WHEN (i.action LIKE '%_Approval' OR i.action LIKE '%_Return') AND u_req.user_id IS NOT NULL THEN u_req.last_name ELSE u.last_name END AS initiator_lastname " +
+	                    "  CASE WHEN (i.action LIKE '%_Approval' OR i.action LIKE '%_Return') AND u_req.user_id IS NOT NULL THEN u_req.last_name ELSE u.last_name END AS initiator_lastname, " +
+	                    "  CASE WHEN (i.action LIKE '%_Approval' OR i.action LIKE '%_Return') AND u_req.user_id IS NOT NULL THEN u_req.karma_score ELSE u.karma_score END AS initiator_karmascore " +
 	                    "FROM items i " +
 	                    "LEFT JOIN users u ON i.owner_id = u.user_id " +
 	                    "LEFT JOIN (" +
@@ -174,6 +177,7 @@ public class ItemPanel extends CustomPanel {
 	            item.itemsArchivedAt = rs.getTimestamp("items_archived_at");
 	            item.initiatorFirstName = rs.getString("initiator_firstname");
 	            item.initiatorLastName = rs.getString("initiator_lastname");
+	            item.initiatorKarmaScore = rs.getInt("initiator_karmascore");
 
 	            String normalizedAction = item.action == null ? "" : item.action.trim().toLowerCase();
 
@@ -318,7 +322,7 @@ public class ItemPanel extends CustomPanel {
 		List<ItemRecord> filtered = new ArrayList<>();
 		for (ItemRecord item : list) {
 			if (user != null && item.ownerId == user.user_id) {
-				filtered.add(item);
+				filtered.add(item); 
 			}
 		}
 		return filtered;
@@ -339,21 +343,22 @@ public class ItemPanel extends CustomPanel {
 			break;
 		case MARKETPLACE_WITHDRAWN:
 			combined.addAll(marketplaceWithdrawnItems);
-			combined = filterByUser(combined);
+			combined = filterByUser(combined); 
 			break;
 		case SHARING_WITHDRAWN:
 			combined.addAll(sharingWithdrawnItems);
-			combined = filterByUser(combined);
+			combined = filterByUser(combined); 
 			break;
 		case TRADE_WITHDRAWN:
 			combined.addAll(tradeWithdrawnItems);
-			combined = filterByUser(combined);
+			combined = filterByUser(combined); 
 			break;
 		default:
-			return new ArrayList<>();
+			return new ArrayList<>(); 
 		}
 
 		List<ItemRecord> filteredList = new ArrayList<>();
+		
 		for (ItemRecord item : combined) {
 			boolean matchSearch = true;
 			boolean matchCategory = true;
@@ -367,14 +372,14 @@ public class ItemPanel extends CustomPanel {
 
 				if ("Item Name".equals(currentSearchTarget)) {
 					if (!name.contains(currentSearchText))
-						matchSearch = false;
+						matchSearch = false; 
 				} else if ("Initiator Name".equals(currentSearchTarget)) {
 					if (!fName.contains(currentSearchText) && !lName.contains(currentSearchText))
-						matchSearch = false;
+						matchSearch = false; 
 				} else {
 					if (!name.contains(currentSearchText) && !fName.contains(currentSearchText)
 							&& !lName.contains(currentSearchText)) {
-						matchSearch = false;
+						matchSearch = false; 
 					}
 				}
 			}
@@ -382,14 +387,14 @@ public class ItemPanel extends CustomPanel {
 			if (!"All Categories".equals(currentCategoryFilter)) {
 				String itemCat = item.category != null ? item.category.replace("_", " ") : "";
 				if (!currentCategoryFilter.equalsIgnoreCase(itemCat)) {
-					matchCategory = false;
+					matchCategory = false; 
 				}
 			}
 
 			if (!"All Conditions".equals(currentConditionFilter)) {
 				String itemCond = item.condition != null ? item.condition.replace("_", " ") : "";
 				if (!currentConditionFilter.equalsIgnoreCase(itemCond)) {
-					matchCondition = false;
+					matchCondition = false; 
 				}
 			}
 
@@ -450,7 +455,7 @@ public class ItemPanel extends CustomPanel {
 		} else {
 			int start = currentPage * GRID_PAGE_SIZE;
 			if (start >= items.size()) {
-				currentPage = 0;
+				currentPage = 0; 
 				start = 0;
 			}
 			int endExclusive = Math.min(start + GRID_PAGE_SIZE, items.size());
@@ -459,7 +464,7 @@ public class ItemPanel extends CustomPanel {
 			ItemActionListener listener = new ItemActionListener() {
 				@Override
 				public void onItemAction(ItemRecord record) {
-					showItemView(record);
+					showItemView(record); 
 				}
 			};
 
@@ -467,7 +472,7 @@ public class ItemPanel extends CustomPanel {
 				ItemCard card = new ItemCard(View.GRID, getPrimaryActionText(items.get(i)), items.get(i), showPrice,
 						listener);
 				wrapper.add(card);
-				added++;
+				added++; 
 			}
 			for (int i = added; i < GRID_PAGE_SIZE; i++)
 				wrapper.add(new CustomPanel());
@@ -490,7 +495,7 @@ public class ItemPanel extends CustomPanel {
 		} else {
 			int start = currentPage * LIST_PAGE_SIZE;
 			if (start >= items.size()) {
-				currentPage = 0;
+				currentPage = 0; 
 				start = 0;
 			}
 			int endExclusive = Math.min(start + LIST_PAGE_SIZE, items.size());
@@ -498,7 +503,7 @@ public class ItemPanel extends CustomPanel {
 			ItemActionListener listener = new ItemActionListener() {
 				@Override
 				public void onItemAction(ItemRecord record) {
-					showItemView(record);
+					showItemView(record); 
 				}
 			};
 
@@ -574,8 +579,8 @@ public class ItemPanel extends CustomPanel {
 		int last = getLastPageIndex();
 		page = Math.max(0, Math.min(page, last));
 		if (page != currentPage) {
-			currentPage = page;
-			restoreView();
+			currentPage = page; 
+			restoreView(); 
 		}
 	}
 
@@ -585,10 +590,10 @@ public class ItemPanel extends CustomPanel {
 
 		java.awt.event.ActionListener backAction = e -> {
 			if (checkoutView) {
-				checkoutView = false;
+				checkoutView = false; 
 				refreshItemView();
 			} else {
-				restoreView();
+				restoreView(); 
 			}
 		};
 
@@ -627,7 +632,8 @@ public class ItemPanel extends CustomPanel {
 		imgLabel.setPreferredSize(new Dimension(400, 500));
 		imgLabel.setMaximumSize(new Dimension(400, 500));
 		imgLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-		westWrapper.add(imgLabel);
+		westWrapper.add(imgLabel); 
+
 		wrapper.add(westWrapper, BorderLayout.WEST);
 		wrapper.add(checkoutView ? viewItemCheckout() : viewItemInfo(), BorderLayout.CENTER);
 		add(wrapper, BorderLayout.CENTER);
@@ -647,11 +653,11 @@ public class ItemPanel extends CustomPanel {
 		String days = pickupDays.replace(" ", "");
 		switch (days) {
 			case "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday":
-				return "Everyday";
+				return "Everyday"; 
 			case "Monday,Tuesday,Wednesday,Thursday,Friday":
-				return "Every Weekdays";
+				return "Every Weekdays"; 
 			case "Saturday,Sunday":
-				return "Every Weekends";
+				return "Every Weekends"; 
 			default:
 				return "Every " + days.replace(",", ", ");
 		}
@@ -684,15 +690,19 @@ public class ItemPanel extends CustomPanel {
 		priceLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		priceLabel.setForeground(Brand.PRIMARY_COLOR);
 
-		String fullName = "by Someone";
-		if (selectedItem != null && selectedItem.initiatorFirstName != null && selectedItem.initiatorLastName != null) {
-			fullName = "by " + selectedItem.initiatorFirstName.toUpperCase() + " "
-					+ selectedItem.initiatorLastName.toUpperCase();
+		String initiatorName = selectedItem != null && selectedItem.initiatorFirstName != null && selectedItem.initiatorLastName != null ? (selectedItem.initiatorFirstName + " " + selectedItem.initiatorLastName) : "Someone";
+		int karmaScore = 0;
+		if (selectedItem != null && selectedItem.initiatorKarmaScore != 0) {
+			karmaScore = selectedItem.initiatorKarmaScore;
 		}
-		
-		CustomLabel initiatorLabel = new CustomLabel(fullName, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR);
-		initiatorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-		
+
+		CustomPanel initiatorWrapper = new CustomPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+		initiatorWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
+		initiatorWrapper.add(new CustomLabel("by ", Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+		initiatorWrapper.add(new JLabel(IconLoader.loadAndScaleColorizedIcon("/resources/icons/karma.png", 25, 25, Brand.SECONDARY_COLOR)));
+		initiatorWrapper.add(new CustomLabel(String.valueOf(karmaScore), Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD, Brand.SECONDARY_COLOR));
+		initiatorWrapper.add(new CustomLabel(" " + initiatorName.toUpperCase(), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+
 		CustomLabel explicitStockLabel = new CustomLabel("Stock: " + stock, Brand.STANDARD_TEXT_SIZE, stock <= 0 ? FontStyle.BOLD : FontStyle.REGULAR, stock <= 0 ? Brand.RED : Color.GRAY);
 		explicitStockLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -714,7 +724,7 @@ public class ItemPanel extends CustomPanel {
 		int maxLimit = Math.max(1, stock);
 		spinnerModel.setMaximum(maxLimit);
 		spinnerModel.setMinimum(1);
-		spinnerModel.setValue(1);
+		spinnerModel.setValue(1); 
 
 		quantitySpinner.removeChangeListener(quantityChangeListener);
 		quantitySpinner.addChangeListener(quantityChangeListener);
@@ -729,7 +739,7 @@ public class ItemPanel extends CustomPanel {
 		descriptionWrapper.add(new CustomLabel("Product Description:", Brand.HEADER4_TEXT_SIZE, FontStyle.BOLD));
 		CustomTextArea descriptionLabel = new CustomTextArea(4, 0);
 		descriptionLabel.setText(itemDesc);
-		descriptionLabel.setDisplayOnly(true);
+		descriptionLabel.setDisplayOnly(true); 
 		descriptionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		descriptionWrapper.add(descriptionLabel);
 
@@ -741,7 +751,7 @@ public class ItemPanel extends CustomPanel {
 			topContent.add(Box.createVerticalStrut(15));
 		}
 
-		topContent.add(initiatorLabel);
+		topContent.add(initiatorWrapper);
 		topContent.add(Box.createVerticalStrut(5));
 		topContent.add(explicitStockLabel);
 		topContent.add(Box.createVerticalStrut(10));
@@ -750,7 +760,6 @@ public class ItemPanel extends CustomPanel {
 
 		boolean isWithdrawnTab = (tabMode == MarketplaceTabMode.MARKETPLACE_WITHDRAWN || tabMode == MarketplaceTabMode.SHARING_WITHDRAWN || tabMode == MarketplaceTabMode.TRADE_WITHDRAWN);
 		
-		// Only show quantity wrapper in MARKETPLACE tab where users buy specific quantities
 		if (!isWithdrawnTab && tabMode == MarketplaceTabMode.MARKETPLACE) {
 			topContent.add(quantityWrapper);
 			topContent.add(Box.createVerticalStrut(10));
@@ -784,9 +793,9 @@ public class ItemPanel extends CustomPanel {
 			if (pendingProcessing) {
 				CustomButton toggleStatusBtn = new CustomButton("Pending Processing", 10);
 				toggleStatusBtn.setPadding(20, 5);
-				toggleStatusBtn.setDefaultColor(Color.DARK_GRAY);
-				toggleStatusBtn.setHoverColor(Color.DARK_GRAY.darker());
-				toggleStatusBtn.setEnabled(false);
+				toggleStatusBtn.setDefaultColor(Brand.RED);
+				toggleStatusBtn.setHoverColor(Brand.RED.darker());
+				toggleStatusBtn.setEnabled(false); 
 				row.add(toggleStatusBtn);
 			} else {
 				CustomButton toggleStatusBtn = new CustomButton(isWithdrawn ? "Add to Listing" : "Remove from Listing",
@@ -794,6 +803,7 @@ public class ItemPanel extends CustomPanel {
 				toggleStatusBtn.setPadding(20, 5);
 				toggleStatusBtn.setDefaultColor(Brand.PRIMARY_COLOR);
 				toggleStatusBtn.setHoverColor(Brand.PRIMARY_COLOR.darker());
+				
 				toggleStatusBtn.addActionListener(e -> {
 					if (isWithdrawn && selectedItem.itemQuantity <= 0) {
 						JOptionPane.showMessageDialog(this, "Cannot add to listing. Item stock is currently zero.", "Action Denied", JOptionPane.WARNING_MESSAGE);
@@ -824,7 +834,7 @@ public class ItemPanel extends CustomPanel {
 				updateItemBtn.addActionListener(e -> {
 					Window parentWindow = SwingUtilities.getWindowAncestor(this);
 					new ItemForm(parentWindow, "Update Item", selectedItem, user.user_id, () -> {
-						refreshPanel();
+						refreshPanel(); 
 					});
 				});
 				row.add(updateItemBtn);
@@ -840,23 +850,22 @@ public class ItemPanel extends CustomPanel {
 					if (confirm == JOptionPane.YES_OPTION) {
 						ItemActionManager.deleteArchivedItem(selectedItem.itemId, "User removed item");
 						JOptionPane.showMessageDialog(this, "Item successfully removed.", "Success", JOptionPane.INFORMATION_MESSAGE);
-						
-						refreshPanel();
+						refreshPanel(); 
 					}
 				});
 				row.add(deleteItemBtn);
 			}
-			return row;
+			return row; 
 		}
 
 		switch (tabMode) {
 		case MARKETPLACE:
 			paymentMethodComboBox = new CustomComboBox<>(
-					new String[] { "Select a Payment Method", "Cash", "GCash", "Maya", "Mastercard", "Visa" });
+					new String[] { "Select a Payment Method", "Cash", "GCash", "Maya", "BDO", "BPI" });
 			paymentMethodComboBox.setCustomSize(250, 35);
-			paymentMethodComboBox.addActionListener(e -> updateCheckoutButtonLabel());
+			paymentMethodComboBox.addActionListener(e -> updateCheckoutButtonLabel()); 
 			row.add(paymentMethodComboBox);
-			row.add(Box.createHorizontalGlue());
+			row.add(Box.createHorizontalGlue()); 
 
 			checkoutButton = new CustomButton("Checkout", 10);
 			checkoutButton.setDefaultColor(Brand.GREEN);
@@ -881,12 +890,11 @@ public class ItemPanel extends CustomPanel {
 			primaryActionButton.setHoverColor(Brand.PRIMARY_COLOR.darker());
 			primaryActionButton.setPadding(20, 5);
 			primaryActionButton.addActionListener(e -> {
-				// Use selectedItem.itemQuantity directly since the spinner is hidden
 				boolean success = ItemActionManager.processRequestApproval(selectedItem.itemId, user.user_id, selectedItem.itemQuantity, null, "borrow request", "Borrow-Request", false, "Sharing_Approval", null);
 				if (success) {
 					JOptionPane.showMessageDialog(this, "Borrow Request sent to the owner!", "Success",
 							JOptionPane.INFORMATION_MESSAGE);
-					refreshPanel();
+					refreshPanel(); 
 				} else {
 					JOptionPane.showMessageDialog(this, "Borrow request failed due to a database error.", "Error",
 							JOptionPane.ERROR_MESSAGE);
@@ -913,7 +921,6 @@ public class ItemPanel extends CustomPanel {
 					return;
 				}
 				
-				// Pass proposedItem directly via updated processRequestApproval method
 				boolean success = ItemActionManager.processRequestApproval(selectedItem.itemId, user.user_id, selectedItem.itemQuantity, null, "trade request", "Trade-Request", false, "Trade_Approval", proposedItem);
 				if (success) {
 					JOptionPane.showMessageDialog(this, "Trade Proposal sent to the owner!", "Success",
@@ -962,9 +969,18 @@ public class ItemPanel extends CustomPanel {
 		priceLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		priceLabel.setForeground(Brand.PRIMARY_COLOR);
 
-		String initiatorName = selectedItem != null ? (selectedItem.initiatorFirstName + " " + selectedItem.initiatorLastName) : "Unknown";
-		CustomLabel initiatorLabel = new CustomLabel("by " + initiatorName.toUpperCase(), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR);
-		initiatorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+		String initiatorName = selectedItem != null && selectedItem.initiatorFirstName != null && selectedItem.initiatorLastName != null ? (selectedItem.initiatorFirstName + " " + selectedItem.initiatorLastName) : "Unknown";
+		int karmaScore = 67;
+		if (selectedItem != null && selectedItem.initiatorKarmaScore != 0) {
+			karmaScore = selectedItem.initiatorKarmaScore;
+		}
+		
+		CustomPanel initiatorWrapper = new CustomPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+		initiatorWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
+		initiatorWrapper.add(new CustomLabel("by ", Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
+		initiatorWrapper.add(new JLabel(IconLoader.loadAndScaleColorizedIcon("/resources/icons/karma.png", 25, 25, Brand.SECONDARY_COLOR)));
+		initiatorWrapper.add(new CustomLabel(String.valueOf(karmaScore), Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD, Brand.SECONDARY_COLOR));
+		initiatorWrapper.add(new CustomLabel(" " + initiatorName.toUpperCase(), Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
 
 		CustomLabel explicitStockLabel = new CustomLabel("Stock: " + stock, Brand.STANDARD_TEXT_SIZE, stock <= 0 ? FontStyle.BOLD : FontStyle.REGULAR, stock <= 0 ? Brand.RED : Color.GRAY);
 		explicitStockLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -982,7 +998,7 @@ public class ItemPanel extends CustomPanel {
 		topContent.add(Box.createVerticalStrut(10));
 		topContent.add(priceLabel);
 		topContent.add(Box.createVerticalStrut(15));
-		topContent.add(initiatorLabel);
+		topContent.add(initiatorWrapper);
 		topContent.add(Box.createVerticalStrut(5));
 		topContent.add(explicitStockLabel);
 		topContent.add(Box.createVerticalStrut(10));
@@ -1074,7 +1090,7 @@ public class ItemPanel extends CustomPanel {
 						JOptionPane.showMessageDialog(this,
 								"Payment Reference must contain at least 8 digits and only numbers.", "Invalid Reference",
 								JOptionPane.ERROR_MESSAGE);
-						return;
+						return; 
 					}
 				}
 
@@ -1082,8 +1098,10 @@ public class ItemPanel extends CustomPanel {
 				int choice = JOptionPane.showOptionDialog(this, "Are you sure you want to finalize this transaction?",
 						"Confirm Payment", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, options,
 						options[0]);
+						
 				if (choice == JOptionPane.YES_OPTION) {
 					int quantityToBuy = getSelectedQuantity();
+					
 					boolean success = ItemActionManager.buyItem(selectedItem.itemId, user.user_id, quantityToBuy, (int)total, payment, refNo);
 					
 					if (success) {
@@ -1118,8 +1136,8 @@ public class ItemPanel extends CustomPanel {
 
 	public void setView(View view) {
 		if (this.view != view) {
-			this.view = view;
-			restoreView();
+			this.view = view; 
+			restoreView(); 
 		}
 	}
 

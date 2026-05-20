@@ -7,10 +7,17 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+
+import admin.database.LogsDatabase;
 import database.*;
+import enums.TransactionLogAction;
+import enums.UserLogAction;
 
 public class ItemActionManager {
 
+    // STATIC METHODS
+
+    // Deducts item stock, logs event, inserts transaction records, and awards karma points to both buyer and seller
     public static boolean buyItem(int itemId, int buyerId, int quantity, int totalPrice, String paymentMethod, String paymentReference) {
         String updateItemQuery = "UPDATE items SET item_quantity = item_quantity - ?, availability_status = CASE WHEN (item_quantity - ?) < 1 THEN 'Unavailable' ELSE availability_status END WHERE item_id = ?";
         String insertLogQuery = "INSERT INTO items_log (item_id, action, reason) VALUES (?, 'Update', 'update selling item')";
@@ -21,7 +28,6 @@ public class ItemActionManager {
 
             try (PreparedStatement psUpdate = conn.prepareStatement(updateItemQuery);
                  PreparedStatement psLog = conn.prepareStatement(insertLogQuery);
-                 // Need RETURN_GENERATED_KEYS to pass the ID to KarmaManager
                  PreparedStatement psTrans = conn.prepareStatement(insertTransQuery, Statement.RETURN_GENERATED_KEYS)) {
 
                 psUpdate.setInt(1, quantity);
@@ -40,7 +46,6 @@ public class ItemActionManager {
                 psTrans.setString(6, paymentReference);
                 psTrans.executeUpdate();
 
-                // Generate Karma Points
                 ResultSet rsTrans = psTrans.getGeneratedKeys();
                 int transactionId = -1;
                 if (rsTrans.next()) {
@@ -56,14 +61,21 @@ public class ItemActionManager {
                     }
                     
                     if (sellerId != -1) {
-                        // Reward Buyer (+2 Base)
                         KarmaManager.awardKarma(conn, buyerId, sellerId, transactionId, "Buy", quantity);
-                        // Reward Seller (+5 Base)
                         KarmaManager.awardKarma(conn, sellerId, buyerId, transactionId, "Sell", quantity);
                     }
                 }
 
                 conn.commit();
+               
+            
+                try {
+                    LogsDatabase logDB = new LogsDatabase();
+                    logDB.insertLog(TransactionLogAction.BUY, buyerId, itemId, null);
+                } catch (Exception ex) {
+                  
+                }
+                
                 return true;
             } catch (Exception e) {
                 conn.rollback();
@@ -75,6 +87,7 @@ public class ItemActionManager {
         return false;
     }
 
+    // Inserts a new cash-sale marketplace item record, creates its initial change log, and tracks the initial sell intent
     public static boolean addMarketplaceItem(ItemRecord item) {
         String insertItemQuery = "INSERT INTO items (owner_id, item_name, item_quantity, description, item_image, category, `condition`, price, pickup_area, pickup_days, pickup_time, action) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         String insertLogQuery = "INSERT INTO items_log (item_id, action, reason) VALUES (?, 'Create', 'Created a Selling Item')";
@@ -126,6 +139,7 @@ public class ItemActionManager {
         return false;
     }
 
+    // Overwrites all core data fields of an existing item and pushes a custom reason message into the database log
     public static boolean updateItemDetailed(ItemRecord item, String logReason) {
         String updateItemQuery = "UPDATE items SET item_name = ?, item_quantity = ?, description = ?, item_image= ?, category = ?, `condition` = ?, price = ?, pickup_area = ?, pickup_days = ?, pickup_time = ?, maximum_borrow_days = ?, desired_item = ?, availability_status = CASE WHEN ? <= 0 THEN 'Unavailable' ELSE availability_status END WHERE item_id = ?";
         String insertLogQuery = "INSERT INTO items_log (item_id, action, reason) VALUES (?, 'Update', ?)";
@@ -168,6 +182,7 @@ public class ItemActionManager {
         return false;
     }
 
+    // Toggles the soft-delete archival flag, updates the deletion timestamp, and logs the reason for removal
     public static boolean deleteArchivedItem(int itemId, String logReason) {
         String updateItemQuery = "UPDATE items SET items_is_archived = 1, items_archived_at = CURRENT_TIMESTAMP WHERE item_id = ?";
         String insertLogQuery = "INSERT INTO items_log (item_id, action, reason) VALUES (?, 'Archive', ?)";
@@ -197,6 +212,7 @@ public class ItemActionManager {
         return false;
     }
 
+    // Submits an interaction entry (such as a claim or bid request) into the system transaction tables
     public static boolean requestActionItem(int itemId, int requesterId, int quantity, String actionType) {
         String insertTransQuery = "INSERT INTO transactions (item_id, borrower_id, quantity, action) VALUES (?, ?, ?, ?)";
 
@@ -210,12 +226,16 @@ public class ItemActionManager {
             psTrans.executeUpdate();
             return true;
 
+            
+       
+            
         } catch (Exception e) {
             e.printStackTrace();
         }
         return false;
     }
 
+    // Saves a free peer-to-peer item allocation entry specifying the exact maximum timeframe allowed for loans
     public static boolean addSharingItem(ItemRecord item) {
         String insertItemQuery = "INSERT INTO items (owner_id, item_name, item_quantity, description, item_image, category, `condition`, price, pickup_area, pickup_days, pickup_time, maximum_borrow_days, action) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         String insertLogQuery = "INSERT INTO items_log (item_id, action, reason) VALUES (?, 'Create', 'Created a Sharing Item')";
@@ -268,6 +288,8 @@ public class ItemActionManager {
         return false;
     }
 
+    // Dynamic SQL processor that runs visibility changes, archival routines, status adjustments, and tracking histories
+ // Dynamic SQL processor that runs visibility changes, archival routines, status adjustments, and tracking histories
     public static boolean processRequestApproval(int itemId, int requesterId, int quantity, String newStatus, String logReason, String transAction, boolean archiveItem, String updateActionColumn, String proposedItem) {
         StringBuilder updateItemQueryStr = new StringBuilder("UPDATE items SET ");
         
@@ -303,6 +325,7 @@ public class ItemActionManager {
                  PreparedStatement psLog = conn.prepareStatement(insertLogQuery);
                  PreparedStatement psTrans = conn.prepareStatement(insertTransQuery)) {
 
+                // 1. Update Items Table
                 int paramIndex = 1;
                 if (newStatus != null) {
                     psUpdate.setString(paramIndex++, newStatus);
@@ -316,15 +339,24 @@ public class ItemActionManager {
                 psUpdate.setInt(paramIndex, itemId);
                 psUpdate.executeUpdate();
 
+                // 2. Update Logs Table
                 psLog.setInt(1, itemId);
                 psLog.setString(2, logReason);
                 psLog.executeUpdate();
 
+                // 3. Update Transactions Table (FIXED ORDER)
                 psTrans.setInt(1, itemId);
                 psTrans.setInt(2, requesterId);
                 psTrans.setInt(3, quantity);
                 psTrans.setString(4, transAction);
-                psTrans.setString(5, proposedItem);
+                
+                // Safe null handling for MySQL
+                if (proposedItem != null) {
+                    psTrans.setString(5, proposedItem);
+                } else {
+                    psTrans.setNull(5, java.sql.Types.VARCHAR);
+                }
+                
                 psTrans.executeUpdate();
 
                 conn.commit();
@@ -339,6 +371,7 @@ public class ItemActionManager {
         return false;
     }
 
+    // Creates an item entry bound specifically to item-for-item exchange requests along with target criteria specs
     public static boolean addTradeItem(ItemRecord item) {
         String insertItemQuery = "INSERT INTO items (owner_id, item_name, item_quantity, description, item_image, category, `condition`, price, pickup_area, pickup_days, pickup_time, desired_item, action) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         String insertLogQuery = "INSERT INTO items_log (item_id, action, reason) VALUES (?, 'Create', 'Created a Trade Item')";
@@ -380,6 +413,7 @@ public class ItemActionManager {
                 }
 
                 conn.commit();
+                
                 return true;
             } catch (Exception e) {
                 conn.rollback();
@@ -391,46 +425,4 @@ public class ItemActionManager {
         return false;
     }
 
-    public static List<ItemRecord> readItemsByAction(String actionStr) {
-        List<ItemRecord> items = new ArrayList<>();
-        String query = "SELECT * FROM items WHERE item_quantity > 0 AND availability_status = 'Available' AND items_is_archived = 0 AND action = ?";
-        
-        if (actionStr.equals("Marketplace")) {
-            query = "SELECT * FROM items WHERE price > 0 AND item_quantity > 0 AND availability_status = 'Available' AND items_is_archived = 0 AND action = ?";
-        }
-
-        try (Connection conn = DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
-             PreparedStatement ps = conn.prepareStatement(query)) {
-             
-            ps.setString(1, actionStr);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    ItemRecord item = new ItemRecord();
-                    item.itemId = rs.getInt("item_id");
-                    item.ownerId = rs.getInt("owner_id");
-                    item.itemName = rs.getString("item_name");
-                    item.itemQuantity = rs.getInt("item_quantity");
-                    item.description = rs.getString("description");
-                    item.itemImage = rs.getString("item_image");
-                    item.category = rs.getString("category");
-                    item.condition = rs.getString("condition");
-                    item.price = rs.getInt("price");
-                    item.availabilityStatus = rs.getString("availability_status");
-                    item.maximumBorrowDays = rs.getInt("maximum_borrow_days");
-                    item.desiredItem = rs.getString("desired_item");
-                    item.dateListed = rs.getTimestamp("date_listed");
-                    item.pickupArea = rs.getString("pickup_area");
-                    item.pickupTime = rs.getString("pickup_time");
-                    item.pickupDays = rs.getString("pickup_days");
-                    item.action = rs.getString("action");
-                    item.itemsIsArchived = rs.getBoolean("items_is_archived");
-                    item.itemsArchivedAt = rs.getTimestamp("items_archived_at");
-                    items.add(item);
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return items;
-    }
 }

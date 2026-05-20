@@ -1,0 +1,10 @@
+package enums;
+
+public enum RecordAction {
+ ARCHIVE_USER,
+ RESTORE_USER,
+ DELETE_USER,
+ ARCHIVE_ITEM,
+ RESTORE_ITEM,
+ DELETE_ITEM
+}

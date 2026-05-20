@@ -1,6 +1,7 @@
 package pages;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -9,6 +10,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+import javax.imageio.ImageIO;
 import javax.swing.*;
 
 import components.*;
@@ -19,24 +21,23 @@ import database.DatabaseManager;
 import database.UMak;
 
 public class Profile extends CustomPanel {
+    
     private static final long serialVersionUID = 1L;
-
-    private static final String DEFAULT_PROFILE_PIC = "/resources/defaultpictures/renzjan.jpg";
+    private static final String DEFAULT_PROFILE_PIC = "/resources/defaultpictures/axolotl.jpg";
     private static final String[] COLLEGES = UMak.COLLEGES_INSTITUTES;
     private static final String[] YEARS = {"1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year", "GRADUATE", "ALUMNI"};
 
     private final UserRecord user;
     
-    // UI Components
     private CustomToggleButton editProfileButton;
     private CustomPanel profileContentPanel;
     private AvatarPanel avatarPanel;
     
-    // Text Fields
     private CustomTextField studentIdField = new CustomTextField("");
     private CustomTextField lastNameField = new CustomTextField("");
     private CustomTextField firstNameField = new CustomTextField("");
     private CustomTextField contactNumberField = new CustomTextField("");
+    private CustomTextField umakEmailAddressField = new CustomTextField("");
     private CustomTextField collegeField = new CustomTextField("");
     private CustomTextField courseField = new CustomTextField("");
     private CustomTextField yearLevelField = new CustomTextField("");
@@ -45,20 +46,19 @@ public class Profile extends CustomPanel {
     private CustomTextField bdoField = new CustomTextField("");
     private CustomTextField bpiField = new CustomTextField("");
 
-    // Combo Boxes
     private CustomComboBox<String> collegeCombo;
     private CustomComboBox<String> yearCombo;
 
-    // State Variables
     private boolean isEditing = false;
-    private String storedPassword = "";
+    private String storedPassword = ""; 
     private String gcashNum = "", mayaNum = "", bdoNum = "", bpiNum = "";
     private Map<String, String> originalValues = new HashMap<>();
 
     public Profile(UserRecord user) {
         if (user == null) throw new IllegalArgumentException("UserRecord is required");
         this.user = user;
-        if (user.password != null) this.storedPassword = user.password;
+        
+        refreshUserData(); 
 
         editProfileButton = new CustomToggleButton(
             IconLoader.loadAndScaleIcon("/resources/icons/edit.png", 25, 25),
@@ -71,26 +71,71 @@ public class Profile extends CustomPanel {
         add(initWest(), BorderLayout.WEST);
         add(initCenter(), BorderLayout.CENTER);
     }
+    
+    private void refreshUserData() {
+        String sql = "SELECT * FROM users WHERE user_id = ?";
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, user.user_id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    user.first_name = rs.getString("first_name");
+                    user.last_name = rs.getString("last_name");
+                    user.contact_num = rs.getString("contact_num");
+                    user.college = rs.getString("college");
+                    user.course_program = rs.getString("course_program");
+                    user.year_level = rs.getString("year_level");
+                    user.password = rs.getString("password");
+                    user.profile_image = rs.getString("profile_image");
+                    user.karma_score = rs.getInt("karma_score");
+                    user.umak_email_address = rs.getString("umak_email_address");
+                    
+                    String decrypted = Encryption.decryptPassword(user.password);
+                    this.storedPassword = (decrypted != null) ? decrypted : user.password;
+                }
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error refreshing profile data: " + e.getMessage());
+        }
+    }
 
     private Connection getConnection() throws SQLException {
         return DriverManager.getConnection(DatabaseManager.getURL(), DatabaseManager.getUser(), DatabaseManager.getPassword());
     }
 
-    private String getCurrentProfilePicturePath() {
-        if (user.profile_image == null || user.profile_image.trim().isEmpty()) {
-            return DEFAULT_PROFILE_PIC;
-        }
+    /**
+     * SMART AVATAR LOADER: Bypasses IconLoader to handle newly uploaded physical files AND Classpath files perfectly.
+     */
+    private Icon createCircularIcon(String path, int width, int height) {
+        if (path == null || path.trim().isEmpty()) path = DEFAULT_PROFILE_PIC;
+        Image img = null;
         try {
-            File absoluteFile = new File(user.profile_image);
-            if (absoluteFile.exists() && absoluteFile.isAbsolute()) {
-                return absoluteFile.getAbsolutePath();
+            File physicalFile = new File(System.getProperty("user.dir") + "/src" + path);
+            if (physicalFile.exists()) {
+                img = ImageIO.read(physicalFile);
+            } else {
+                java.net.URL url = getClass().getResource(path);
+                if (url != null) img = ImageIO.read(url);
             }
-            if (getClass().getResourceAsStream(user.profile_image) != null) {
-                return user.profile_image;
-            }
-        } catch (Exception ignore) {}
+        } catch (Exception e) {}
+
+        if (img == null) {
+            try {
+                java.net.URL fallback = getClass().getResource(DEFAULT_PROFILE_PIC);
+                if (fallback != null) img = ImageIO.read(fallback);
+            } catch (Exception e) {}
+        }
         
-        return DEFAULT_PROFILE_PIC;
+        if (img == null) return new ImageIcon();
+
+        BufferedImage circleBuffer = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = circleBuffer.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.fillOval(0, 0, width, height);
+        g2.setComposite(AlphaComposite.SrcIn);
+        g2.drawImage(img, 0, 0, width, height, null);
+        g2.dispose();
+
+        return new ImageIcon(circleBuffer);
     }
 
     private String getKarmaTitle(int score) {
@@ -163,12 +208,11 @@ public class Profile extends CustomPanel {
                 public void mouseReleased(java.awt.event.MouseEvent e) {
                     if (isEditing) {
                         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(Profile.this);
-                        EditProfilePicture dialog = new EditProfilePicture(parentFrame);
+                        EditProfilePicture dialog = new EditProfilePicture(parentFrame, user.profile_image);
                         String updatedPath = dialog.getSavedImagePath();
                         if (updatedPath != null) {
                             user.profile_image = updatedPath;
                             AvatarPanel.this.repaint();
-                            buildProfileFields();
                         }
                     }
                 }
@@ -191,7 +235,7 @@ public class Profile extends CustomPanel {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            Icon mainAvatar = IconLoader.loadAndScaleCircularIcon(getCurrentProfilePicturePath(), 250, 250);
+            Icon mainAvatar = createCircularIcon(user.profile_image, 250, 250);
             if (mainAvatar != null) mainAvatar.paintIcon(this, g2, 0, 0);
 
             if (isEditing) {
@@ -209,7 +253,7 @@ public class Profile extends CustomPanel {
         CustomTabbedPane tabbedPane = new CustomTabbedPane();
         tabbedPane.setRadius(20);
         tabbedPane.addTab("Profile", "/resources/icons/profile.png", initProfileTab());
-        tabbedPane.addTab("Transaction History", "/resources/icons/logs.png", new CustomPanel());
+        tabbedPane.addTab("Transaction History", "/resources/icons/logs.png", new TransactionHistory(user));
         return tabbedPane;
     }
 
@@ -228,8 +272,9 @@ public class Profile extends CustomPanel {
 
         editProfileButton.addToggleListener(toggled -> {
             if (!toggled && isEditing) {
+                // Check if anything at all changed (including picture/password)
                 if (!hasUnsavedChanges()) {
-                    exitEditingMode();
+                    exitEditingMode(true);
                     return;
                 }
                 
@@ -240,25 +285,25 @@ public class Profile extends CustomPanel {
                 if (choice == JOptionPane.YES_OPTION) {
                     if (validateFields()) {
                         saveFields();
-                        exitEditingMode();
+                        exitEditingMode(false); // DO NOT restore old values! (Saves the new picture)
                     } else {
                         SwingUtilities.invokeLater(() -> editProfileButton.setToggled(true));
                     }
                 } else if (choice == JOptionPane.NO_OPTION) {
-                    exitEditingMode();
+                    exitEditingMode(true); // Restores old picture if discarded
                 } else {
                     SwingUtilities.invokeLater(() -> editProfileButton.setToggled(true));
                 }
             } else if (toggled && !isEditing) {
                 isEditing = true;
                 avatarPanel.repaint();
-                buildProfileFields();
-                SwingUtilities.invokeLater(this::captureOriginalValues);
+                buildProfileFields(); 
+                SwingUtilities.invokeLater(this::captureOriginalValues); 
             }
         });
 
         profileContentPanel = new CustomPanel(new BorderLayout());
-        buildProfileFields();
+        buildProfileFields(); 
 
         wrapper.add(topWrapper, BorderLayout.NORTH);
         wrapper.add(profileContentPanel, BorderLayout.CENTER);
@@ -266,8 +311,15 @@ public class Profile extends CustomPanel {
         return wrapper;
     }
 
-    private void exitEditingMode() {
+    // Pass 'true' to revert unsaved picture/password changes, 'false' if we just saved to the database.
+    private void exitEditingMode(boolean restoreOldValues) {
         isEditing = false;
+        
+        if (restoreOldValues) {
+            if (originalValues.containsKey("profileImage")) user.profile_image = originalValues.get("profileImage");
+            if (originalValues.containsKey("password")) storedPassword = originalValues.get("password");
+        }
+        
         avatarPanel.repaint();
         buildProfileFields();
         originalValues.clear();
@@ -335,23 +387,24 @@ public class Profile extends CustomPanel {
         user.course_program = courseField.getText();
         user.year_level = (yearCombo != null) ? (String) yearCombo.getSelectedItem() : yearLevelField.getText();
 
-        gcashNum = gcashField.getText();
-        mayaNum = mayaField.getText();
-        bdoNum = bdoField.getText();
-        bpiNum = bpiField.getText();
-        user.password = storedPassword;
+        gcashNum = normalizeDigits(gcashField.getText());
+        mayaNum = normalizeDigits(mayaField.getText());
+        bdoNum = normalizeDigits(bdoField.getText());
+        bpiNum = normalizeDigits(bpiField.getText());
         
         saveProfileToDatabase();
     }
 
-    // Tracks changes via fail-fast matching to prevent unnecessary computations
     private boolean hasUnsavedChanges() {
         if (!isEditing || originalValues.isEmpty()) return false;
 
+        // FIXED: Now checks if the profile picture or password was modified!
+        if (!safeEquals(originalValues.get("profileImage"), user.profile_image)) return true;
+        if (!safeEquals(originalValues.get("password"), storedPassword)) return true;
+        
         if (!safeEquals(originalValues.get("lastName"), lastNameField.getText())) return true;
         if (!safeEquals(originalValues.get("firstName"), firstNameField.getText())) return true;
         if (!safeEquals(originalValues.get("courseProgram"), courseField.getText())) return true;
-
         if (!normalizeDigits(originalValues.get("contactNumber")).equals(normalizeDigits(contactNumberField.getText()))) return true;
         
         String curCollege = (collegeCombo != null && collegeCombo.getSelectedItem() != null) ? collegeCombo.getSelectedItem().toString() : collegeField.getText();
@@ -370,6 +423,11 @@ public class Profile extends CustomPanel {
 
     private void captureOriginalValues() {
         originalValues.clear();
+        
+        // FIXED: Now safely records the starting state of the picture and password
+        originalValues.put("profileImage", safeGet(user.profile_image));
+        originalValues.put("password", safeGet(storedPassword));
+        
         originalValues.put("lastName", safeGet(lastNameField.getText()));
         originalValues.put("firstName", safeGet(firstNameField.getText()));
         originalValues.put("contactNumber", safeGet(contactNumberField.getText()));
@@ -424,7 +482,6 @@ public class Profile extends CustomPanel {
         leftCol.setAlignmentY(Component.TOP_ALIGNMENT);
         rightCol.setAlignmentY(Component.TOP_ALIGNMENT);
 
-        // Left Column Fields
         leftCol.add(infoWrapper("Student ID", user.student_id, studentIdField, false));
         leftCol.add(Box.createVerticalStrut(15));
         leftCol.add(infoWrapper("Last Name", user.last_name, lastNameField, true));
@@ -433,14 +490,13 @@ public class Profile extends CustomPanel {
         leftCol.add(Box.createVerticalStrut(15));
         leftCol.add(infoWrapper("Contact Number", user.contact_num, contactNumberField, true));
         leftCol.add(Box.createVerticalStrut(15));
-        leftCol.add(infoWrapper("UMak Email Address", user.umak_email_address, null, false));
+        leftCol.add(infoWrapper("UMak Email Address", user.umak_email_address, umakEmailAddressField, false));
         leftCol.add(Box.createVerticalStrut(15));
         leftCol.add(infoWrapper("Member Since", "January 01, 2001", null, false));
         leftCol.add(Box.createVerticalStrut(15));
         leftCol.add(infoWrapper("Password", storedPassword, null, false));
         leftCol.add(Box.createVerticalStrut(15));
 
-        // Right Column Fields
         collegeCombo = new CustomComboBox<>(COLLEGES);
         rightCol.add(comboInfoWrapper("College/Institute", user.college, collegeCombo, true));
         rightCol.add(Box.createVerticalStrut(15));
@@ -460,14 +516,12 @@ public class Profile extends CustomPanel {
         paymentLeft.setLayout(new BoxLayout(paymentLeft, BoxLayout.Y_AXIS));
         paymentRight.setLayout(new BoxLayout(paymentRight, BoxLayout.Y_AXIS));
 
-        // Payment Info Left
         paymentLeft.add(createLeftAlignedLabel("Online Payment"));
         paymentLeft.add(Box.createVerticalStrut(10));
         paymentLeft.add(paymentInfoWrapper("/resources/icons/gcash.png", "GCash", gcashNum, gcashField));
         paymentLeft.add(Box.createVerticalStrut(10));
         paymentLeft.add(paymentInfoWrapper("/resources/icons/maya.png", "Maya", mayaNum, mayaField));
 
-        // Payment Info Right
         paymentRight.add(createLeftAlignedLabel("Payment Network"));
         paymentRight.add(Box.createVerticalStrut(10));
         paymentRight.add(paymentInfoWrapper("/resources/icons/bdo.jpg", "BDO", bdoNum, bdoField));
@@ -496,7 +550,6 @@ public class Profile extends CustomPanel {
         return label;
     }
 
-    // Base wrapper structure shared by text, combo, and payment fields
     private CustomPanel createBaseFieldWrapper(String title, Icon icon) {
         CustomPanel wrapper = new CustomPanel();
         wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
@@ -613,11 +666,15 @@ public class Profile extends CustomPanel {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String type = rs.getString("payment_type");
-                    String number = rs.getString("payment_number");
-                    if ("gcash".equalsIgnoreCase(type)) gcashNum = number;
-                    else if ("maya".equalsIgnoreCase(type)) mayaNum = number;
-                    else if ("bdo".equalsIgnoreCase(type)) bdoNum = number;
-                    else if ("bpi".equalsIgnoreCase(type)) bpiNum = number;
+                    String encryptedNumber = rs.getString("payment_number");
+                    
+                    String decryptedNumber = Encryption.decrypt(encryptedNumber);
+                    if (decryptedNumber == null) decryptedNumber = encryptedNumber; 
+                    
+                    if ("gcash".equalsIgnoreCase(type)) gcashNum = decryptedNumber;
+                    else if ("maya".equalsIgnoreCase(type)) mayaNum = decryptedNumber;
+                    else if ("bdo".equalsIgnoreCase(type)) bdoNum = decryptedNumber;
+                    else if ("bpi".equalsIgnoreCase(type)) bpiNum = decryptedNumber;
                 }
             }
         } catch (SQLException e) {
@@ -631,6 +688,7 @@ public class Profile extends CustomPanel {
 
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false);
+            
             try (PreparedStatement psUser = conn.prepareStatement(updateUsersSql)) {
                 psUser.setString(1, user.first_name);
                 psUser.setString(2, user.last_name);
@@ -644,16 +702,26 @@ public class Profile extends CustomPanel {
                 psUser.setString(4, user.college);
                 psUser.setString(5, user.course_program);
                 psUser.setString(6, user.year_level);
-                psUser.setString(7, user.password);
-                psUser.setString(8, user.profile_image);
+                
+                String finalEncryptedPass = Encryption.encryptPassword(storedPassword);
+                psUser.setString(7, finalEncryptedPass);
+                
+                String safeImage = (user.profile_image != null && !user.profile_image.trim().isEmpty()) ? user.profile_image : DEFAULT_PROFILE_PIC;
+                psUser.setString(8, safeImage);
                 psUser.setInt(9, user.user_id);
                 psUser.executeUpdate();
+                
+                user.password = finalEncryptedPass;
+                user.profile_image = safeImage;
             }
+            
             upsertPaymentHelper(conn, upsertPaymentSql, "gcash", gcashNum);
             upsertPaymentHelper(conn, upsertPaymentSql, "maya", mayaNum);
             upsertPaymentHelper(conn, upsertPaymentSql, "BDO", bdoNum);
             upsertPaymentHelper(conn, upsertPaymentSql, "BPI", bpiNum);
+            
             conn.commit();
+            JOptionPane.showMessageDialog(this, "Profile updated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Failed to persist profile changes: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -662,10 +730,12 @@ public class Profile extends CustomPanel {
     private void upsertPaymentHelper(Connection conn, String sql, String type, String value) throws SQLException {
         if (value == null || value.trim().isEmpty()) return;
         try (PreparedStatement psPay = conn.prepareStatement(sql)) {
+            String encryptedValue = Encryption.encrypt(value.trim());
+            
             psPay.setInt(1, user.user_id);
             psPay.setString(2, type);
-            psPay.setString(3, value.trim());
-            psPay.setString(4, value.trim());
+            psPay.setString(3, encryptedValue);
+            psPay.setString(4, encryptedValue);
             psPay.executeUpdate();
         }
     }

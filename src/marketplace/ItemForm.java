@@ -15,6 +15,9 @@ import database.ItemRecord;
 import database.DatabaseManager;
 
 public class ItemForm extends JDialog {
+    
+    // FIELDS
+    
     private static final long serialVersionUID = 1L;
     
     public interface OnSuccessListener {
@@ -25,7 +28,7 @@ public class ItemForm extends JDialog {
     private CustomLabel imagePathLabel;
     
     private String selectedImagePath = ""; 
-    private File selectedImageFile = null; // Holds the selected file before saving
+    private File selectedImageFile = null; 
     
     private CustomTextArea descriptionField;
     private CustomComboBox<String> categoryField;
@@ -45,6 +48,9 @@ public class ItemForm extends JDialog {
     private int currentUserId;
     private OnSuccessListener successListener;
     
+    // CONSTRUCTORS
+    
+    // Sets window traits, saves basic data objects, fits components, and displays the dialog box
     public ItemForm(Window parent, String title, ItemRecord itemToUpdate, int currentUserId, OnSuccessListener listener) {
         super(parent, title, Dialog.ModalityType.APPLICATION_MODAL);
         this.currentItem = itemToUpdate;
@@ -69,18 +75,23 @@ public class ItemForm extends JDialog {
         setVisible(true);
     }
     
+    // PRIVATE METHODS
+    
+    // Groups layout routines to drop sections into top, center, and bottom window spots
     private void init() {
         add(initHeader(), BorderLayout.NORTH);
         add(initForm(), BorderLayout.CENTER);
         add(initAction(), BorderLayout.SOUTH);
     }
     
+    // Creates top panel containing the title of the current view mode
     private CustomPanel initHeader() {
         CustomPanel wrapper = new CustomPanel(new GridBagLayout());
         wrapper.add(new CustomLabel(getTitle() != null ? getTitle().toUpperCase() : "ITEM FORM", Brand.HEADER2_TEXT_SIZE, FontStyle.BOLD));
         return wrapper;
     }
     
+    // Spawns input inputs, setup checkboxes, configures sub-rows, and tracks context field visibilities
     private CustomPanel initForm() {
         CustomPanel wrapper = new CustomPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
@@ -100,7 +111,6 @@ public class ItemForm extends JDialog {
             chooser.setFileFilter(new FileNameExtensionFilter("Images (JPG, PNG)", "jpg", "png"));
             if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
                 selectedImageFile = chooser.getSelectedFile();
-                // Set the path string exactly as it will be stored in the database
                 selectedImagePath = "/resources/items/" + selectedImageFile.getName();
                 imagePathLabel.setText(selectedImageFile.getName());
             }
@@ -200,6 +210,7 @@ public class ItemForm extends JDialog {
         return wrapper;
     }
 
+    // Appends text headers followed by their core field boxes down the layout stack
     private void addField(CustomPanel parent, GridBagConstraints gbc, String label, JComponent comp) {
         gbc.gridy++;
         parent.add(createRequiredLabel(label), gbc);
@@ -207,6 +218,7 @@ public class ItemForm extends JDialog {
         parent.add(comp, gbc);
     }
     
+    // Wraps an individual column block grouping a top label and its input child box
     private CustomPanel createColumn(String label, JComponent comp) {
         CustomPanel col = new CustomPanel();
         col.setLayout(new BoxLayout(col, BoxLayout.Y_AXIS));
@@ -216,6 +228,7 @@ public class ItemForm extends JDialog {
         return col;
     }
     
+    // Builds a tiny side-by-side component containing title text and a red asterisks badge
     private CustomPanel createRequiredLabel(String text) {
         CustomPanel panel = new CustomPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         panel.setOpaque(false);
@@ -225,6 +238,7 @@ public class ItemForm extends JDialog {
         return panel;
     }
 
+    // Locks condition fields to New if selected category type matches consumable goods
     private void checkCategoryCondition() {
         if ("Consumable_Goods".equals(categoryField.getSelectedItem().toString().replace(" ", "_"))) {
             conditionField.setSelectedItem("New");
@@ -234,6 +248,7 @@ public class ItemForm extends JDialog {
         }
     }
 
+    // Writes data from existing object into entry components during update requests
     private void preFillData() {
         itemNameField.setText(currentItem.itemName);
         selectedImagePath = currentItem.itemImage;
@@ -265,6 +280,7 @@ public class ItemForm extends JDialog {
         if (desiredItemField != null && currentItem.desiredItem != null) desiredItemField.setText(currentItem.desiredItem);
     }
     
+    // Spawns lower navigation control strip housing cancel and process confirmation buttons
     private CustomPanel initAction() {
         CustomPanel wrapper = new CustomPanel(new FlowLayout(FlowLayout.CENTER));
         CustomButton cancelBtn = new CustomButton("Cancel", 10);
@@ -294,6 +310,7 @@ public class ItemForm extends JDialog {
         return wrapper;
     }
 
+    // Inspects all form lengths, bounds, selection flags, and value limits for correctness
     private boolean isFormValid() {
         if (selectedImagePath == null || selectedImagePath.trim().isEmpty()) {
             showError("An item image is required. Please browse and select an image.");
@@ -390,6 +407,7 @@ public class ItemForm extends JDialog {
         return true;
     }
 
+    // Directs flow to copy files and choose between database insertion or updates
     private void saveData() {
         copyImageFileToLocalDirectory();
         
@@ -397,10 +415,10 @@ public class ItemForm extends JDialog {
         else updateItemInDatabase();
     }
     
+    // Reads external paths and duplicates target files into project source and binary asset trees
     private void copyImageFileToLocalDirectory() {
         if (selectedImageFile != null) {
             try {
-                // Safely resolve the absolute project root to place it directly into /src/resources/items and /bin/resources/items
                 String projectPath = System.getProperty("user.dir");
                 File srcDestDir = new File(projectPath, "src" + File.separator + "resources" + File.separator + "items");
                 
@@ -411,7 +429,6 @@ public class ItemForm extends JDialog {
                 File srcDestFile = new File(srcDestDir, selectedImageFile.getName());
                 Files.copy(selectedImageFile.toPath(), srcDestFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 
-                // Copy to bin directory as well so the image loads immediately during runtime
                 File binDestDir = new File(projectPath, "bin" + File.separator + "resources" + File.separator + "items");
                 if (!binDestDir.exists()) {
                     binDestDir.mkdirs();
@@ -426,12 +443,13 @@ public class ItemForm extends JDialog {
         }
     }
 
+    // Assembles components into a fresh row record and passes it to manager insert queries
     private void insertItemIntoDatabase() {
         ItemRecord newItem = new ItemRecord();
         newItem.ownerId = this.currentUserId; 
         newItem.itemName = itemNameField.getText().trim();
         newItem.itemQuantity = Integer.parseInt(quantityField.getText().trim());
-        newItem.itemImage = selectedImagePath; // Stores exactly as /resources/items/filename
+        newItem.itemImage = selectedImagePath; 
         newItem.description = descriptionField.getText().trim();
         newItem.category = categoryField.getSelectedItem().toString().replace(" ", "_");
         newItem.condition = conditionField.getSelectedItem().toString();
@@ -463,10 +481,11 @@ public class ItemForm extends JDialog {
         }
     }
 
+    // Gathers fields to update values on tracking references and calls change logs
     private void updateItemInDatabase() {
         currentItem.itemName = itemNameField.getText().trim();
         currentItem.itemQuantity = Integer.parseInt(quantityField.getText().trim());
-        currentItem.itemImage = selectedImagePath; // Stores exactly as /resources/items/filename
+        currentItem.itemImage = selectedImagePath; 
         currentItem.description = descriptionField.getText().trim();
         currentItem.category = categoryField.getSelectedItem().toString().replace(" ", "_");
         currentItem.condition = conditionField.getSelectedItem().toString();
@@ -491,6 +510,7 @@ public class ItemForm extends JDialog {
         if (!success) showError("Database Error");
     }
 
+    // Opens a basic text box window showing error notification details
     private void showError(String msg) {
         JOptionPane.showMessageDialog(this, msg, "Error", JOptionPane.ERROR_MESSAGE);
     }

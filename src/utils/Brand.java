@@ -45,4 +45,7 @@ public class Brand {
 	public static Color getConditionColor(Condition condition) {
 		return CONDITION_COLORS.get(condition);
 	}
+	
+	public static final Color COLOR_GRID = new Color(235, 235, 237);
+	public static final Color COLOR_BORDER = new Color(220, 220, 225);
 }

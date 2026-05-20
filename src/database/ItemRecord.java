@@ -22,7 +22,8 @@ public class ItemRecord {
 	public String action;
 	public boolean itemsIsArchived;
 	public Timestamp itemsArchivedAt;
-
+	
+	public int initiatorKarmaScore;
 	public String initiatorFirstName;
 	public String initiatorLastName;
 	public Timestamp transactionDate;

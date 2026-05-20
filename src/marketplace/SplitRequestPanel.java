@@ -12,51 +12,69 @@ import enums.Category;
 import enums.Condition;
 import utils.*;
 
+// Shows a split screen with a list on the left and details on the right
 public class SplitRequestPanel extends CustomPanel {
+	
+	// FIELDS
+
+	// Keeps track of version
 	private static final long serialVersionUID = 1L;
 
+	// Stores user and tab data
 	private UserRecord user;
 	private MarketplaceTabMode tabMode;
 	
+	// UI parts for lists and panels
 	private List<ItemRecord> itemsList;
 	private JList<ItemRecord> requestList;
 	private CustomPanel centerPanel;
 	
+	// Database connection strings
 	private final String DB_URL = DatabaseManager.getURL();
 	private final String USER = DatabaseManager.getUser();
 	private final String PASSWORD = DatabaseManager.getPassword();
 
+	// CONSTRUCTORS
+
+	// Sets up the main split layout and UI parts
 	public SplitRequestPanel(UserRecord user, String listTitle, MarketplaceTabMode tabMode) {
 		this.user = user;
 		this.tabMode = tabMode;
 		
+		// Set basic layout styles
 		setLayout(new BorderLayout(15, 0));
 		setPadding(10);
 		setBackground(Color.WHITE);
 
+		// Build the left panel for the list
 		CustomPanel westPanel = new CustomPanel();
 		westPanel.setLayout(new BorderLayout());
 		westPanel.setPreferredSize(new Dimension(300, 0));
 		westPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, Color.LIGHT_GRAY));
 
+		// Add title to the left panel
 		CustomLabel titleLabel = new CustomLabel(listTitle, 16f, FontStyle.BOLD);
 		titleLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 		westPanel.add(titleLabel, BorderLayout.NORTH);
 
+		// Setup the list UI
 		itemsList = new ArrayList<>();
 		requestList = new JList<>();
 		requestList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 	
+		// Set custom font for the list
 		if (FontLib.POPPINS_REGULAR != null) {
 			requestList.setFont(FontLib.POPPINS_REGULAR.deriveFont(14f));
 		} else {
 			requestList.setFont(new Font("SansSerif", Font.PLAIN, 14));
 		}
 		
+		// Change how list items look
 		requestList.setCellRenderer((list, value, index, isSelected, cellHasFocus) -> {
 			JLabel label = new JLabel(value.itemName); 
 			label.setOpaque(true);
 			
+			// Set label font
 			if (FontLib.POPPINS_REGULAR != null) {
 				label.setFont(FontLib.POPPINS_REGULAR.deriveFont(14f));
 			} else {
@@ -65,6 +83,7 @@ public class SplitRequestPanel extends CustomPanel {
 			
 			label.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
 			
+			// Change colors when clicked
 			if (isSelected) {
 				label.setBackground(Brand.PRIMARY_COLOR);
 				label.setForeground(Color.WHITE);
@@ -81,14 +100,17 @@ public class SplitRequestPanel extends CustomPanel {
 			return label;
 		});
 
+		// Add scroll bar to list
 		JScrollPane listScroll = new JScrollPane(requestList);
 		listScroll.setBorder(BorderFactory.createEmptyBorder());
 		westPanel.add(listScroll, BorderLayout.CENTER);
 
+		// Build the right panel for details
 		centerPanel = new CustomPanel();
 		centerPanel.setLayout(new BorderLayout());
 		showPlaceholder();
 
+		// Add click event to the list
 		requestList.addListSelectionListener(e -> {
 			if (!e.getValueIsAdjusting()) {
 				ItemRecord selected = requestList.getSelectedValue();
@@ -98,16 +120,22 @@ public class SplitRequestPanel extends CustomPanel {
 			}
 		});
 
+		// Add panels to the screen
 		add(westPanel, BorderLayout.WEST);
 		add(centerPanel, BorderLayout.CENTER);
 		
+		// Load data
 		fetchRequests();
 	}
 	
+	// METHODS
+
+	// Gets data from the database and fills the list
 	private void fetchRequests() {
 		itemsList.clear();
 		String targetAction = "";
 		
+		// Check what kind of items to get
 		switch (tabMode) {
 			case SHARING_APPROVAL: targetAction = "Sharing_Approval"; break;
 			case SHARING_RETURN: targetAction = "Sharing_Return"; break;
@@ -115,11 +143,13 @@ public class SplitRequestPanel extends CustomPanel {
 			default: return;
 		}
 
+		// Connect to database and run query
 		try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASSWORD);
 			 PreparedStatement pstmt = conn.prepareStatement(
 				"SELECT i.*, " +
 				"  u_req.first_name AS initiator_firstname, " +
 				"  u_req.last_name AS initiator_lastname, " +
+				"  u_req.karma_score AS initiator_karmascore, " +
 				"  latest_t.proposed_item AS proposed_item_trans " +
 				"FROM items i " +
 				"LEFT JOIN (" +
@@ -130,9 +160,11 @@ public class SplitRequestPanel extends CustomPanel {
 				"LEFT JOIN users u_req ON latest_t.borrower_id = u_req.user_id " +
 				"WHERE i.action = ? AND i.owner_id = ? AND i.items_is_archived = 0")) {
 			
+			// Set query values
 			pstmt.setString(1, targetAction);
 			pstmt.setInt(2, user.user_id);
 			
+			// Read the results
 			ResultSet rs = pstmt.executeQuery();
 			while (rs.next()) {
 				ItemRecord item = new ItemRecord();
@@ -157,26 +189,30 @@ public class SplitRequestPanel extends CustomPanel {
 				item.itemsArchivedAt = rs.getTimestamp("items_archived_at");
 				item.initiatorFirstName = rs.getString("initiator_firstname");
 				item.initiatorLastName = rs.getString("initiator_lastname");
+				item.initiatorKarmaScore = rs.getInt("initiator_karmascore");
 				
-				// Use desiredItem strictly for what was proposed in the transaction to keep it within the model easily
 				item.desiredItem = rs.getString("proposed_item_trans");
 
+				// Add to list
 				itemsList.add(item);
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 		
+		// Update UI
 		requestList.setListData(itemsList.toArray(new ItemRecord[0]));
 		showPlaceholder();
 		requestList.revalidate();
 		requestList.repaint();
 	}
 
+	// Reloads the data list
 	public void refreshData() {
 		fetchRequests();
 	}
 	
+	// Shows default text when no item is clicked
 	private void showPlaceholder() {
 		centerPanel.removeAll();
 		CustomLabel placeholderLabel = new CustomLabel("Select a request from the list to view details", 14f, FontStyle.REGULAR, Color.GRAY);
@@ -186,14 +222,17 @@ public class SplitRequestPanel extends CustomPanel {
 		centerPanel.repaint();
 	}
 	
+	// Shows the selected item's info and buttons on the right side
 	private void showItemDetails(ItemRecord item) {
 		centerPanel.removeAll();
 		
+		// Main wrapper
 		CustomPanel wrapper = new CustomPanel();
 		wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
 		wrapper.setPadding(20);
 		wrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
 		
+		// Top header
 		CustomPanel headerWrapper = new CustomPanel();
 		headerWrapper.setLayout(new BoxLayout(headerWrapper, BoxLayout.X_AXIS));
 		headerWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -207,9 +246,11 @@ public class SplitRequestPanel extends CustomPanel {
 		wrapper.add(headerWrapper);
 		wrapper.add(Box.createVerticalStrut(20));
 		
+		// Item layout
 		CustomPanel itemWrapper = new CustomPanel(new BorderLayout(20, 0));
 		itemWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
 		
+		// Load image
 		String imagePath = (item.itemImage != null && !item.itemImage.isEmpty()) ? item.itemImage : "/resources/images/umak_img.jpg";
 		
 		ImageIcon itemIcon = IconLoader.loadAndScaleIcon(imagePath, 350, 350);
@@ -221,12 +262,14 @@ public class SplitRequestPanel extends CustomPanel {
 		imgLabel.setPreferredSize(new Dimension(350, 350));
 		itemWrapper.add(imgLabel, BorderLayout.WEST); 
 		
+		// Details container
 		CustomPanel detailsContainer = new CustomPanel(new BorderLayout());
 		
 		CustomPanel detailsWrapper = new CustomPanel();
 		detailsWrapper.setLayout(new BoxLayout(detailsWrapper, BoxLayout.Y_AXIS));
 		detailsWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
 		
+		// Get category color
 		Color categoryColor = Color.GRAY;
 		if (item.category != null) {
 			try {
@@ -238,6 +281,7 @@ public class SplitRequestPanel extends CustomPanel {
 			}
 		}
 
+		// Get condition color
 		Color conditionColor = Color.GRAY;
 		if (item.condition != null) {
 			try {
@@ -249,6 +293,7 @@ public class SplitRequestPanel extends CustomPanel {
 			}
 		}
 
+		// Show name and category
 		CustomPanel nameWrapper = new CustomPanel();
 		nameWrapper.setLayout(new BoxLayout(nameWrapper, BoxLayout.X_AXIS));
 		nameWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -267,21 +312,25 @@ public class SplitRequestPanel extends CustomPanel {
 		detailsWrapper.add(nameWrapper);
 		detailsWrapper.add(Box.createVerticalStrut(10));
 		
+		// Show condition
 		CustomLabel conditionLabel = new CustomLabel(item.condition, Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD);
 		conditionLabel.setForeground(conditionColor);
 		conditionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		detailsWrapper.add(conditionLabel);
 		detailsWrapper.add(Box.createVerticalStrut(10));
 		
+		// Show user who made request
 		CustomPanel requesterWrapper = new CustomPanel();
 		requesterWrapper.setLayout(new BoxLayout(requesterWrapper, BoxLayout.X_AXIS));
 		requesterWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
 		requesterWrapper.add(new CustomLabel("Request from: ", Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD));
 		requesterWrapper.add(Box.createHorizontalStrut(5));
+		requesterWrapper.add(new CustomLabel("[" + item.initiatorKarmaScore + "] ", Brand.SUBHEADER_TEXT_SIZE, FontStyle.BOLD, Brand.SECONDARY_COLOR));
 		requesterWrapper.add(new CustomLabel(item.initiatorFirstName + " " + item.initiatorLastName, Brand.SUBHEADER_TEXT_SIZE, FontStyle.REGULAR));
 		detailsWrapper.add(requesterWrapper);
 		detailsWrapper.add(Box.createVerticalStrut(10));
 		
+		// Show proposed trade item if trading
 		if (tabMode == MarketplaceTabMode.TRADE_APPROVAL && item.desiredItem != null && !item.desiredItem.trim().isEmpty()) {
 			CustomPanel proposedWrapper = new CustomPanel();
 			proposedWrapper.setLayout(new BoxLayout(proposedWrapper, BoxLayout.X_AXIS));
@@ -293,6 +342,7 @@ public class SplitRequestPanel extends CustomPanel {
 			detailsWrapper.add(Box.createVerticalStrut(10));
 		}
 		
+		// Show location
 		CustomPanel locationWrapper = new CustomPanel();
 		locationWrapper.setLayout(new BoxLayout(locationWrapper, BoxLayout.X_AXIS));
 		locationWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -304,6 +354,7 @@ public class SplitRequestPanel extends CustomPanel {
 		detailsWrapper.add(locationWrapper);
 		detailsWrapper.add(Box.createVerticalStrut(20));
 		
+		// Show description
 		CustomPanel descriptionWrapper = new CustomPanel();
 		descriptionWrapper.setLayout(new BoxLayout(descriptionWrapper, BoxLayout.Y_AXIS));
 		descriptionWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -317,7 +368,6 @@ public class SplitRequestPanel extends CustomPanel {
 		descriptionWrapper.add(descArea);
 		
 		detailsWrapper.add(descriptionWrapper);
-		
 		detailsWrapper.add(Box.createVerticalGlue()); 
 		
 		detailsContainer.add(detailsWrapper, BorderLayout.NORTH);
@@ -326,10 +376,12 @@ public class SplitRequestPanel extends CustomPanel {
 		wrapper.add(itemWrapper);
 		wrapper.add(Box.createVerticalStrut(25));
 		
+		// Make buttons area
 		CustomPanel btnWrapper = new CustomPanel();
 		btnWrapper.setLayout(new BoxLayout(btnWrapper, BoxLayout.X_AXIS));
 		btnWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
 		
+		// Setup buttons based on mode
 		if (tabMode == MarketplaceTabMode.SHARING_APPROVAL) {
 			CustomButton approveBtn = new CustomButton("Approve Borrow", 10);
 			approveBtn.setDefaultColor(Brand.GREEN);
@@ -374,6 +426,7 @@ public class SplitRequestPanel extends CustomPanel {
 			btnWrapper.add(declineBtn);
 		}
 		
+		// Add everything to screen
 		wrapper.add(btnWrapper);
 		centerPanel.add(wrapper, BorderLayout.NORTH);
 		
@@ -381,12 +434,14 @@ public class SplitRequestPanel extends CustomPanel {
 		centerPanel.repaint();
 	}
 	
+	// Updates the database when a button is clicked
 	private void processAction(int itemId, String newAction, String successMessage, boolean archive) {
         String transAction = "Update";
         String availabilityStatus = null;
         String logReason = "update";
         String actionCol = newAction;
         
+		// Set values based on what button was clicked
         if (tabMode == MarketplaceTabMode.SHARING_APPROVAL && "Sharing_Return".equals(newAction)) {
             transAction = "Borrow-Approved";
             availabilityStatus = "Unavailable";
@@ -408,9 +463,10 @@ public class SplitRequestPanel extends CustomPanel {
             logReason = "update - decline";
         }
 
-		// Pass original desiredItem properly through so it updates or maintains the proposed item
+		// Save changes to database
 		boolean success = ItemActionManager.processRequestApproval(itemId, user.user_id, 1, availabilityStatus, logReason, transAction, archive, actionCol, null);
 
+		// Show message box
 		if (success) {
             JOptionPane.showMessageDialog(this, successMessage + "\nPlease coordinate at the designated time and location.", "Success", JOptionPane.INFORMATION_MESSAGE);
             fetchRequests(); 

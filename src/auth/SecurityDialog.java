@@ -2,7 +2,7 @@ package auth;
 
 import java.awt.*;
 import javax.swing.*;
-
+import java.sql.*;
 import components.*;
 import utils.Brand;
 import utils.FontLib;
@@ -12,315 +12,251 @@ public class SecurityDialog extends JDialog {
 
 	private static final long serialVersionUID = 1L;
 
-	private CustomComboBox<String> securityQuestionComboBox1;
-	private CustomComboBox<String> securityQuestionComboBox2;
-	private CustomComboBox<String> securityQuestionComboBox3;
+	// ─── Database ────────────────────────────────────────────────────────────
+	private static final String DB_URL = "jdbc:mysql://localhost:3306/heronsresourcehub";
+	private static final String DB_USER = "root";
+	private static final String DB_PASS = "";
 
-	private CustomTextArea securityAnswerField1;
-	private CustomTextArea securityAnswerField2;
-	private CustomTextArea securityAnswerField3;
+	// ─── Security questions list ──────────────────────────────────────────────
+	private static final String[] QUESTIONS = { "Select a Security Question",
+			"What was the nickname your family called you as a child?", "What was the name of your first pet?",
+			"What is your mother's complete maiden name?", "What was your favorite childhood food?",
+			"What is the name of the hospital where you were born?",
+			"What was your favorite family tradition during holidays?", "What is your favorite childhood movie?" };
 
-	private CustomButton submitButton;
+	// ─── UI fields ───────────────────────────────────────────────────────────
+	private final CustomComboBox<String> questionBox1 = new CustomComboBox<>(QUESTIONS, 5);
+	private final CustomComboBox<String> questionBox2 = new CustomComboBox<>(QUESTIONS, 5);
+	private final CustomComboBox<String> questionBox3 = new CustomComboBox<>(QUESTIONS, 5);
 
-	private boolean isRegistration;
-	private boolean isForgotPassword;
+	private final CustomTextArea answerField1 = createAnswerField();
+	private final CustomTextArea answerField2 = createAnswerField();
+	private final CustomTextArea answerField3 = createAnswerField();
 
+	private final CustomLabel errorLabel = new CustomLabel("");
+
+	// ─── State ───────────────────────────────────────────────────────────────
+	private final int userId;
 	private boolean submitted = false;
 
-	private final String[] baseQuestions = {
-			"Select a Security Question",
-			"What was the nickname your family called you as a child?",
-			"What was the name of your first pet?",
-			"What is your mother's complete maiden name?",
-			"What was your favorite childhood food?",
-			"What is the name of the hospital where you were born?",
-			"What was your favorite family tradition during holidays?",
-			"What is your favorite childhood movie?"
-	};
-
-	// =========================
-	// FIXED CONSTRUCTOR
-	// =========================
-	public SecurityDialog(JFrame parent) {
-
+	// ─── Constructor ─────────────────────────────────────────────────────────
+	public SecurityDialog(JFrame parent, int userId) {
 		super(parent, "Security Verification", true);
+		this.userId = userId;
 
 		FontLib.loadFonts();
 
-		this.isRegistration = true;
-		this.isForgotPassword = false;
-
-		setSize(500, 600);
-
-		setLayout(new BorderLayout());
+		setSize(480, 650);
+		setResizable(false);
 		setLocationRelativeTo(parent);
 		setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 
-		init();
-
+		buildUI();
 		setVisible(true);
 	}
 
-	private void init() {
+	// ─── UI builder ──────────────────────────────────────────────────────────
+	private void buildUI() {
+		// Use a BorderLayout panel so children fill the full width naturally
+		JPanel content = new JPanel();
+		content.setLayout(new GridBagLayout());
+		content.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-		CustomPanel wrapper = new CustomPanel();
-		wrapper.setPadding(20);
-		wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
+		GridBagConstraints gbc = new GridBagConstraints();
+		gbc.gridx = 0;
+		gbc.fill = GridBagConstraints.HORIZONTAL;
+		gbc.weightx = 1.0;
+		gbc.insets = new Insets(0, 0, 0, 0);
 
-		// =========================
-		// REGISTRATION
-		// =========================
-		if (isRegistration) {
+		// Title
+		CustomLabel title = new CustomLabel("Set Security Questions");
+		title.setFontStyle(FontStyle.BOLD);
+		title.setFontSize(Brand.HEADER2_TEXT_SIZE);
+		gbc.gridy = 0;
+		gbc.insets = new Insets(0, 0, 15, 0);
+		content.add(title, gbc);
 
-			securityQuestionComboBox1 = new CustomComboBox<>(baseQuestions, 5);
-			securityAnswerField1 = new CustomTextArea();
+		// Three question blocks
+		gbc.gridy = 1;
+		gbc.insets = new Insets(0, 0, 10, 0);
+		content.add(buildQuestionBlock("Security Question 1", questionBox1, answerField1), gbc);
 
-			securityQuestionComboBox2 = new CustomComboBox<>(baseQuestions, 5);
-			securityAnswerField2 = new CustomTextArea();
+		gbc.gridy = 2;
+		content.add(buildQuestionBlock("Security Question 2", questionBox2, answerField2), gbc);
 
-			securityQuestionComboBox3 = new CustomComboBox<>(baseQuestions, 5);
-			securityAnswerField3 = new CustomTextArea();
+		gbc.gridy = 3;
+		gbc.insets = new Insets(0, 0, 15, 0);
+		content.add(buildQuestionBlock("Security Question 3", questionBox3, answerField3), gbc);
 
-			securityAnswerField1.setLineWrap(true);
-			securityAnswerField2.setLineWrap(true);
-			securityAnswerField3.setLineWrap(true);
+		// Error message
+		errorLabel.setForeground(Color.RED);
+		gbc.gridy = 4;
+		gbc.insets = new Insets(0, 0, 10, 0);
+		content.add(errorLabel, gbc);
 
-			securityAnswerField1.setWrapStyleWord(true);
-			securityAnswerField2.setWrapStyleWord(true);
-			securityAnswerField3.setWrapStyleWord(true);
-
-			CustomLabel label1 = new CustomLabel(
-					"Security Question 1",
-					Brand.STANDARD_TEXT_SIZE,
-					FontStyle.BOLD);
-
-			label1.setAlignmentX(Component.CENTER_ALIGNMENT);
-			label1.setHorizontalAlignment(SwingConstants.CENTER);
-
-			wrapper.add(label1);
-			wrapper.add(securityQuestionComboBox1);
-			wrapper.add(Box.createVerticalStrut(5));
-			wrapper.add(securityAnswerField1);
-			wrapper.add(Box.createVerticalStrut(20));
-
-			CustomLabel label2 = new CustomLabel(
-					"Security Question 2",
-					Brand.STANDARD_TEXT_SIZE,
-					FontStyle.BOLD);
-
-			label2.setAlignmentX(Component.CENTER_ALIGNMENT);
-			label2.setHorizontalAlignment(SwingConstants.CENTER);
-
-			wrapper.add(label2);
-			wrapper.add(securityQuestionComboBox2);
-			wrapper.add(Box.createVerticalStrut(5));
-			wrapper.add(securityAnswerField2);
-			wrapper.add(Box.createVerticalStrut(20));
-
-			CustomLabel label3 = new CustomLabel(
-					"Security Question 3",
-					Brand.STANDARD_TEXT_SIZE,
-					FontStyle.BOLD);
-
-			label3.setAlignmentX(Component.CENTER_ALIGNMENT);
-			label3.setHorizontalAlignment(SwingConstants.CENTER);
-
-			wrapper.add(label3);
-			wrapper.add(securityQuestionComboBox3);
-			wrapper.add(Box.createVerticalStrut(5));
-			wrapper.add(securityAnswerField3);
-
-			securityQuestionComboBox1.addActionListener(e -> refreshComboBoxes());
-			securityQuestionComboBox2.addActionListener(e -> refreshComboBoxes());
-			securityQuestionComboBox3.addActionListener(e -> refreshComboBoxes());
-		}
-
-		// =========================
-		// FORGOT PASSWORD
-		// =========================
-		else if (isForgotPassword) {
-
-			securityQuestionComboBox1 = new CustomComboBox<>(baseQuestions, 5);
-			securityAnswerField1 = new CustomTextArea();
-
-			securityAnswerField1.setLineWrap(true);
-			securityAnswerField1.setWrapStyleWord(true);
-
-			wrapper.add(new CustomLabel(
-					"Security Verification",
-					Brand.STANDARD_TEXT_SIZE,
-					FontStyle.BOLD));
-
-			wrapper.add(Box.createVerticalStrut(10));
-			wrapper.add(securityQuestionComboBox1);
-			wrapper.add(Box.createVerticalStrut(5));
-			wrapper.add(securityAnswerField1);
-		}
-
-		// =========================
-		// BUTTON
-		// =========================
-		submitButton = new CustomButton("Confirm", 10);
-		submitButton.setPadding(30, 5);
-		submitButton.setDefaultColor(Brand.PRIMARY_COLOR);
-		submitButton.setHoverColor(Brand.PRIMARY_COLOR.darker());
-
+		// Submit button — left-aligned to match the rest of the form
+		CustomButton submitButton = new CustomButton("Confirm", 10);
 		submitButton.addActionListener(e -> handleSubmit());
+		JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+		buttonRow.setOpaque(false);
+		buttonRow.add(submitButton);
+		gbc.gridy = 5;
+		gbc.insets = new Insets(0, 0, 0, 0);
+		content.add(buttonRow, gbc);
 
-		CustomPanel buttonWrapper =
-				new CustomPanel(new FlowLayout(FlowLayout.CENTER));
-
-		buttonWrapper.add(submitButton);
-
-		wrapper.add(Box.createVerticalStrut(20));
-		wrapper.add(buttonWrapper);
-
-		add(wrapper);
+		add(content);
 	}
 
-	// =========================
-	// FIXED SAFETY REFRESH
-	// =========================
-	private void refreshComboBoxes() {
+	// ─── Builds one labeled question + answer block ───────────────────────────
+	private JPanel buildQuestionBlock(String label, CustomComboBox<String> questionBox, CustomTextArea answerField) {
+		JPanel block = new JPanel();
+		block.setLayout(new GridBagLayout());
+		block.setOpaque(false);
 
-		if (!isRegistration) return;
+		GridBagConstraints gbc = new GridBagConstraints();
+		gbc.gridx = 0;
+		gbc.fill = GridBagConstraints.HORIZONTAL;
+		gbc.weightx = 1.0;
 
-		String q1 = (String) securityQuestionComboBox1.getSelectedItem();
-		String q2 = (String) securityQuestionComboBox2.getSelectedItem();
-		String q3 = (String) securityQuestionComboBox3.getSelectedItem();
+		// Section label
+		CustomLabel sectionLabel = new CustomLabel(label, Brand.STANDARD_TEXT_SIZE, FontStyle.BOLD);
+		gbc.gridy = 0;
+		gbc.insets = new Insets(0, 0, 4, 0);
+		block.add(sectionLabel, gbc);
 
-		updateModel(securityQuestionComboBox1, q2, q3);
-		updateModel(securityQuestionComboBox2, q1, q3);
-		updateModel(securityQuestionComboBox3, q1, q2);
+		// Combo box — fills full width via GridBagLayout
+		gbc.gridy = 1;
+		gbc.insets = new Insets(0, 0, 5, 0);
+		block.add(questionBox, gbc);
+
+		// Answer field — fixed height, no scrollbar
+		answerField.setLineWrap(true);
+		answerField.setWrapStyleWord(true);
+		answerField.setMinimumSize(new Dimension(0, 70));
+		answerField.setPreferredSize(new Dimension(0, 70));
+		gbc.gridy = 2;
+		gbc.insets = new Insets(0, 0, 0, 0);
+		block.add(answerField, gbc);
+
+		return block;
 	}
 
-	private void updateModel(CustomComboBox<String> box,
-							 String exclude1,
-							 String exclude2) {
-
-		String current = (String) box.getSelectedItem();
-
-		box.removeAllItems();
-
-		for (String q : baseQuestions) {
-			if (q.equals(exclude1) || q.equals(exclude2)) continue;
-			box.addItem(q);
-		}
-
-		box.setSelectedItem(current);
-	}
-
-	// =========================
-	// SUBMIT LOGIC (UNCHANGED)
-	// =========================
+	// ─── Submit handler ──────────────────────────────────────────────────────
 	private void handleSubmit() {
+		String q1 = (String) questionBox1.getSelectedItem();
+		String q2 = (String) questionBox2.getSelectedItem();
+		String q3 = (String) questionBox3.getSelectedItem();
+		String a1 = answerField1.getText().trim();
+		String a2 = answerField2.getText().trim();
+		String a3 = answerField3.getText().trim();
 
-		if (submitted) return;
+		if (!validateInputs(q1, q2, q3, a1, a2, a3))
+			return;
 
-		if (isRegistration) {
+		if (!saveToDatabase(q1, a1, q2, a2, q3, a3))
+			return;
 
-			String q1 = (String) securityQuestionComboBox1.getSelectedItem();
-			String q2 = (String) securityQuestionComboBox2.getSelectedItem();
-			String q3 = (String) securityQuestionComboBox3.getSelectedItem();
+		submitted = true;
+		JOptionPane.showMessageDialog(this, "Security questions saved successfully!");
+		dispose();
+	}
 
-			String a1 = securityAnswerField1.getText().trim();
-			String a2 = securityAnswerField2.getText().trim();
-			String a3 = securityAnswerField3.getText().trim();
-
-			if (securityQuestionComboBox1.getSelectedIndex() == 0 ||
-				securityQuestionComboBox2.getSelectedIndex() == 0 ||
-				securityQuestionComboBox3.getSelectedIndex() == 0) {
-
-				JOptionPane.showMessageDialog(this,
-						"Please select all security questions.");
-				return;
-			}
-
-			if (a1.isEmpty() || a2.isEmpty() || a3.isEmpty()) {
-				JOptionPane.showMessageDialog(this,
-						"Please answer all security questions.");
-				return;
-			}
-
-			if (a1.length() < 8 || a2.length() < 8 || a3.length() < 8) {
-				JOptionPane.showMessageDialog(this,
-						"Each security answer must be at least 8 characters.");
-				return;
-			}
-
-			if (a1.length() > 100 || a2.length() > 100 || a3.length() > 100) {
-				JOptionPane.showMessageDialog(this,
-						"Each security answer must not exceed 100 characters.");
-				return;
-			}
-
-			if (q1.equals(q2) || q1.equals(q3) || q2.equals(q3)) {
-				JOptionPane.showMessageDialog(this,
-						"Security questions must be unique.");
-				return;
-			}
-
-			submitted = true;
-			submitButton.setEnabled(false);
-
-			dispose();
-
-			SwingUtilities.invokeLater(() -> {
-				Window window = SwingUtilities.getWindowAncestor(this);
-				if (window != null) window.dispose();
-
-				JOptionPane.showMessageDialog(null,
-						"Registration completed. Please login to continue.");
-
-				new Auth();
-			});
+	// ─── Input validation ────────────────────────────────────────────────────
+	private boolean validateInputs(String q1, String q2, String q3, String a1, String a2, String a3) {
+		if (questionBox1.getSelectedIndex() == 0 || questionBox2.getSelectedIndex() == 0
+				|| questionBox3.getSelectedIndex() == 0) {
+			showError("Please select all three security questions.");
+			return false;
 		}
 
-		else if (isForgotPassword) {
+		if (a1.isEmpty() || a2.isEmpty() || a3.isEmpty()) {
+			showError("Please answer all three security questions.");
+			return false;
+		}
 
-			String answer = securityAnswerField1.getText().trim();
+		if (a1.length() < 3 || a2.length() < 3 || a3.length() < 3) {
+			showError("Each answer must be at least 3 characters.");
+			return false;
+		}
 
-			if (securityQuestionComboBox1.getSelectedIndex() == 0) {
-				JOptionPane.showMessageDialog(this,
-						"Please select a security question.");
-				return;
+		if (q1.equals(q2) || q1.equals(q3) || q2.equals(q3)) {
+			showError("Please choose three different security questions.");
+			return false;
+		}
+
+		return true;
+	}
+
+	// ─── Database save (insert or update) ───────────────────────────────────
+	private boolean saveToDatabase(String q1, String a1, String q2, String a2, String q3, String a3) {
+		String checkSql = "SELECT 1 FROM SECURITY WHERE user_id = ? LIMIT 1";
+		String insertSql = "INSERT INTO SECURITY " + "(user_id, security_question_1, security_answer_1, "
+				+ " security_question_2, security_answer_2, " + " security_question_3, security_answer_3) "
+				+ "VALUES (?, ?, ?, ?, ?, ?, ?)";
+		String updateSql = "UPDATE SECURITY SET " + "security_question_1 = ?, security_answer_1 = ?, "
+				+ "security_question_2 = ?, security_answer_2 = ?, " + "security_question_3 = ?, security_answer_3 = ? "
+				+ "WHERE user_id = ?";
+
+		try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS)) {
+
+			boolean exists = recordExists(conn, checkSql);
+
+			if (exists) {
+				try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+					ps.setString(1, q1);
+					ps.setString(2, a1);
+					ps.setString(3, q2);
+					ps.setString(4, a2);
+					ps.setString(5, q3);
+					ps.setString(6, a3);
+					ps.setInt(7, userId);
+					ps.executeUpdate();
+				}
+			} else {
+				try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+					ps.setInt(1, userId);
+					ps.setString(2, q1);
+					ps.setString(3, a1);
+					ps.setString(4, q2);
+					ps.setString(5, a2);
+					ps.setString(6, q3);
+					ps.setString(7, a3);
+					ps.executeUpdate();
+				}
 			}
 
-			if (answer.isEmpty()) {
-				JOptionPane.showMessageDialog(this,
-						"Please enter your answer.");
-				return;
-			}
+			return true;
 
-			if (answer.length() < 8) {
-				JOptionPane.showMessageDialog(this,
-						"Security answer must be at least 8 characters.");
-				return;
-			}
-
-			if (answer.length() > 100) {
-				JOptionPane.showMessageDialog(this,
-						"Security answer must not exceed 100 characters.");
-				return;
-			}
-
-			submitted = true;
-			submitButton.setEnabled(false);
-
-			JOptionPane.showMessageDialog(this,
-					"Security verification successful. Please login again.");
-
-			dispose();
-
-			SwingUtilities.invokeLater(() -> {
-				Window window = SwingUtilities.getWindowAncestor(this);
-				if (window != null) window.dispose();
-
-				new Auth();
-			});
+		} catch (SQLException e) {
+			e.printStackTrace();
+			showError("Database error — could not save security questions.");
+			return false;
 		}
 	}
 
+	private boolean recordExists(Connection conn, String checkSql) throws SQLException {
+		try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
+			ps.setInt(1, userId);
+			try (ResultSet rs = ps.executeQuery()) {
+				return rs.next();
+			}
+		}
+	}
+
+	// ─── Helpers ─────────────────────────────────────────────────────────────
+	private static CustomTextArea createAnswerField() {
+		CustomTextArea field = new CustomTextArea();
+		field.setLineWrap(true);
+		field.setWrapStyleWord(true);
+		return field;
+	}
+
+	private void showError(String message) {
+		errorLabel.setHorizontalAlignment(SwingConstants.CENTER); // add this
+		errorLabel.setText(message);
+	}
+
+	// ─── Public accessor ─────────────────────────────────────────────────────
 	public boolean isSubmitted() {
 		return submitted;
 	}

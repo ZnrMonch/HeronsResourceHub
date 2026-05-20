@@ -1,13 +1,10 @@
 package utils;
-
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-
 
 public class HashUtil {
 
     private HashUtil() {}
-
 
     public static String sha256(String input) {
         if (input == null || input.isBlank()) return "";
@@ -24,8 +21,21 @@ public class HashUtil {
         }
     }
 
-    public static String mask(String accountNumber) {
-        if (accountNumber == null || accountNumber.isBlank()) return "—";
-        return "##########"; // fixed 10 # for all payment fields
+    // Shows first 2 chars then masks the rest with #
+    public static String mask(String value) {
+        if (value == null || value.isBlank()) return "—";
+        if (value.length() <= 2) return value;
+        String visible = value.substring(0, 2);
+        String masked  = "#".repeat(value.length() - 2);
+        return visible + masked;
+    }
+
+    // Shows first 1 char then masks the rest — for short values
+    public static String maskOne(String value) {
+        if (value == null || value.isBlank()) return "—";
+        if (value.length() <= 1) return value;
+        String visible = value.substring(0, 1);
+        String masked  = "#".repeat(value.length() - 1);
+        return visible + masked;
     }
 }
